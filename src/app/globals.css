@@ -56,27 +56,30 @@
 }
 
 :root {
-  /* Brand set (DESIGN.md). Non-brand tokens (card, popover, secondary, chart-*,
-     sidebar-*) keep the base-nova preset values. */
+  color-scheme: light; /* v1 is light-only — pin native controls / scrollbars */
+
+  /* Brand set (DESIGN.md). Non-brand background tokens (card, popover, secondary,
+     input, chart-*, sidebar-*) keep the base-nova preset values; the three
+     "*-foreground" text tokens are pinned to the single DESIGN foreground. */
   --background: #ffffff;
   --foreground: #0e0e10;
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: #0e0e10;
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  --popover-foreground: #0e0e10;
   --primary: #1f6feb;
   --primary-foreground: #ffffff;
   --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
+  --secondary-foreground: #0e0e10;
   --muted: #f5f5f4;
   --muted-foreground: #6b6b70;
-  --accent: #1f6feb;
-  --accent-foreground: #ffffff;
+  --accent: #f5f5f4; /* = muted: shadcn uses --accent as the hover/active surface; DESIGN: no blue hovers */
+  --accent-foreground: #0e0e10;
   --success: #1f8a54;
   --success-foreground: #ffffff;
   --destructive: #c4342b;
   --border: #e7e7e4;
-  --input: #e7e7e4;
+  --input: oklch(0.922 0 0); /* base-nova default — DESIGN: input inherits from shadcn */
   --ring: #1f6feb;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);

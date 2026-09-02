@@ -14,7 +14,7 @@
 # Timestamps: MM-DD-YYYY HH:MM
 
 generated: 09-02-2026 12:00
-last_updated: 09-03-2026 01:40
+last_updated: 09-03-2026 02:20
 project: Платформа турнірів Федерації волейболу Черкащини
 project_key: NOKEY
 tracking_system: file-system
@@ -23,7 +23,7 @@ story_location: "_bmad-output/implementation-artifacts"
 development_status:
   epic-1: in-progress
   1-1-starter-and-deploy: done
-  1-2-design-tokens: review
+  1-2-design-tokens: done
   1-3-domain-scaffold-boundaries: backlog
   1-4-auth-schema-migrations-seed: backlog
   1-5-google-sign-in: backlog

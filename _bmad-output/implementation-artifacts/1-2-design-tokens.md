@@ -8,7 +8,7 @@ context:
 
 # Story 1.2: Design token layer
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -76,8 +76,30 @@ Translated from `epics.md` → Epic 1 → Story 1.2. Ukrainian source is authori
   - [x] Built-CSS token checks: `--primary:#1f6feb` ✓, `--primary-foreground:#ffffff` ✓, `--success:#1f8a54` ✓, `--radius-sm:7px` ✓ `--radius-md:10px` ✓ `--radius-lg:14px` ✓, no `.dark{--…}` token block ✓, system font stack ✓, no Geist ✓. `default` Button variant carries `rounded-md`.
   - [x] `pnpm dev` / visual eyeball: **not run** in this environment (headless). Compiled CSS verified instead; a browser check of the primary Button + light-only render is the open item for code review.
   - [x] Build + lint output captured below.
-- [ ] **Task 8 — Commit**
-  - [ ] Commit directly to `main` (no PR unless asked). Not pushed unless asked. — pending user go-ahead.
+- [x] **Task 8 — Commit**
+  - [x] `94ad3c6` — implementation. Code-review patches committed on top (2026-09-03). Not pushed.
+
+### Review Findings
+
+_Adversarial code review 2026-09-03 (`bmad-code-review`): 4 layers — Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor. Scope: `e1b4362..94ad3c6` (`src/app/globals.css`, `src/app/layout.tsx`, `src/components/ui/button.tsx`). Outcome: 1 decision-needed, 4 patch, 4 defer, ~10 dismissed. No high-severity findings._
+
+#### Decision needed — resolved 2026-09-03
+
+- [x] [Review][Decision] `--accent` = brand blue would make shadcn's hover/selected surfaces (DropdownMenu, Select, Command, Menu, Calendar) render as saturated blue fills — forbidden by DESIGN.md's "Don'ts" (*"Синій … hover"*). **Resolution:** option (b) — `--accent` → `#F5F5F4` (= `--muted`), `--accent-foreground` → `#0E0E10`. The frontmatter `accent: #1F6FEB` line reads as "there is no separate accent colour", not "make every hover blue"; DESIGN's own component specs put active/hover surfaces on `{colors.muted}` (`discipline-nav-item-active`, `tab-chip-active`), so neutral `--accent` matches DESIGN better than blue.
+
+#### Patch — applied 2026-09-03
+
+- [x] [Review][Patch] All buttons now `md` (10 px): `Button` base cva string `rounded-lg` → `rounded-md`; the `rounded-md` added to the `default` variant reverted (redundant). Matches DESIGN.md Shapes ("кнопки = md"). [src/components/ui/button.tsx:7]
+- [x] [Review][Patch] `color-scheme: light` added to `:root` — native controls / scrollbars / pickers stay light under OS dark mode. [src/app/globals.css]
+- [x] [Review][Patch] `--input` reverted to the base-nova value `oklch(0.922 0 0)` (= shadcn default per DESIGN.md); removed the `#e7e7e4` override. [src/app/globals.css]
+- [x] [Review][Patch] `--card-foreground` / `--popover-foreground` / `--secondary-foreground` set to `#0e0e10` — single DESIGN foreground for all text, carded or not. [src/app/globals.css]
+
+#### Deferred
+
+- [x] [Review][Defer] DESIGN.md typography scale (`display` 32/700/−0.6 px, `display-sm` 24/700/−0.3 px, `body` 14, `label` 13/500, `caption` 11/500/+0.2 px) is not tokenized — only font families landed. AC's `When` clause names only "системний шрифт-стек", so not an AC miss, but a named DESIGN token group with no home — deferred to Story 1.8 (first `display` headings in the public shell)
+- [x] [Review][Defer] Remapping shadcn `sm/md/lg` cannot express DESIGN's per-component radius intent — DESIGN wants inputs/tab-chips at 7 px but shadcn `Input` uses `rounded-md` (now 10 px); whoever adds `Input` / tab-chips must override per component — deferred to Story 2.2
+- [x] [Review][Defer] Primary `Button` hover (`hover:bg-primary/80`, inherited from base-nova) lightens the blue on white instead of darkening it and nudges label contrast toward ~3:1; invisible with the old near-black primary — deferred to Story 2.2 (define a darker-blue hover step)
+- [x] [Review][Defer] `#1F6FEB` on white ≈ 4.6:1 — fine for the button fill, borderline for small blue text (future `link` variant, 11 px `caption` "position 1–4" numerals); no darker "blue text" token — deferred to Story 3.8 (standings table)
 
 ## Dev Notes
 
@@ -201,3 +223,4 @@ claude-sonnet-5 (Claude Code) — drafted and implemented in one session (no `bm
 | --- | --- |
 | 2026-09-03 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-03 | Implemented: DESIGN.md token layer in `globals.css`, dropped Geist for system stack, `Button` primary `rounded-md`, `.dark` token block removed. `pnpm lint` + `pnpm build` clean on Node 24. Status: review. |
+| 2026-09-03 | Code review (`bmad-code-review`, 4 layers). 1 decision resolved (neutral `--accent`), 4 patches applied (all buttons `rounded-md`, `color-scheme: light`, `--input` reverted to shadcn default, `*-foreground` pinned to `#0E0E10`), 4 items deferred (type scale → 1.8; per-component radii, primary hover → 2.2; small blue-text contrast → 3.8). `pnpm lint` + `pnpm build` clean; token values re-verified in built CSS. Status: done. |
