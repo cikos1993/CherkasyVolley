@@ -67,4 +67,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Commands: `pnpm dev` (Turbopack), `pnpm build`, `pnpm lint`.
 - Prisma driver adapter (`@prisma/adapter-*`) is required to construct `PrismaClient` in Prisma 7 — wired in Story 1.4 with the first migration + seed.
 
+## Hosting
+
+- **Production:** https://cherkasy-volley.vercel.app (Vercel, project `cherkasy-volley`, region `fra1`). Auto-deploys on push to `main`.
+- Neon Postgres: add via Vercel → Storage (sets `DATABASE_URL` in project env). Not yet provisioned as of Story 1.1.
+
 <!-- /bmad:manual -->
