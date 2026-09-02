@@ -69,7 +69,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Hosting
 
-- **Production:** https://cherkasy-volley.vercel.app (Vercel, project `cherkasy-volley`, region `fra1`). Auto-deploys on push to `main`.
+- **Production:** https://cherkasy-volley.vercel.app (Vercel, team `volley3`, project `cherkasy-volley`, region `fra1`). Auto-deploys on push to `main`.
+- CLI: `npx vercel link --yes --project cherkasy-volley` links to `volley3/cherkasy-volley` (writes `.vercel/`, `.env.local` — both gitignored).
 - Neon Postgres: add via Vercel → Storage (sets `DATABASE_URL` in project env). Not yet provisioned as of Story 1.1.
 
 <!-- /bmad:manual -->
