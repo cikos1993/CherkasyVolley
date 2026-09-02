@@ -41,9 +41,10 @@ shadcn/ui + Tailwind, хостинг Vercel. Планування живе в `_
 
 ## Known pitfalls
 
-- **Наперед відкриті оболонки (bash- і PowerShell-інструмент) мають застарілий PATH** — `node`, `pnpm`, `uv`, `python`, `git` не видно, хоча всі встановлені. `command not found` тут = застарілий PATH, не відсутність. Оновити на початку сесії: PowerShell — `$env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')` (або додати `C:\Program Files\nodejs;C:\Users\night\AppData\Roaming\npm`); bash — `git` через повний шлях `C:\Program Files\Git\cmd\git.exe`, для node/pnpm/uv краще PowerShell із рядком оновлення вище.
-- Python 3.11 + uv 0.12 **встановлені** — скрипти BMAD (`resolve_customization.py`, `render_skill.py`) та `bmad-build` працюють через `uv run` після оновлення PATH.
-- `gh` (GitHub CLI) **не встановлено** — `winget install GitHub.cli` за потреби. Пуш/операції з git — через `git` напряму.
+- **Увесь тулчейн встановлено** (Node 24, pnpm 11, uv 0.12, Python 3.11, git). Раніше «немає Python/uv» — застаріло.
+- **PowerShell-інструмент**: PATH налаштовано через `.claude/settings.local.json` (`env.PATH`, gitignored, машинно-специфічні шляхи для користувача `night`) — `node`/`pnpm`/`npm`/`uv`/`python`/`git` резолвляться без дій. BMAD-скрипти (`resolve_customization.py`, `render_skill.py`) і `bmad-build` — через `uv run` у PowerShell. **Інший розробник/машина**: відтворити `.claude/settings.local.json` зі своїми шляхами (`(Get-Command node).Source` тощо).
+- **Bash-інструмент**: не підхоплює той `env.PATH` і чистить Windows-шляхи при POSIX-конверсії — `node`/`pnpm`/`uv` там недоступні; `git` є (`/mingw64/bin/git`, або повний шлях `C:\Program Files\Git\cmd\git.exe`). Для node/pnpm/uv/BMAD — використовувати PowerShell-інструмент.
+- `gh` (GitHub CLI) **не встановлено** — `winget install GitHub.cli` за потреби. Операції з git — через `git` напряму.
 
 <!-- /bmad:context -->
 
