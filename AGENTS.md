@@ -61,7 +61,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Stack status (Story 1.1)
 
-- Scaffolded: Next.js 16 (App Router, `src/`, Turbopack default), React 19.2, TypeScript 5, Tailwind CSS **v4** (CSS-first — theme in `src/app/globals.css` via `@theme`, no `tailwind.config.js`), ESLint 9 flat config, shadcn/ui (Tailwind v4 mode), Prisma **7** (`prisma-client` generator, output `src/generated/prisma`, `prisma.config.ts` holds the connection URL — not `schema.prisma`).
+- Scaffolded: Next.js 16 (App Router, `src/`, Turbopack default), React 19.2, TypeScript 5, Tailwind CSS **v4** (CSS-first — theme in `src/app/globals.css` via `@theme`, no `tailwind.config.js`), ESLint 9 flat config, shadcn/ui (Tailwind v4 mode), Prisma **7** (`prisma-client` generator, output `src/generated/prisma`, `prisma7.config.ts` holds the connection URL — not `schema.prisma`).
 - Package manager: **pnpm** (installed globally via `npm i -g pnpm`; `corepack enable` fails on this machine — Node lives in `C:\Program Files\nodejs`, not user-writable). `packageManager` field pins the version.
 - Node: pinned to 24.x via `package.json` `engines` + `.nvmrc`.
 - Commands: `pnpm dev` (Turbopack), `pnpm build`, `pnpm lint`.

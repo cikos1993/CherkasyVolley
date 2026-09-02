@@ -4,7 +4,7 @@ baseline_commit: 28643d445a937c0077b06aa496923d84aff38540
 
 # Story 1.1: Starter project and deployment
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -87,6 +87,31 @@ Translated from `epics.md` → Epic 1 → Story 1.1. Ukrainian source is authori
     - `cea2d94` — `chore: trigger initial Vercel deployment` (empty)
     - `a9d297c` — `docs: record production URL in AGENTS.md`
   - [x] `_bmad-output/` left untracked, as it was before this story (user manages the planning corpus separately).
+
+### Review Findings
+
+_Adversarial code review 2026-09-03 (`bmad-code-review`): 4 layers — Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor. Scope: code diff `28643d4..HEAD` (`src/`, `prisma/`, config, `package.json`). Outcome: 2 decision-needed, 6 patch, 3 defer, 8 dismissed as noise._
+
+#### Decision needed — resolved 2026-09-03
+
+- [x] [Review][Decision] Scaffold leftovers assigned to Story 1.2 / 1.8 — `layout.tsx` ships `lang="en"` + `title: "Create Next App"` + Geist web fonts (`subsets: ["latin"]`, no Cyrillic); `globals.css` ships `@custom-variant dark` + full `.dark {}` block + neutral OKLCH palette (not brand `#1F6FEB`); `page.tsx` is the untouched English create-next-app landing page (`utm_*` links, `dark:` utilities); stock `favicon.ico`. **Resolution:** pulled `lang="uk"` + Ukrainian `title`/`description` forward now (see Patch list); everything else (fonts, dark-mode CSS, brand palette/`Button` primary, landing page, favicon) confirmed tracked in Story 1.2 / 1.8 and left as-is.
+- [x] [Review][Decision] AC2 / AC3 verification thinner than the Dev Agent Record implies. **Resolution:** AC2 re-verified 2026-09-03 with a GET of `https://cherkasy-volley.vercel.app/` — response body is the real rendered app (create-next-app starter markup), not a Deployment-Protection / password challenge page; the site is genuinely public. AC3: env-var half accepted on the green Vercel deploy + Vercel Storage → Neon integration behaviour; the first real DB round-trip (and a `SELECT 1` smoke check) lands in Story 1.4 with the first migration — no schema exists to query yet.
+
+#### Patch — applied 2026-09-03
+
+- [x] [Review][Patch] `--font-sans: var(--font-sans)` was self-referential → set to `var(--font-geist-sans)` (matches `--font-mono`); `--font-heading` likewise [src/app/globals.css:10]
+- [x] [Review][Patch] `layout.tsx` `lang="en"` → `lang="uk"`; placeholder `metadata.title`/`description` → Ukrainian (from Decision 1) [src/app/layout.tsx]
+- [x] [Review][Patch] `@types/node` `^20` → `^24` (matches pinned Node) [package.json]
+- [x] [Review][Patch] added `src/generated/**` to ESLint `globalIgnores` — `pnpm lint` will not lint the generated Prisma client after Story 1.4 [eslint.config.mjs]
+- [x] [Review][Patch] AGENTS.md `## Stack status` `prisma.config.ts` → `prisma7.config.ts` (the committed filename) [AGENTS.md]
+- [x] [Review][Patch] `.env.example` — reordered so the Story 1.4 block precedes the Story 1.5 block [.env.example]
+- [x] [Review][Patch] `src/app/globals.css` — added trailing newline [src/app/globals.css]
+
+#### Deferred
+
+- [x] [Review][Defer] No CI workflow enforces `pnpm lint` / typecheck / `pnpm build` on push — Vercel runs `next build` only (Next 16 dropped lint-on-build), so AC1's "lint clean on Node 24" has no automated guard going forward — deferred, outside scaffold scope
+- [x] [Review][Defer] Neon `prisma migrate` typically needs a direct (non-pooled) connection — no `DIRECT_URL` / `datasource.directUrl` in `.env.example`, `schema.prisma`, or `prisma7.config.ts`; the comment points only at the pooled string — deferred to Story 1.4 (first migration)
+- [x] [Review][Defer] `next.config.ts` is empty — no `serverExternalPackages` for the Prisma 7 client, no security headers — deferred to Story 1.4 / a hardening pass
 
 ## Dev Notes
 
@@ -240,3 +265,4 @@ claude-sonnet-5 (Claude Code, `/bmad-dev-story`)
 | 2026-09-02 | Local scaffold committed on `main` as `5efda03` and pushed. |
 | 2026-09-02 | Vercel project `cherkasy-volley` created + Git-connected (by user); first deploy triggered via empty commit `cea2d94`. Live at https://cherkasy-volley.vercel.app (HTTP 200). |
 | 2026-09-02 | Neon Postgres attached via Vercel Storage (by user); redeploy green. Production URL recorded in `AGENTS.md` (`a9d297c`). All ACs met. Status: review. |
+| 2026-09-03 | Adversarial code review (`bmad-code-review`, 4 layers). 2 decisions resolved, 7 patches applied (`lang="uk"` + UA metadata, `--font-sans` wiring, `@types/node` ^24, ESLint ignore for `src/generated`, AGENTS.md `prisma7.config.ts`, `.env.example` order, globals.css newline), 3 items deferred (CI gate, Neon `DIRECT_URL` → 1.4, `next.config.ts` hardening → 1.4). AC2 re-verified via GET. Status: done. |
