@@ -25,14 +25,14 @@ shadcn/ui + Tailwind, хостинг Vercel. Планування живе в `_
 ## Running and verifying
 
 - Пакетний менеджер — **pnpm** (`pnpm install`, `pnpm dev`, `pnpm build`, `pnpm lint`); Node 24.
-- `pnpm lint` (ESLint 9 flat config) включає правила меж імпорту: `src/domain/` без `next`/`@prisma/client`/`react`/інших шарів; `@prisma/client` лише в `src/data/`; `src/data/` не залежить від `actions`/`auth`/view. Порушення — помилка ESLint, окремо від перевірки типів.
+- `pnpm lint` (ESLint 9 flat config) включає правила меж імпорту: `src/domain/` без `next`/Prisma-клієнта/`react`/інших шарів; Prisma-клієнт (`@/generated/prisma`, `@prisma/client`) лише в `src/data/`; `src/data/` не залежить від `actions`/`auth`/view/`next`/`react`; `src/auth/` імпортує лише `src/data`. Ловляться і alias-, і відносні форми. Порушення — помилка ESLint, окремо від перевірки типів.
 - TODO: юніт-тести доменних функцій `src/domain/*` — обовʼязкові; запуск через Vitest (додається з першим модулем `src/domain`).
 - TODO: міграції — `pnpm prisma migrate dev`; seed — `pnpm prisma db seed`.
 
 ## Conventions that differ from defaults
 
-- `src/domain/` — чисті функції: не імпортує `next`, `@prisma/client`, `src/data`, `src/actions`.
-- `@prisma/client` імпортується лише в `src/data/`; усі читання/записи — через іменовані функції там.
+- `src/domain/` — чисті функції: не імпортує `next`, Prisma-клієнт, `react`, `src/data`, `src/actions`, `src/auth`, `src/app`, `src/components`, `src/lib`.
+- Prisma-клієнт (`@/generated/prisma`; `@prisma/client` — реекспорт) імпортується лише в `src/data/`; усі читання/записи — через іменовані функції там. `src/auth/` бере спільний інстанс клієнта з `src/data/`.
 - Кожна мутація даних — Server Action у `src/actions/`, перший рядок `await requireAdmin()`.
 - Турнірна таблиця й місця плейофа обчислюються при читанні, ніколи не зберігаються в БД.
 - `Tournament.state` змінюється лише через Server Action `transitionTournament`, не присвоєнням.
@@ -71,9 +71,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Domain boundaries (Story 1.3)
 
-- Layer dirs: `src/domain` (pure core), `src/data` (sole Prisma owner), `src/actions` (Server Actions), `src/auth`. Each carries a `README.md`; `src/README.md` has the layer map + dependency direction.
-- `eslint.config.mjs` enforces the load-bearing subset: `src/domain/**` imports no `next`/`@prisma/client`/`react`/other layer; `@prisma/client` only under `src/data/**`; `src/data/**` never imports `actions`/`auth`/view. `src/data` → `src/domain` is allowed (read-time computation like standings).
-- Boundary checks use `eslint-plugin-import` (`import/no-restricted-paths`) already bundled by `eslint-config-next` — no added dependency.
+- Layer dirs: `src/domain` (pure core), `src/data` (sole Prisma owner + shared client instance), `src/actions` (Server Actions), `src/auth`. Each carries a `README.md`; `src/README.md` has the layer map + dependency direction. `ARCHITECTURE-SPINE.md` (AD-2/AD-3/AD-11) is the authoritative version.
+- `eslint.config.mjs` enforces (lint error, alias + relative forms) via `no-restricted-imports` (resolver-independent) + `import/no-restricted-paths` (`eslint-plugin-import`, bundled by `eslint-config-next` — no added dependency):
+  - `src/domain/**` — no `next`, no Prisma client, no `react`, no other `src/` layer (incl. `src/lib`).
+  - Prisma client (`@/generated/prisma`, `@prisma/client`) — only under `src/data/**`.
+  - `src/data/**` — no `actions`/`auth`/`app`/`components`, no `next`/`react`.
+  - `src/auth/**` — may import only `src/data` (Better Auth gets the `PrismaClient` instance from there).
+- **Open item:** `src/data → src/domain` is *not* blocked. AD-3 as written forbids it, but `epics.md` Story 3.2 puts `getStandings()` in `src/data` "через `src/domain`". Reconcile in Epic 3 (spine edit, or move read-time computation to the read path per AD-5).
 
 ## Hosting
 

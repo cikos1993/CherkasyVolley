@@ -6,12 +6,14 @@ schedule generation, playoff seeding and bracket advancement.
 
 **May import:** other `src/domain` modules, the standard library, pure npm utilities.
 
-**Must not import:** `next` (or `next/*`), `@prisma/client`, `react` / `react-dom`,
-`src/data`, `src/actions`, `src/app`, `src/components`, `src/auth`.
+**Must not import:** `next` (or `next/*`), the Prisma client (`@prisma/client`,
+`@/generated/prisma`, or relative forms), `react` / `react-dom`, `src/data`,
+`src/actions`, `src/app`, `src/components`, `src/auth`, `src/lib`.
 
 No IO, no framework, no side effects. Same input always yields the same output.
 No component or Server Action computes points, sets, or placements on its own —
 it calls a function from here.
 
 Enforced by the `src/domain/**` block in `eslint.config.mjs` (a forbidden import
-is a lint error). Every function here carries unit tests (deterministic, no mocks).
+is a lint error — both alias and relative specifier forms). Every function here
+carries unit tests (deterministic, no mocks).

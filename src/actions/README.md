@@ -14,9 +14,9 @@ revalidatePath(...)                    // refresh affected pages
 
 **May import:** `src/domain`, `src/data`, `src/auth`.
 
-**Must not import:** `@prisma/client` directly — go through `src/data`.
+**Must not import:** the Prisma client directly — go through `src/data`. (Lint-enforced.)
 
-Rules that live here:
+Conventions below are manual-review, not lint-checked:
 
 - `requireAdmin()` is the first statement of every action. Hiding a button is not
   access control; the server rejects the write.

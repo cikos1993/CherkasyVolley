@@ -9,7 +9,7 @@ context:
 
 # Story 1.3: Domain scaffold and dependency boundaries
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -67,11 +67,26 @@ Translated from `epics.md` → Epic 1 → Story 1.3. The Ukrainian source is aut
 - [x] **Task 6 — Commit**
   - [x] committed on `main` — `feat(arch): domain scaffold + import-boundary lint rule (Story 1.3)`. Not pushed (pending code review, per the Story 1.2 pattern).
 
+### Review Findings
+
+_Adversarial code review 2026-09-03 (`bmad-code-review`, 4 layers — Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor). Scope: `d7b3961..HEAD` (`eslint.config.mjs`, `AGENTS.md`, `src/**/README.md`). Outcome: 1 decision-needed (resolved), 7 patch (applied), 2 defer, ~6 dismissed. No high-severity findings._
+
+- [x] [Review][Decision] `src/README.md` overrode AD-3 (`data → domain` forbidden) on its own authority, labelling the spine "corrected", while AD-3 / AD-5 / SPEC.md still forbid that edge and `epics.md` Story 3.2 places `getStandings()` in `src/data` "через `src/domain`". **Resolved: option (b).** Lint stays neutral (does not block `data → domain`); `src/README.md`, `src/data/README.md`, `src/auth/README.md` and the `AGENTS.md` manual note now present it as an explicit **unreconciled** tension (AD-3 vs AD-4/AD-5/Story 3.2) flagged for Epic 3 reconciliation — not a "correction". Rationale: blocking it now only forces a course-correction against Story 3.2's stated design; where the computation lives (data vs. read path) is an Epic 3 decision.
+- [x] [Review][Patch] Relative-path domain bans + the whole `src/data` upward-import ban depended solely on `import/no-restricted-paths` (silent no-op until target layers have `.ts` files; silently breaks on resolver regression — reproduced by two layers). Added resolver-independent `no-restricted-imports` `patterns` (alias + `**/…` relative forms) to the `src/domain` and `src/data` blocks. Probe-verified: `../data/x`, `../../generated/prisma`, `../auth/x` now error with no target file present; `src/domain` sibling imports (`./x`) stay clean. [eslint.config.mjs]
+- [x] [Review][Patch] Prisma 7's custom generator makes `@/generated/prisma` (+ relative) the real specifier. Added `@/generated/prisma`, `@/generated/prisma/**`, `**/generated/prisma`, `**/generated/prisma/**` to a shared `prismaClientPatterns` used by every block; reworded rule messages, `AGENTS.md`, and the READMEs to name the generated client as primary and `@prisma/client` as the re-export. [eslint.config.mjs, AGENTS.md, src/*/README.md]
+- [x] [Review][Patch] `src/auth` needs the `PrismaClient` instance for Better Auth's adapter but the config bans the client there. Clarified in `src/data/README.md` + `src/auth/README.md`: the single client instance is constructed in `src/data` and imported from there by `src/auth` (`auth → data` allowed; `auth → @prisma/client` not). [src/data/README.md, src/auth/README.md]
+- [x] [Review][Patch] Added a `src/auth/**` enforcement block (`no-restricted-imports` patterns + `import/no-restricted-paths` zones) forbidding `auth → domain/actions/app/components` and direct Prisma-client import — was documented, not enforced. Probe-verified. [eslint.config.mjs]
+- [x] [Review][Patch] Added `next` / `react` / `react-dom` ban to the `src/data` block (data depends only on Prisma + schema types; `next/cache` previously undetected). [eslint.config.mjs]
+- [x] [Review][Patch] Broadened all block file globs to `**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}` (matches `eslint-config-next`); added bare `@/app` / `@/components` / `@/lib`; switched deep-subpath specifiers to `/**`. Probe-verified `@prisma/client/runtime/library` now errors in `src/domain`. [eslint.config.mjs]
+- [x] [Review][Patch] Doc consistency: `AGENTS.md` "Conventions" line updated (full domain ban list); READMEs now separate "ESLint enforces" from "manual-review invariants"; `src/README.md` layer table annotated (why `lib`/`auth` appear); File List below updated with `sprint-status.yaml`. Resolved-TODO lines remain in the `<!-- bmad:context -->` block — the durable statement is the `<!-- bmad:manual -->` "Domain boundaries" section; a `bmad-project-context` refresh regenerates the managed lines from repo reality. [AGENTS.md, src/README.md, src/*/README.md, story file]
+- [x] [Review][Defer] No committed regression test / CI gate proving the boundary config fires and stays firing — the probe method is one-time and not reproducible against `main`. Needs the test runner (first `src/domain` module) or a CI job. — deferred, tracked in `deferred-work.md`.
+- [x] [Review][Defer] `import/no-restricted-paths` zone paths (`from: "./src"`) resolve against `process.cwd()` — fine for `pnpm lint` at repo root, possibly wrong under some editor integrations. — deferred, revisit if it bites.
+
 ## Dev Notes
 
 ### What this story is / is NOT
 
-**Is:** four empty directories, five README files, and two (optionally three) scoped blocks appended to `eslint.config.mjs`. Zero runtime code, zero new dependencies.
+**Is:** four empty directories, five README files, and four scoped blocks appended to `eslint.config.mjs` (`src/domain`, Prisma-confinement, `src/data`, `src/auth` — the last three expanded during code review). Zero runtime code, zero new dependencies.
 
 **Is NOT** (do not pull forward):
 - `User` model, first migration, `PrismaClient` construction, driver adapter, seed → **Story 1.4**.
@@ -295,13 +310,32 @@ Line 1 (`@prisma/client`) and line 3 (`@/domain/__probe_pure__`) produced **no**
 
 **Post-cleanup gate:** `pnpm lint` → clean (`$ eslint`, exit 0). `pnpm build` → clean (Next 16.3.4 Turbopack, TypeScript pass, 2 static routes `/`, `/_not-found`), Node v24.
 
+**Code-review remediation probe (2026-09-03, files since deleted).** After applying the review patches, re-probed all layers with stub-free bad imports:
+
+```
+src/domain/_p.ts   11 no-restricted-imports errors: next/headers, @prisma/client,
+                   @prisma/client/runtime/library, @/generated/prisma,
+                   ../../generated/prisma, react, @/data/x, ../data/x, @/actions/x,
+                   ../auth/x, @/lib/utils   (+ zone on @/lib/utils)
+src/domain/_ok.ts  clean — sibling import "./_h" allowed (except: ["./domain"])
+src/data/_p.ts     next/cache ERR, @/actions/x ERR, ../auth/x ERR;
+                   @prisma/client / @/generated/prisma / @/domain/standings clean
+src/auth/_p.ts     @prisma/client ERR, @/generated/prisma ERR, @/domain/x ERR,
+                   ../actions/x ERR; @/data/client clean, next/headers clean
+src/actions/_p.ts  @prisma/client ERR; @/data/x, @/domain/x, next/cache clean
+src/lib/_p.ts      @prisma/client ERR
+```
+
+Relative and deep-subpath forms are now caught without a resolvable target file. `pnpm lint` + `pnpm build` clean afterward.
+
 ### Completion Notes List
 
 - **AC 1 met.** Importing `next` / `next/*`, `@prisma/client`, `react` / `react-dom`, or any other `src/` layer (alias or relative) into `src/domain/**` is an ESLint **error** — verified by probe.
 - **AC 2 met.** Importing `@prisma/client` (or `@/generated/prisma`) anywhere under `src/**` except `src/data/**` (and the domain block, which bans it harder) is an ESLint **error** — verified by probe; the ban does not fire inside `src/data`.
 - **AC 3 met.** `src/README.md` carries the layer table + `view → shell → {domain, data}`, `auth → data` direction + forbidden edges + enforcement note; each of `src/{domain,data,actions,auth}/README.md` states purpose / may-import / must-not-import.
 - **No new dependencies.** `import/no-restricted-paths` comes from `eslint-plugin-import`, already a transitive dep of `eslint-config-next@16.3.4` and registered as the `import` plugin with a TypeScript resolver. NFR-4 respected.
-- **Extra enforcement beyond the two ACs:** the `src/data` zone also blocks `data → {actions, auth, app, components}` (AD-3), and the domain block bans `react`/`react-dom` (AD-2 intent). Both low-risk, no violating code exists.
+- **Extra enforcement beyond the two ACs (some added in code-review remediation):** `src/data` blocks `data → {actions, auth, app, components, next, react}` (AD-3); `src/auth` blocks `auth → {domain, actions, app, components}` and direct Prisma-client import; domain bans `react`/`react-dom` and `src/lib`. All alias + relative forms. No violating code exists.
+- **`data → domain` is deliberately NOT blocked** — unreconciled AD-3 vs AD-4/Story 3.2 tension, documented as open for Epic 3 (see Review Findings decision).
 - **Not done here (correct per scope):** no Vitest, no Prisma models/migration, no auth code, no Server Actions, no routes, no CI workflow. The four new directories contain only `README.md`.
 - `.env.local` (Vercel-linked, git-ignored) is present in the tree; `next build` reads it. Not a change from this story.
 
@@ -317,6 +351,8 @@ Line 1 (`@prisma/client`) and line 3 (`@/domain/__probe_pure__`) produced **no**
 **Modified:**
 - `eslint.config.mjs`
 - `AGENTS.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (status transitions)
+- `_bmad-output/implementation-artifacts/deferred-work.md` (2 code-review defer items)
 
 ## Change Log
 
@@ -324,3 +360,4 @@ Line 1 (`@prisma/client`) and line 3 (`@/domain/__probe_pure__`) produced **no**
 | --- | --- |
 | 2026-09-03 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-03 | Implemented: 4 layer dirs + 5 READMEs; `eslint.config.mjs` import-boundary blocks (domain purity, Prisma confinement, data-layer zone). Probe-verified all rules fire; `data → domain` intentionally left allowed (AD-4 / Story 3.2). `pnpm lint` + `pnpm build` clean on Node 24. AGENTS.md TODO resolved + manual note. Committed on `main` (not pushed). Status: review. |
+| 2026-09-03 | Code review (`bmad-code-review`, 4 layers). 1 decision resolved (`data → domain` stays unblocked but reframed as an unreconciled AD-3/AD-4 tension, not a "correction"), 7 patches applied: resolver-independent `no-restricted-imports` patterns for relative + generated-client forms; new `src/auth/**` block; `next`/`react` ban in `src/data`; broader file globs + deep-subpath `/**`; `src/auth` gets `PrismaClient` from `src/data` (documented); doc consistency. 2 items deferred (boundary regression test / CI gate → `deferred-work.md`; cwd-relative zone paths). Re-probed all layers; `pnpm lint` + `pnpm build` clean. Status: done. |
