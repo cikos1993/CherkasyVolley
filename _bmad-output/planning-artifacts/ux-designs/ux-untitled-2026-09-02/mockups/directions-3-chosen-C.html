@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Напрямки дизайну — Платформа турнірів ФВЧ</title>
+<style>
+  /* ============ shared page shell ============ */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #e9e9ec; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: #111; padding: 32px 16px 80px; }
+  .page-h { max-width: 1100px; margin: 0 auto 28px; }
+  .page-h h1 { font-size: 22px; font-weight: 800; }
+  .page-h p { color: #555; font-size: 14px; margin-top: 6px; }
+  .dir { max-width: 1100px; margin: 0 auto 44px; background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,.10); }
+  .dir > .meta { padding: 16px 20px; border-bottom: 1px solid #eee; }
+  .dir > .meta h2 { font-size: 16px; }
+  .dir > .meta span { display:inline-block; margin-top: 4px; font-size: 12.5px; color:#666; }
+  .frame { padding: 22px; background: #f4f4f6; }
+  .win { border-radius: 10px; overflow: hidden; box-shadow: 0 4px 18px rgba(0,0,0,.14); }
+  .bar { height: 30px; background: #ddd; display:flex; align-items:center; gap:6px; padding: 0 12px; }
+  .bar i { width: 10px; height: 10px; border-radius: 50%; background: #bbb; display:inline-block; }
+  .cols { display:grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  @media (max-width: 780px){ .cols { grid-template-columns: 1fr; } }
+
+  /* ============ Direction A — Спортивна енергія ============ */
+  /* palette: court #0B2A4A / #103C6B, energy #FF5A1F, ink #0B1620, line #1c4f86 */
+  .A { background:#0B2A4A; color:#eaf1f8; font-family:-apple-system,"Segoe UI Semibold","Segoe UI",Roboto,sans-serif; }
+  .A .nav { display:flex; align-items:center; gap:20px; padding:16px 22px; background:#08213c; border-bottom:3px solid #FF5A1F; }
+  .A .logo { font-weight:800; letter-spacing:.5px; font-size:15px; text-transform:uppercase; }
+  .A .logo b { color:#FF5A1F; }
+  .A .nav a { color:#9fc0e4; text-decoration:none; font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
+  .A .nav a.on { color:#fff; border-bottom:2px solid #FF5A1F; padding-bottom:14px; margin-bottom:-14px; }
+  .A .hero { padding:22px; }
+  .A .kicker { color:#FF5A1F; font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:1.5px; }
+  .A h1.t { font-size:30px; font-weight:800; line-height:1.05; margin:6px 0 2px; text-transform:uppercase; }
+  .A .sub { color:#9fc0e4; font-size:13px; }
+  .A .tabs { display:flex; gap:6px; margin:18px 0 10px; }
+  .A .tabs span { font-size:12px; font-weight:700; text-transform:uppercase; padding:7px 12px; border-radius:6px; background:#103C6B; color:#9fc0e4; }
+  .A .tabs span.on { background:#FF5A1F; color:#08213c; }
+  .A table { width:100%; border-collapse:collapse; font-size:13px; }
+  .A th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.6px; color:#7ea6d4; padding:8px 8px; border-bottom:2px solid #1c4f86; }
+  .A td { padding:9px 8px; border-bottom:1px solid #143a63; }
+  .A td.n { text-align:center; font-variant-numeric:tabular-nums; }
+  .A tr.top td { background:#0d335c; }
+  .A .rank { display:inline-flex; width:20px; height:20px; border-radius:5px; background:#FF5A1F; color:#08213c; font-weight:800; align-items:center; justify-content:center; font-size:11px; margin-right:8px; }
+  .A tr.top .rank { background:#FF5A1F; }
+  .A tr:not(.top) .rank { background:#103C6B; color:#9fc0e4; }
+  .A .team { font-weight:700; }
+  .A .pts { color:#FF5A1F; font-weight:800; }
+  .A .brk { padding:18px 22px 24px; }
+  .A .brk h3 { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#7ea6d4; margin-bottom:10px; }
+  .A .pair { background:#103C6B; border-left:3px solid #FF5A1F; border-radius:4px; padding:8px 10px; font-size:12.5px; font-weight:600; margin-bottom:6px; display:flex; justify-content:space-between; }
+  .A .pair.tbd { border-left-color:#1c4f86; color:#6f97c4; }
+
+  /* ============ Direction B — Офіційний реєстр ============ */
+  /* palette: navy #1B2A4A, paper #FBFBF9, gold #A9852F, line #E0DED6, ink #23262E */
+  .B { background:#FBFBF9; color:#23262E; font-family:Georgia,"Times New Roman",serif; }
+  .B .nav { display:flex; align-items:center; gap:22px; padding:18px 26px; border-bottom:1px solid #E0DED6; background:#fff; }
+  .B .crest { width:26px; height:26px; border-radius:50%; border:2px solid #1B2A4A; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#1B2A4A; }
+  .B .logo { font-size:14px; letter-spacing:.3px; color:#1B2A4A; font-weight:700; }
+  .B .nav a { font-family:-apple-system,"Segoe UI",sans-serif; color:#5b5f68; text-decoration:none; font-size:12.5px; letter-spacing:.3px; }
+  .B .nav a.on { color:#1B2A4A; font-weight:600; }
+  .B .hero { padding:26px 26px 8px; }
+  .B .kicker { font-family:-apple-system,"Segoe UI",sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:2px; color:#A9852F; }
+  .B h1.t { font-size:27px; font-weight:400; margin:8px 0 4px; color:#1B2A4A; }
+  .B .sub { font-family:-apple-system,"Segoe UI",sans-serif; color:#6b6f78; font-size:12.5px; }
+  .B .rule { height:1px; background:#E0DED6; margin:16px 26px; }
+  .B .sech { font-family:-apple-system,"Segoe UI",sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color:#8a8e97; padding:0 26px; }
+  .B table { width:100%; border-collapse:collapse; font-family:-apple-system,"Segoe UI",sans-serif; font-size:13px; margin-top:8px; }
+  .B th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:#8a8e97; padding:10px 26px; border-bottom:1px solid #E0DED6; }
+  .B td { padding:11px 26px; border-bottom:1px solid #EFEEE8; }
+  .B td.n { text-align:center; font-variant-numeric:tabular-nums; color:#3b3f48; }
+  .B .team { color:#1B2A4A; }
+  .B .pos { color:#A9852F; font-weight:700; width:18px; display:inline-block; }
+  .B .pts { font-weight:700; color:#1B2A4A; }
+  .B .brk { padding:14px 26px 26px; font-family:-apple-system,"Segoe UI",sans-serif; }
+  .B .pair { border:1px solid #E0DED6; border-radius:2px; padding:9px 12px; font-size:12.5px; margin-bottom:7px; display:flex; justify-content:space-between; background:#fff; }
+  .B .pair.tbd { color:#9a9ea7; font-style:italic; }
+
+  /* ============ Direction C — Сучасний мінімал ============ */
+  /* palette: ink #0E0E10, snow #FFFFFF, mist #F5F5F4, accent #1F6FEB, line #E7E7E4 */
+  .C { background:#FFFFFF; color:#0E0E10; font-family:-apple-system,"Segoe UI",Roboto,Inter,sans-serif; }
+  .C .nav { display:flex; align-items:center; gap:4px; padding:16px 24px; border-bottom:1px solid #E7E7E4; }
+  .C .logo { font-weight:700; font-size:14px; letter-spacing:-.2px; margin-right:auto; }
+  .C .logo b { color:#1F6FEB; }
+  .C .nav a { color:#6b6b70; text-decoration:none; font-size:13px; padding:6px 10px; border-radius:7px; }
+  .C .nav a.on { background:#F5F5F4; color:#0E0E10; font-weight:600; }
+  .C .hero { padding:30px 24px 10px; }
+  .C .kicker { font-size:12px; color:#1F6FEB; font-weight:600; }
+  .C h1.t { font-size:32px; font-weight:700; letter-spacing:-.6px; line-height:1.08; margin:8px 0 6px; }
+  .C .sub { color:#6b6b70; font-size:13px; }
+  .C .chips { display:flex; gap:8px; margin:18px 0 6px; }
+  .C .chips span { font-size:12px; font-weight:500; padding:6px 12px; border-radius:999px; border:1px solid #E7E7E4; color:#6b6b70; }
+  .C .chips span.on { border-color:#0E0E10; color:#0E0E10; }
+  .C table { width:100%; border-collapse:collapse; font-size:13px; }
+  .C th { text-align:left; font-size:11px; color:#9a9a9e; font-weight:500; padding:10px 12px; border-bottom:1px solid #E7E7E4; }
+  .C td { padding:13px 12px; border-bottom:1px solid #F1F1EF; }
+  .C td.n { text-align:center; font-variant-numeric:tabular-nums; color:#4b4b50; }
+  .C .team { font-weight:600; }
+  .C .pos { display:inline-block; width:22px; color:#9a9a9e; font-variant-numeric:tabular-nums; }
+  .C tr.q .pos { color:#1F6FEB; font-weight:700; }
+  .C .pts { font-weight:700; }
+  .C .brk { padding:20px 24px 26px; }
+  .C .brk h3 { font-size:12px; color:#9a9a9e; font-weight:500; margin-bottom:12px; }
+  .C .pair { background:#F5F5F4; border-radius:10px; padding:12px 14px; font-size:13px; font-weight:500; margin-bottom:8px; display:flex; justify-content:space-between; }
+  .C .pair.tbd { background:#fff; border:1px dashed #E7E7E4; color:#b0b0b4; }
+  .C .empty { margin:10px 24px 24px; border:1px dashed #E7E7E4; border-radius:12px; padding:26px; text-align:center; color:#9a9a9e; font-size:13px; }
+</style>
+</head>
+<body>
+<div class="page-h">
+  <h1>Три напрямки дизайну — Платформа турнірів Федерації волейболу Черкащини</h1>
+  <p>Один і той самий екран (сторінка турніру: таблиця групи + сітка плейоф) у трьох різних візуальних характерах. Обери напрямок або скажи, що змішати.</p>
+</div>
+
+<!-- ============ A ============ -->
+<div class="dir">
+  <div class="meta">
+    <h2>A · «Спортивна енергія»</h2>
+    <span>Темний фон, високий контраст, помаранчевий акцент, щільні таблиці, жирна верстка великими літерами. Відчуття прямої трансляції матчу. Кольори: #0B2A4A, #FF5A1F.</span>
+  </div>
+  <div class="frame"><div class="win">
+    <div class="bar" style="background:#08213c"><i></i><i></i><i></i></div>
+    <div class="A">
+      <div class="nav">
+        <span class="logo">ФВ<b>Ч</b></span>
+        <a class="on">Класичний</a><a>Пляжний</a><a>Архів</a>
+      </div>
+      <div class="hero">
+        <div class="kicker">Чемпіонат · Група A</div>
+        <h1 class="t">Чемпіонат Черкаської<br>області 2026</h1>
+        <div class="sub">Груповий етап · тур 4 з 5</div>
+        <div class="tabs"><span class="on">Таблиця</span><span>Розклад</span><span>Команди</span><span>Плейоф</span></div>
+        <table>
+          <tr><th>Команда</th><th>І</th><th>В</th><th>П</th><th>Партії</th><th>О</th></tr>
+          <tr class="top"><td><span class="rank">1</span><span class="team">ВК «Черкаси»</span></td><td class="n">4</td><td class="n">4</td><td class="n">0</td><td class="n">12–2</td><td class="n pts">12</td></tr>
+          <tr class="top"><td><span class="rank">2</span><span class="team">СК «Умань»</span></td><td class="n">4</td><td class="n">3</td><td class="n">1</td><td class="n">10–5</td><td class="n pts">9</td></tr>
+          <tr class="top"><td><span class="rank">3</span><span class="team">«Динамо» Сміла</span></td><td class="n">4</td><td class="n">2</td><td class="n">2</td><td class="n">8–8</td><td class="n pts">6</td></tr>
+          <tr class="top"><td><span class="rank">4</span><span class="team">ВК «Золотоноша»</span></td><td class="n">4</td><td class="n">1</td><td class="n">3</td><td class="n">5–10</td><td class="n pts">3</td></tr>
+          <tr><td><span class="rank">5</span><span class="team">«Рось» Корсунь</span></td><td class="n">4</td><td class="n">0</td><td class="n">4</td><td class="n">1–12</td><td class="n pts">0</td></tr>
+        </table>
+      </div>
+      <div class="brk">
+        <h3>Плейоф</h3>
+        <div class="pair"><span>1. ВК «Черкаси»</span><span>3 : 1</span></div>
+        <div class="pair"><span>4. ВК «Золотоноша»</span><span></span></div>
+        <div class="pair tbd"><span>Фінал</span><span>очікує суперників</span></div>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ============ B ============ -->
+<div class="dir">
+  <div class="meta">
+    <h2>B · «Офіційний реєстр»</h2>
+    <span>Світлий папір, темно-синій, золотий акцент, серифні заголовки, багато повітря, тонкі лінії. Відчуття офіційного джерела з історією. Кольори: #1B2A4A, #A9852F, #FBFBF9.</span>
+  </div>
+  <div class="frame"><div class="win">
+    <div class="bar" style="background:#fff;border-bottom:1px solid #E0DED6"><i></i><i></i><i></i></div>
+    <div class="B">
+      <div class="nav">
+        <span class="crest">ФВ</span>
+        <span class="logo">Федерація волейболу Черкащини</span>
+        <a class="on">Класичний</a><a>Пляжний</a><a>Архів</a>
+      </div>
+      <div class="hero">
+        <div class="kicker">Чемпіонат області</div>
+        <h1 class="t">Чемпіонат Черкаської області 2026</h1>
+        <div class="sub">Груповий етап · Група A · тур 4 з 5</div>
+      </div>
+      <div class="rule"></div>
+      <div class="sech">Турнірна таблиця</div>
+      <table>
+        <tr><th>Команда</th><th>І</th><th>В</th><th>П</th><th>Партії</th><th>Очки</th></tr>
+        <tr><td><span class="pos">1</span><span class="team">ВК «Черкаси»</span></td><td class="n">4</td><td class="n">4</td><td class="n">0</td><td class="n">12–2</td><td class="n pts">12</td></tr>
+        <tr><td><span class="pos">2</span><span class="team">СК «Умань»</span></td><td class="n">4</td><td class="n">3</td><td class="n">1</td><td class="n">10–5</td><td class="n pts">9</td></tr>
+        <tr><td><span class="pos">3</span><span class="team">«Динамо» Сміла</span></td><td class="n">4</td><td class="n">2</td><td class="n">2</td><td class="n">8–8</td><td class="n pts">6</td></tr>
+        <tr><td><span class="pos">4</span><span class="team">ВК «Золотоноша»</span></td><td class="n">4</td><td class="n">1</td><td class="n">3</td><td class="n">5–10</td><td class="n pts">3</td></tr>
+        <tr><td><span class="pos">5</span><span class="team">«Рось» Корсунь</span></td><td class="n">4</td><td class="n">0</td><td class="n">4</td><td class="n">1–12</td><td class="n pts">0</td></tr>
+      </table>
+      <div class="brk">
+        <div class="sech" style="padding:0 0 10px">Плейоф</div>
+        <div class="pair"><span>1. ВК «Черкаси» — 4. ВК «Золотоноша»</span><span>3 : 1</span></div>
+        <div class="pair"><span>2. СК «Умань» — 3. «Динамо» Сміла</span><span>2 : 3</span></div>
+        <div class="pair tbd"><span>Фінал</span><span>очікує суперників</span></div>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ============ C ============ -->
+<div class="dir">
+  <div class="meta">
+    <h2>C · «Сучасний мінімал»</h2>
+    <span>Білий фон, майже монохром, один синій акцент, великий тонкий шрифт, багато простору, скруглені картки. Відчуття сучасного продукту (як Linear / Vercel). Кольори: #0E0E10, #1F6FEB, #F5F5F4.</span>
+  </div>
+  <div class="frame">
+    <div class="cols">
+      <div class="win">
+        <div class="bar" style="background:#fafafa;border-bottom:1px solid #E7E7E4"><i></i><i></i><i></i></div>
+        <div class="C">
+          <div class="nav">
+            <span class="logo">Волейбол<b>·</b>Черкащина</span>
+            <a class="on">Класичний</a><a>Пляжний</a><a>Архів</a>
+          </div>
+          <div class="hero">
+            <div class="kicker">Чемпіонат · Група A</div>
+            <h1 class="t">Чемпіонат Черкаської області 2026</h1>
+            <div class="sub">Груповий етап · тур 4 з 5</div>
+            <div class="chips"><span class="on">Таблиця</span><span>Розклад</span><span>Команди</span><span>Плейоф</span></div>
+          </div>
+          <table>
+            <tr><th>#</th><th>Команда</th><th>І</th><th>В</th><th>П</th><th>Партії</th><th>О</th></tr>
+            <tr class="q"><td><span class="pos">1</span></td><td><span class="team">ВК «Черкаси»</span></td><td class="n">4</td><td class="n">4</td><td class="n">0</td><td class="n">12–2</td><td class="n pts">12</td></tr>
+            <tr class="q"><td><span class="pos">2</span></td><td><span class="team">СК «Умань»</span></td><td class="n">4</td><td class="n">3</td><td class="n">1</td><td class="n">10–5</td><td class="n pts">9</td></tr>
+            <tr class="q"><td><span class="pos">3</span></td><td><span class="team">«Динамо» Сміла</span></td><td class="n">4</td><td class="n">2</td><td class="n">2</td><td class="n">8–8</td><td class="n pts">6</td></tr>
+            <tr class="q"><td><span class="pos">4</span></td><td><span class="team">ВК «Золотоноша»</span></td><td class="n">4</td><td class="n">1</td><td class="n">3</td><td class="n">5–10</td><td class="n pts">3</td></tr>
+            <tr><td><span class="pos">5</span></td><td><span class="team">«Рось» Корсунь</span></td><td class="n">4</td><td class="n">0</td><td class="n">4</td><td class="n">1–12</td><td class="n pts">0</td></tr>
+          </table>
+          <div class="brk">
+            <h3>Плейоф</h3>
+            <div class="pair"><span>1. ВК «Черкаси» — 4. ВК «Золотоноша»</span><span>3 : 1</span></div>
+            <div class="pair"><span>2. СК «Умань» — 3. «Динамо» Сміла</span><span>2 : 3</span></div>
+            <div class="pair tbd"><span>Фінал · очікує суперників</span><span>—</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="win">
+        <div class="bar" style="background:#fafafa;border-bottom:1px solid #E7E7E4"><i></i><i></i><i></i></div>
+        <div class="C">
+          <div class="nav">
+            <span class="logo">Волейбол<b>·</b>Черкащина</span>
+            <a>Класичний</a><a class="on">Розклад</a><a>Архів</a>
+          </div>
+          <div class="hero">
+            <div class="kicker">Наступні матчі</div>
+            <h1 class="t">Розклад</h1>
+            <div class="sub">Чемпіонат Черкаської області 2026 · Група A</div>
+          </div>
+          <table>
+            <tr><th>Дата</th><th>Матч</th><th>Місце</th></tr>
+            <tr><td class="n">14.09 · 11:00</td><td><span class="team">ВК «Черкаси» — СК «Умань»</span></td><td>СК «Спартак»</td></tr>
+            <tr><td class="n">14.09 · 13:00</td><td><span class="team">«Динамо» Сміла — «Рось» Корсунь</span></td><td>СК «Спартак»</td></tr>
+            <tr><td class="n" style="color:#b0b0b4">час не визначено</td><td><span class="team">ВК «Золотоноша» — «Динамо» Сміла</span></td><td style="color:#b0b0b4">—</td></tr>
+          </table>
+          <div class="empty">
+            У розділі «Пляжний» ще немає турнірів.<br>Незабаром.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
