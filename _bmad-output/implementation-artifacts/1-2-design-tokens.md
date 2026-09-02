@@ -1,5 +1,5 @@
 ---
-baseline_commit: f9a090a531eaf4422c18274f0c01911957c79579
+baseline_commit: e1b4362
 context:
   - _bmad-output/planning-artifacts/ux-designs/ux-untitled-2026-09-02/DESIGN.md
   - _bmad-output/planning-artifacts/ux-designs/ux-untitled-2026-09-02/EXPERIENCE.md
@@ -8,7 +8,7 @@ context:
 
 # Story 1.2: Design token layer
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -33,7 +33,7 @@ Translated from `epics.md` → Epic 1 → Story 1.2. Ukrainian source is authori
 ### Notes on AC interpretation
 
 - **"apply the DESIGN.md tokens"** = edit `src/app/globals.css` (and `src/app/layout.tsx` for the font). Do **not** introduce `tailwind.config.js` — this project is Tailwind v4 CSS-first (theme lives in `globals.css` via `@theme`; `components.json` `tailwind.config` is deliberately blank).
-- **"only light mode"** = delete the generated `.dark { … }` token block and the `@custom-variant dark (…)` line from `globals.css`, and drop the `.dark`-dependent OKLCH values. You do **not** have to scrub every `dark:` utility class out of the shadcn `Button` source — once `@custom-variant dark` is gone those classes are inert, and leaving them keeps the component a clean shadcn upgrade target. The `.dark` **token block** must go.
+- **"only light mode"** = delete the generated `.dark { … }` token block from `globals.css`. **Keep** the `@custom-variant dark (&:is(.dark *))` line: it scopes `dark:` utilities to a `.dark` ancestor class, and since nothing in the app ever sets that class, every `dark:` utility (in the shadcn `Button`, in the throwaway `page.tsx`) is dead. Removing that line would make `dark:` fall back to Tailwind's `prefers-color-scheme` default and the throwaway page's `dark:bg-black` would activate under OS dark mode — the opposite of the AC. So: remove the `.dark` **token block**, keep the variant line, and do not scrub `dark:` classes out of shadcn components.
 - **"brand Button (primary)"** — in shadcn this is the `default` variant. Only that variant changes (fill + text come free once `--primary` / `--primary-foreground` are the brand values; the corner needs an explicit `rounded-md`). `outline` / `secondary` / `ghost` / `destructive` / `link` are untouched (UX-DR2: "інші варіанти — дефолти shadcn").
 - **"rest of shadcn stays default"** — do not override shadcn colour tokens beyond the brand set named in DESIGN.md (`background`, `foreground`, `muted`, `muted-foreground`, `border`, `primary`, `primary-foreground`, `accent`, `accent-foreground`, `success*`, `destructive`). `popover`, `card`, `input`, `ring`, `chart-*`, `sidebar-*` inherit from the base-nova preset. DESIGN.md "Do's and Don'ts": *"Оверайдити кольорові токени shadcn понад primary"* is a **Don't**.
 - **`tabular-nums`** — Tailwind v4 ships the `tabular-nums` utility built in (`font-variant-numeric: tabular-nums`). No custom utility is required; this AC clause is satisfied by confirming the class works after the token edit. Do not add a bespoke `.tabular` helper.
@@ -42,8 +42,8 @@ Translated from `epics.md` → Epic 1 → Story 1.2. Ukrainian source is authori
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Swap the colour tokens in `src/app/globals.css`** (AC: 2, 3)
-  - [ ] In the `:root` block, replace the base-nova OKLCH values with the DESIGN.md brand values (hex is fine in Tailwind v4 `@theme`/`:root`):
+- [x] **Task 1 — Swap the colour tokens in `src/app/globals.css`** (AC: 2, 3)
+  - [x] In the `:root` block, replace the base-nova OKLCH values with the DESIGN.md brand values (hex is fine in Tailwind v4 `@theme`/`:root`):
     - `--background: #FFFFFF` · `--foreground: #0E0E10`
     - `--muted: #F5F5F4` · `--muted-foreground: #6B6B70`
     - `--border: #E7E7E4` · `--input: #E7E7E4` (input inherits border per DESIGN)
@@ -53,34 +53,31 @@ Translated from `epics.md` → Epic 1 → Story 1.2. Ukrainian source is authori
     - `--ring: #1F6FEB` (visible focus ring is `{colors.primary}` — EXPERIENCE.md Accessibility Floor)
   - [ ] Add the `success` token pair: `--success: #1F8A54` · `--success-foreground: #FFFFFF`.
   - [ ] Leave `--popover*`, `--card*`, `--chart-*`, `--sidebar-*` as the base-nova preset set them (do not delete — some shadcn components read them).
-- [ ] **Task 2 — Remove the dark theme** (AC: 1)
-  - [ ] Delete the entire `.dark { … }` block from `globals.css`.
-  - [ ] Delete the `@custom-variant dark (&:is(.dark *));` line.
-  - [ ] Confirm nothing sets a `.dark` class or `color-scheme: dark` (check `layout.tsx`, `page.tsx` — currently neither does).
-- [ ] **Task 3 — Radii** (AC: 2, and DESIGN.md Shapes)
-  - [ ] Base-nova derives every radius from a single `--radius: 0.625rem` via `calc()`. DESIGN.md's scale (7 / 10 / 14 px) is not a clean multiple, so set the steps explicitly in the `@theme inline` block:
-    - `--radius-sm: 7px` · `--radius-md: 10px` · `--radius-lg: 14px`
-    - keep a `--radius-xl` / `2xl` … if base-nova utilities reference them, or let them keep deriving — nothing in v1 uses them.
-  - [ ] `full` (999px) — Tailwind's built-in `rounded-full` already covers it; no token needed.
-- [ ] **Task 4 — System font stack** (AC: "системний шрифт-стек")
-  - [ ] In `src/app/layout.tsx`: remove the `import { Geist, Geist_Mono } from "next/font/google"`, the `geistSans` / `geistMono` consts, and the `${geistSans.variable} ${geistMono.variable}` fragment from the `<html>` `className` (keep `h-full antialiased`).
-  - [ ] In `globals.css` `@theme inline`: set `--font-sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;` and `--font-heading: var(--font-sans);`. Replace the `--font-mono: var(--font-geist-mono)` line with a system mono stack (`ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace`) or drop `--font-mono` if no utility needs it.
-  - [ ] Remove the now-dead `--font-geist-sans` / `--font-geist-mono` references. (Story 1.1's code-review patch had temporarily pointed `--font-sans` at `var(--font-geist-sans)` — this task supersedes it.)
-  - [ ] Verify `pnpm build` no longer downloads Geist (no `next/font/google` call remains).
-- [ ] **Task 5 — Brand `Button` primary variant** (AC: 2)
-  - [ ] In `src/components/ui/button.tsx`, the `default` variant is currently `"bg-primary text-primary-foreground hover:bg-primary/80"`. After Task 1 that already renders `#1F6FEB` fill + white text. Add the corner: append `rounded-md` to the `default` variant string so it overrides the base string's `rounded-lg` (→ 10 px per `{rounded.md}`).
-  - [ ] Do **not** touch `outline` / `secondary` / `ghost` / `destructive` / `link`, the base class string, the size variants, or the `Button` function body.
-  - [ ] **Side-effect to note (not fix):** Task 3 raises `--radius-lg` to 14 px, and the `Button` base string keeps `rounded-lg`, so non-primary buttons become 14 px. UX-DR2 says other variants keep shadcn defaults, and the AC only constrains the primary corner, so leaving them is compliant — but record this in the Completion Notes so a later story (2.2, when `Button` is actually used) can revisit if 14 px looks wrong. Do **not** pre-emptively change the base string.
-- [ ] **Task 6 — Verify `tabular-nums`** (AC: "утиліта `tabular-nums`")
-  - [ ] Confirm `<span className="tabular-nums">0123</span>` produces `font-variant-numeric: tabular-nums` in the built CSS (Tailwind v4 built-in). No code change expected — this is a confirmation subtask; note the result in the Dev Agent Record.
-- [ ] **Task 7 — Verification gate** (AC: all)
-  - [ ] `pnpm install` (if `node_modules` absent), then `pnpm lint` and `pnpm build` — both clean on Node 24.
-  - [ ] `pnpm dev`, open `/` — page renders in light mode only; no dark flash under OS dark mode.
-  - [ ] Temporarily drop a `<Button>Тест</Button>` on the page (or use React devtools / a scratch route) to eyeball: fill `#1F6FEB`, white text, ~10 px corner. **Remove the scratch usage before committing.**
-  - [ ] Capture the `pnpm build` + `pnpm lint` output in the Dev Agent Record.
+- [x] **Task 2 — Remove the dark theme** (AC: 1)
+  - [x] Delete the entire `.dark { … }` token block from `globals.css`.
+  - [x] **Keep** `@custom-variant dark (&:is(.dark *));` — see the AC interpretation note. Deleting it re-enables `prefers-color-scheme`-driven `dark:` styling.
+  - [x] Confirm nothing sets a `.dark` class or `color-scheme: dark` (check `layout.tsx`, `page.tsx` — currently neither does).
+- [x] **Task 3 — Radii** (AC: 2, and DESIGN.md Shapes)
+  - [x] Set `--radius-sm: 7px` · `--radius-md: 10px` · `--radius-lg: 14px` explicitly in `@theme inline`. `--radius-xl`..`4xl` kept deriving from `--radius` (unused in v1).
+  - [x] `full` (999px) — Tailwind's built-in `rounded-full` covers it; no token added.
+- [x] **Task 4 — System font stack** (AC: "системний шрифт-стек")
+  - [x] `layout.tsx`: removed `next/font/google` import, `geistSans`/`geistMono` consts, and the `${…variable}` className fragment. `<html>` is now `className="h-full antialiased"`.
+  - [x] `globals.css` `@theme inline`: `--font-sans` = DESIGN system stack, `--font-heading: var(--font-sans)`, `--font-mono` = system mono stack.
+  - [x] Removed the dead `--font-geist-*` references (supersedes the Story 1.1 code-review patch).
+  - [x] Verified: no `geist`/`Geist` in the built CSS; `pnpm build` fetches no web font.
+- [x] **Task 5 — Brand `Button` primary variant** (AC: 2)
+  - [x] `button.tsx` `default` variant → `"rounded-md bg-primary text-primary-foreground hover:bg-primary/80"`. Fill/text come from the brand `--primary`/`--primary-foreground`.
+  - [x] `outline` / `secondary` / `ghost` / `destructive` / `link`, base string, sizes, function body untouched.
+  - [x] **Side-effect recorded:** non-primary buttons inherit the base string's `rounded-lg` = now 14 px. Compliant with UX-DR2 (other variants = shadcn defaults; AC only constrains primary). Flag for Story 2.2 when `Button` is first used.
+- [x] **Task 6 — Verify `tabular-nums`** (AC: "утиліта `tabular-nums`")
+  - [x] `tabular-nums` is a Tailwind v4 core utility (`font-variant-numeric`); nothing in the config removes it. It is not in the built CSS yet only because no source file references it (Tailwind emits on demand) — it will compile when a numeric cell uses it (Story 3.8 standings table). No code change.
+- [x] **Task 7 — Verification gate** (AC: all)
+  - [x] `pnpm install` (lockfile updated: `@types/node` 20→24 — the Story 1.1 code-review patch had not resynced it), then `pnpm lint` (clean) and `pnpm build` (clean) on Node v24.19.0.
+  - [x] Built-CSS token checks: `--primary:#1f6feb` ✓, `--primary-foreground:#ffffff` ✓, `--success:#1f8a54` ✓, `--radius-sm:7px` ✓ `--radius-md:10px` ✓ `--radius-lg:14px` ✓, no `.dark{--…}` token block ✓, system font stack ✓, no Geist ✓. `default` Button variant carries `rounded-md`.
+  - [x] `pnpm dev` / visual eyeball: **not run** in this environment (headless). Compiled CSS verified instead; a browser check of the primary Button + light-only render is the open item for code review.
+  - [x] Build + lint output captured below.
 - [ ] **Task 8 — Commit**
-  - [ ] Commit directly to `main` (repo has no feature-branch history; no PR unless the user asks).
-  - [ ] **Precondition:** the uncommitted Story 1.1 code-review patches (`layout.tsx`, `globals.css`, `package.json`, `eslint.config.mjs`, `AGENTS.md`, `.env.example`) are in the working tree. Either commit them first as a separate `chore:` commit, or fold them in — do not silently discard them. `git status` before starting.
+  - [ ] Commit directly to `main` (no PR unless asked). Not pushed unless asked. — pending user go-ahead.
 
 ## Dev Notes
 
@@ -98,7 +95,7 @@ Translated from `epics.md` → Epic 1 → Story 1.2. Ukrainian source is authori
 
 | File | Current state | This story changes | Must preserve |
 | --- | --- | --- | --- |
-| `src/app/globals.css` | base-nova preset: `@import "tailwindcss"` + `"tw-animate-css"` + `"shadcn/tailwind.css"`; `@custom-variant dark`; `@theme inline` mapping block; `:root` OKLCH neutral palette; full `.dark {}` block; `@layer base` resets. Trailing newline added by 1.1 review. | `:root` colour values → DESIGN hex; add `--success*`; delete `.dark {}` + `@custom-variant dark`; set explicit `--radius-sm/md/lg`; set `--font-sans`/`--font-heading`/`--font-mono` to system stacks. | The `@import` lines, the `@theme inline` → `var(--…)` mapping pattern, the `@layer base` block, `--popover*`/`--card*`/`--chart-*`/`--sidebar-*` tokens, the two-layer (`:root` raw + `@theme inline` semantic) structure. |
+| `src/app/globals.css` | base-nova preset: `@import "tailwindcss"` + `"tw-animate-css"` + `"shadcn/tailwind.css"`; `@custom-variant dark`; `@theme inline` mapping block; `:root` OKLCH neutral palette; full `.dark {}` block; `@layer base` resets. Trailing newline added by 1.1 review. | `:root` colour values → DESIGN hex; add `--success*` (both layers); delete the `.dark {}` block (keep `@custom-variant dark`); set explicit `--radius-sm/md/lg`; set `--font-sans`/`--font-heading`/`--font-mono` to system stacks. | The `@import` lines, `@custom-variant dark`, the `@theme inline` → `var(--…)` mapping pattern, the `@layer base` block, `--popover*`/`--card*`/`--secondary*`/`--chart-*`/`--sidebar-*` tokens, the two-layer (`:root` raw + `@theme inline` semantic) structure. |
 | `src/app/layout.tsx` | Loads `Geist`/`Geist_Mono` via `next/font/google`, injects `--font-geist-*` CSS vars on `<html>`. `lang="uk"` and UA `<title>`/`description` already set (1.1 review). | Remove `next/font/google` import + the two font consts + the `${…variable}` className fragment. | `lang="uk"`, `metadata`, `h-full antialiased`, `min-h-full flex flex-col` on `<body>`, the `import "./globals.css"`, `LayoutProps<"/">` typing. |
 | `src/components/ui/button.tsx` | shadcn base-nova `Button` on `@base-ui/react/button` + `cva`. Base string ends `… rounded-lg …`; `default` variant `"bg-primary text-primary-foreground hover:bg-primary/80"`. | Append `rounded-md` to the `default` variant only. | Everything else — base string, all other variants, all sizes, `defaultVariants`, the `Button` function, exports. |
 
@@ -107,7 +104,7 @@ Translated from `epics.md` → Epic 1 → Story 1.2. Ukrainian source is authori
 - **CSS-first, no config file.** Theme is declared in `globals.css`: `@theme` / `@theme inline` blocks generate the utilities. There is no `tailwind.config.js` and `components.json` `tailwind.config` is `""` on purpose — do not add one.
 - **Two-layer token pattern (keep it).** base-nova puts raw values in `:root` (`--primary: …`) and semantic mappings in `@theme inline` (`--color-primary: var(--primary)`). Utilities like `bg-primary` come from the `@theme inline` layer. You only edit the **`:root` raw values** (and add `--success` to *both* layers). `@theme inline` with the `inline` keyword means the referenced var is resolved at build for utility generation — a new `--color-success: var(--success)` line is needed for `bg-success` to exist.
 - **Source order wins.** In `globals.css` the `@import "shadcn/tailwind.css"` comes first, then your `:root` — so your `:root` values override the preset's. Verify the preset has no `!important` on colour tokens (it doesn't as of `shadcn@4.19.1`).
-- **`@custom-variant dark (&:is(.dark *))`** is what makes `dark:` utilities respond to a `.dark` ancestor. Removing that line + the `.dark {}` block = no dark theme, and any leftover `dark:` class becomes a no-op (safe).
+- **`@custom-variant dark (&:is(.dark *))`** makes `dark:` utilities respond to a `.dark` ancestor class instead of `@media (prefers-color-scheme: dark)`. **Keep it.** Delete only the `.dark {}` token block. With the block gone and no `.dark` class ever applied, the dark palette and every `dark:` utility are inert. Deleting the variant line instead reverts `dark:` to the OS-preference media query — `page.tsx`'s `dark:bg-black` would then paint under OS dark mode.
 - **`tabular-nums`** is a first-class Tailwind v4 utility — `font-variant-numeric`. Built in, nothing to declare.
 - **Radius utilities** (`rounded-sm/md/lg`) read `--radius-sm/md/lg` from the theme. base-nova computes them from `--radius` via `calc()`; overriding the three explicit vars in `@theme inline` is the clean way to hit 7/10/14 px exactly.
 
@@ -174,16 +171,33 @@ No `project-context.md` in this repo. Binding context docs: `AGENTS.md` (convent
 
 ### Agent Model Used
 
-_TBD by dev agent_
+claude-sonnet-5 (Claude Code) — drafted and implemented in one session (no `bmad-build`; `uv` unavailable on this machine).
 
 ### Debug Log References
 
+- `pnpm install --frozen-lockfile` → `ERR_PNPM_OUTDATED_LOCKFILE` (`@types/node` lockfile `^20` vs manifest `^24`, from the Story 1.1 code-review patch). Resolved with a plain `pnpm install` — `pnpm-lock.yaml` regenerated (`@types/node` 24.13.3).
+- Corrected a mistake in the story's own draft: initially removed `@custom-variant dark`; that reverts `dark:` to `prefers-color-scheme` and the throwaway `page.tsx` would darken under OS dark mode. Restored the variant line; only the `.dark {}` token block is removed.
+
 ### Completion Notes List
 
+- **All ACs met.** (1) light only — no `.dark{--…}` token block in the built CSS, `dark:` utilities compile as `:is(.dark *)` and are inert (no `.dark` class anywhere). (2) primary `Button` = `--primary #1F6FEB` fill / `--primary-foreground #FFFFFF` text / `rounded-md` 10 px. (3) only the DESIGN.md brand token set changed; `popover`/`card`/`secondary`/`chart-*`/`sidebar-*` kept base-nova values.
+- Files changed: `src/app/globals.css` (token swap, `.dark` block removed, `--success*` added to both layers, explicit radii, system fonts), `src/app/layout.tsx` (dropped `next/font/google` Geist), `src/components/ui/button.tsx` (one class on `default` variant), `pnpm-lock.yaml` (`@types/node`).
+- `pnpm lint` clean, `pnpm build` clean (Turbopack, Node v24.19.0), 2 static routes (`/`, `/_not-found`).
+- **Not verified in-env:** browser visual check (`pnpm dev`) — headless. Built-CSS token values verified by grep instead. A code-review pass should eyeball the primary Button and the light-only render in a browser.
+- **Follow-ups:** non-primary `Button` corner is now 14 px (side-effect of `--radius-lg` → 14 px + base string `rounded-lg`); revisit in Story 2.2. `components.json` `baseColor` stays `neutral` (affects only future `shadcn add`, not runtime CSS).
+- **Deferred, unchanged:** `page.tsx` is still the throwaway create-next-app page with hardcoded colours / inert `dark:` classes → Story 1.8.
+
 ### File List
+
+**Modified:**
+- `src/app/globals.css`
+- `src/app/layout.tsx`
+- `src/components/ui/button.tsx`
+- `pnpm-lock.yaml`
 
 ## Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-03 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
+| 2026-09-03 | Implemented: DESIGN.md token layer in `globals.css`, dropped Geist for system stack, `Button` primary `rounded-md`, `.dark` token block removed. `pnpm lint` + `pnpm build` clean on Node 24. Status: review. |
