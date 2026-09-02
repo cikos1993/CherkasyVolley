@@ -24,9 +24,9 @@ shadcn/ui + Tailwind, хостинг Vercel. Планування живе в `_
 
 ## Running and verifying
 
-- TODO (після Story 1.1): пакетний менеджер — **pnpm** (`pnpm install`, `pnpm dev`).
-- TODO: юніт-тести доменних функцій `src/domain/*` — обовʼязкові; запуск через Vitest.
-- TODO: `pnpm lint` включає ESLint-правило меж імпорту (Story 1.3) — окрема перевірка від типів.
+- Пакетний менеджер — **pnpm** (`pnpm install`, `pnpm dev`, `pnpm build`, `pnpm lint`); Node 24.
+- `pnpm lint` (ESLint 9 flat config) включає правила меж імпорту: `src/domain/` без `next`/`@prisma/client`/`react`/інших шарів; `@prisma/client` лише в `src/data/`; `src/data/` не залежить від `actions`/`auth`/view. Порушення — помилка ESLint, окремо від перевірки типів.
+- TODO: юніт-тести доменних функцій `src/domain/*` — обовʼязкові; запуск через Vitest (додається з першим модулем `src/domain`).
 - TODO: міграції — `pnpm prisma migrate dev`; seed — `pnpm prisma db seed`.
 
 ## Conventions that differ from defaults
@@ -68,6 +68,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Node: pinned to 24.x via `package.json` `engines` + `.nvmrc`.
 - Commands: `pnpm dev` (Turbopack), `pnpm build`, `pnpm lint`.
 - Prisma driver adapter (`@prisma/adapter-*`) is required to construct `PrismaClient` in Prisma 7 — wired in Story 1.4 with the first migration + seed.
+
+## Domain boundaries (Story 1.3)
+
+- Layer dirs: `src/domain` (pure core), `src/data` (sole Prisma owner), `src/actions` (Server Actions), `src/auth`. Each carries a `README.md`; `src/README.md` has the layer map + dependency direction.
+- `eslint.config.mjs` enforces the load-bearing subset: `src/domain/**` imports no `next`/`@prisma/client`/`react`/other layer; `@prisma/client` only under `src/data/**`; `src/data/**` never imports `actions`/`auth`/view. `src/data` → `src/domain` is allowed (read-time computation like standings).
+- Boundary checks use `eslint-plugin-import` (`import/no-restricted-paths`) already bundled by `eslint-config-next` — no added dependency.
 
 ## Hosting
 
