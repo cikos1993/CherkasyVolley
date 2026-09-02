@@ -41,8 +41,9 @@ shadcn/ui + Tailwind, хостинг Vercel. Планування живе в `_
 
 ## Known pitfalls
 
-- На цій машині немає Python/uv — скрипти BMAD (`memlog.py`, `sprint_plan.py`, `resolve_customization.py`) не запускаються; артефакти велися вручну. Ставити Python перед наступними прогонами BMAD-скілів.
-- `git` і `gh` не в PATH для наперед відкритих оболонок — повні шляхи (`C:\Program Files\Git\cmd\git.exe`, `C:\Program Files\GitHub CLI\gh.exe`) або оновити PATH з реєстру.
+- **Наперед відкриті оболонки (bash- і PowerShell-інструмент) мають застарілий PATH** — `node`, `pnpm`, `uv`, `python`, `git` не видно, хоча всі встановлені. `command not found` тут = застарілий PATH, не відсутність. Оновити на початку сесії: PowerShell — `$env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')` (або додати `C:\Program Files\nodejs;C:\Users\night\AppData\Roaming\npm`); bash — `git` через повний шлях `C:\Program Files\Git\cmd\git.exe`, для node/pnpm/uv краще PowerShell із рядком оновлення вище.
+- Python 3.11 + uv 0.12 **встановлені** — скрипти BMAD (`resolve_customization.py`, `render_skill.py`) та `bmad-build` працюють через `uv run` після оновлення PATH.
+- `gh` (GitHub CLI) **не встановлено** — `winget install GitHub.cli` за потреби. Пуш/операції з git — через `git` напряму.
 
 <!-- /bmad:context -->
 
