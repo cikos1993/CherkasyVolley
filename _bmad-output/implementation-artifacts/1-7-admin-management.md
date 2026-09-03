@@ -96,7 +96,7 @@ Translated from `epics.md` → Epic 1 → Story 1.7. The Ukrainian source is aut
     - anonymous `GET /admin/people` → `307` → `location: /sign-in?from=/admin` (inherited layout guard). `GET /admin` unchanged.
     - server-side (UI bypassed, no session): `POST` `grantAdmin` and `revokeAdmin` Next-Action → both `{"ok":false,"code":"FORBIDDEN","message":"Потрібні права адміністратора"}`.
     - data layer against the live DB (non-destructive, `adminCount === 1`): `demoteFromAdmin(<sole admin id>)` → `{ outcome: "last_admin" }` **with no write** (`adminCount` unchanged); `demoteFromAdmin(<bad id>)` → `{ outcome: "not_found" }`; `promoteToAdmin(<existing admin>)` → `{ outcome: "ok" }` idempotent. `listAuthenticatedUsers()` returns the seed admin + the existing second account (`kiperandrii@gmail.com`, `isAdmin=false`).
-  - [~] **Browser click-through** (needs the two Google sessions — same as Story 1.5/1.6): grant the second user → they open `/admin` with no re-login → revoke via the confirm dialog → they're redirected out. **Pending user confirmation** (every server-side path above is verified).
+  - [x] **Browser click-through** (prod, `nightfate1993@gmail.com` admin + `kiperandrii@gmail.com` second account) — user-confirmed 2026-09-03: grant → second account opens `/admin` with no re-login; revoke via the confirm dialog → second account's next `/admin` redirects to `/` with the toast "Потрібні права адміністратора" (shown bottom-right — sonner default; `?error` param stripped); self-revoke button disabled while sole admin. `/` is still the Next starter placeholder — Story 1.8.
   - [x] Command output captured in the Dev Agent Record.
 - [x] **Task 10 — Commit** — `feat(admin): grant/revoke admin on /admin/people (Story 1.7)`. Committed to `main`; push deploys to Vercel.
 
@@ -303,3 +303,4 @@ adminCount after: 1   # unchanged
 | --- | --- |
 | 2026-09-03 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-03 | Implemented Tasks 1–10: `src/data/users.ts` (list + `promoteToAdmin` / `demoteFromAdmin` transactional last-admin guard), `grantAdmin` / `revokeAdmin` actions, `/admin/people` page + `admin-role-controls` (revoke confirm `Dialog`), removed the 1.6 demo. `lint`/`typecheck`/`build` green; anonymous redirect, server-side `FORBIDDEN`, and the last-admin / not-found / idempotency paths verified. Status: in-progress → review. |
+| 2026-09-03 | User-confirmed the full prod browser walkthrough (grant → instant access → revoke → redirect + toast → last-admin button disabled). AC 1–4 satisfied end-to-end. |
