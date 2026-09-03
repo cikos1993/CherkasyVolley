@@ -5,10 +5,10 @@ re-export) may be imported. Every read and write of every entity goes through a
 named function exported from here — `getPublicTournaments`, `saveMatchResult`, and
 so on. There is one owner and one writer per entity.
 
-**May import:** the Prisma client and generated schema types. It also constructs the
-single shared `PrismaClient` instance (Prisma 7 driver adapter, wired in Story 1.4)
-and exports it for `src/auth`'s Better Auth adapter — `src/auth` never imports the
-client directly.
+**May import:** the Prisma client and generated schema types. `client.ts` constructs
+the single shared `PrismaClient` instance (`@prisma/adapter-pg` over the pooled
+`DATABASE_URL`) and exports it as `db`; `src/auth` imports `db` from here for Better
+Auth's adapter and never imports the Prisma client directly.
 
 **Must not import:** `src/actions`, `src/auth`, `src/app`, `src/components`, `next`,
 `react`.

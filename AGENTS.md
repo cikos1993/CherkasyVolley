@@ -27,7 +27,8 @@ shadcn/ui + Tailwind, хостинг Vercel. Планування живе в `_
 - Пакетний менеджер — **pnpm** (`pnpm install`, `pnpm dev`, `pnpm build`, `pnpm lint`); Node 24.
 - `pnpm lint` (ESLint 9 flat config) включає правила меж імпорту: `src/domain/` без `next`/Prisma-клієнта/`react`/інших шарів; Prisma-клієнт (`@/generated/prisma`, `@prisma/client`) лише в `src/data/`; `src/data/` не залежить від `actions`/`auth`/view/`next`/`react`; `src/auth/` імпортує лише `src/data`. Ловляться і alias-, і відносні форми. Порушення — помилка ESLint, окремо від перевірки типів.
 - TODO: юніт-тести доменних функцій `src/domain/*` — обовʼязкові; запуск через Vitest (додається з першим модулем `src/domain`).
-- TODO: міграції — `pnpm prisma migrate dev`; seed — `pnpm prisma db seed`.
+- Міграції: `pnpm prisma migrate dev --name <...>` (dev, потребує `.env.local` з `DATABASE_URL_UNPOOLED`); прод — `pnpm prisma migrate deploy` (у `build` перед `next build`). `prisma generate` — у `postinstall`, бо `src/generated/` gitignored.
+- Seed: `pnpm seed` (`prisma db seed` → `node prisma/seed.ts`) — ідемпотентний upsert першого адміна по `SEED_ADMIN_EMAIL`. Повторний запуск дублів не створює.
 
 ## Conventions that differ from defaults
 
@@ -66,8 +67,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Scaffolded: Next.js 16 (App Router, `src/`, Turbopack default), React 19.2, TypeScript 5, Tailwind CSS **v4** (CSS-first — theme in `src/app/globals.css` via `@theme`, no `tailwind.config.js`), ESLint 9 flat config, shadcn/ui (Tailwind v4 mode), Prisma **7** (`prisma-client` generator, output `src/generated/prisma`, `prisma7.config.ts` holds the connection URL — not `schema.prisma`).
 - Package manager: **pnpm** (installed globally via `npm i -g pnpm`; `corepack enable` fails on this machine — Node lives in `C:\Program Files\nodejs`, not user-writable). `packageManager` field pins the version.
 - Node: pinned to 24.x via `package.json` `engines` + `.nvmrc`.
-- Commands: `pnpm dev` (Turbopack), `pnpm build`, `pnpm lint`.
-- Prisma driver adapter (`@prisma/adapter-*`) is required to construct `PrismaClient` in Prisma 7 — wired in Story 1.4 with the first migration + seed.
+- Commands: `pnpm dev` (Turbopack), `pnpm build`, `pnpm lint`, `pnpm seed`.
+- Prisma 7 driver adapter wired (Story 1.4): `@prisma/adapter-pg` + `pg` over the pooled `DATABASE_URL`; the shared `PrismaClient` is `src/data/client.ts` (`export const db`). Migrations use the direct URL (`DATABASE_URL_UNPOOLED` / `DIRECT_URL`) via `prisma7.config.ts`. `postinstall` runs `prisma generate`; `build` runs `prisma migrate deploy` first.
 
 ## Domain boundaries (Story 1.3)
 
@@ -83,6 +84,6 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - **Production:** https://cherkasy-volley.vercel.app (Vercel, team `volley3`, project `cherkasy-volley`, region `fra1`). Auto-deploys on push to `main`.
 - CLI: `npx vercel link --yes --project cherkasy-volley` links to `volley3/cherkasy-volley` (writes `.vercel/`, `.env.local` — both gitignored).
-- Neon Postgres: add via Vercel → Storage (sets `DATABASE_URL` in project env). Not yet provisioned as of Story 1.1.
+- Neon Postgres: provisioned via Vercel → Storage (project `twilight-dust-91359102`). Sets `DATABASE_URL` (pooled) + `DATABASE_URL_UNPOOLED` (direct) in Vercel env. Local: `npx vercel env pull .env.local`.
 
 <!-- /bmad:manual -->
