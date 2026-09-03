@@ -39,11 +39,14 @@ export const auth = betterAuth({
     },
   },
   account: {
-    // Link a first Google sign-in to the user seeded by email (whose own
-    // emailVerified is still false), and pull name/image from Google onto it.
+    // Link a first Google sign-in to the user seeded by email, and pull
+    // name/image from Google onto it. The seeded admin's own email is not
+    // "verified" (no prior login), so requireLocalEmailVerified must be off —
+    // the seed itself is the trust decision.
     accountLinking: {
       enabled: true,
       trustedProviders: ["google"],
+      requireLocalEmailVerified: false,
       updateUserInfoOnLink: true,
     },
   },

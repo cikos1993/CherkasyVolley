@@ -10,7 +10,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -71,10 +70,10 @@ export function UserMenu() {
         </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuLabel className="font-normal">
-          <span className="block text-sm">{name?.trim() ? name : "—"}</span>
-          <span className="block text-xs text-muted-foreground">{email}</span>
-        </DropdownMenuLabel>
+        <div className="px-2 py-1.5">
+          <p className="text-sm">{name?.trim() ? name : "—"}</p>
+          <p className="text-xs text-muted-foreground">{email}</p>
+        </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={signOut} disabled={signingOut}>
           Вийти
