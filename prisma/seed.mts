@@ -4,7 +4,7 @@ import { PrismaClient } from "../src/generated/prisma/client";
 
 config({ path: [".env.local", ".env"] });
 
-const email = process.env.SEED_ADMIN_EMAIL?.trim();
+const email = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
 if (!email) {
   console.error("SEED_ADMIN_EMAIL is not set — cannot seed the first admin.");
   process.exit(1);
@@ -14,6 +14,10 @@ const connectionString =
   process.env.DIRECT_URL ??
   process.env.DATABASE_URL_UNPOOLED ??
   process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error("No database URL (DIRECT_URL / DATABASE_URL_UNPOOLED / DATABASE_URL) is set.");
+  process.exit(1);
+}
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 

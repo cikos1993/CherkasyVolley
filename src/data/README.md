@@ -1,14 +1,20 @@
 # `src/data/` — persistence layer
 
-The only place the Prisma client (`@/generated/prisma`, or the `@prisma/client`
-re-export) may be imported. Every read and write of every entity goes through a
-named function exported from here — `getPublicTournaments`, `saveMatchResult`, and
-so on. There is one owner and one writer per entity.
+The only place in `src/` where the generated Prisma client
+(`@/generated/prisma/client`) may be imported. Every read and write of every entity
+goes through a named function exported from here — `getPublicTournaments`,
+`saveMatchResult`, and so on. There is one owner and one writer per entity.
 
 **May import:** the Prisma client and generated schema types. `client.ts` constructs
 the single shared `PrismaClient` instance (`@prisma/adapter-pg` over the pooled
 `DATABASE_URL`) and exports it as `db`; `src/auth` imports `db` from here for Better
 Auth's adapter and never imports the Prisma client directly.
+
+**Sanctioned exception to AD-11:** the build/CLI scripts `prisma/seed.mts` and
+`prisma7.config.ts` construct their own client (direct/unpooled URL, own lifecycle).
+They live under `prisma/`, which the ESLint boundary blocks do not scope — this is
+intentional (they are not application code), not a gap. No other file outside
+`src/data/` may import the client.
 
 **Must not import:** `src/actions`, `src/auth`, `src/app`, `src/components`, `next`,
 `react`.

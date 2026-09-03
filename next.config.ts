@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Keep the Postgres driver out of the server bundle — it resolves its own
-  // optional native dependency (pg-native) at runtime.
+  // `pg` does dynamic requires (optional pg-native, pg-cloudflare) that the
+  // bundler cannot statically resolve — keep it and the adapter external.
   serverExternalPackages: ["pg", "@prisma/adapter-pg"],
 };
 

@@ -27,8 +27,9 @@ shadcn/ui + Tailwind, хостинг Vercel. Планування живе в `_
 - Пакетний менеджер — **pnpm** (`pnpm install`, `pnpm dev`, `pnpm build`, `pnpm lint`); Node 24.
 - `pnpm lint` (ESLint 9 flat config) включає правила меж імпорту: `src/domain/` без `next`/Prisma-клієнта/`react`/інших шарів; Prisma-клієнт (`@/generated/prisma`, `@prisma/client`) лише в `src/data/`; `src/data/` не залежить від `actions`/`auth`/view/`next`/`react`; `src/auth/` імпортує лише `src/data`. Ловляться і alias-, і відносні форми. Порушення — помилка ESLint, окремо від перевірки типів.
 - TODO: юніт-тести доменних функцій `src/domain/*` — обовʼязкові; запуск через Vitest (додається з першим модулем `src/domain`).
-- Міграції: `pnpm prisma migrate dev --name <...>` (dev, потребує `.env.local` з `DATABASE_URL_UNPOOLED`); прод — `pnpm prisma migrate deploy` (у `build` перед `next build`). `prisma generate` — у `postinstall`, бо `src/generated/` gitignored.
-- Seed: `pnpm seed` (`prisma db seed` → `node prisma/seed.ts`) — ідемпотентний upsert першого адміна по `SEED_ADMIN_EMAIL`. Повторний запуск дублів не створює.
+- Міграції: `pnpm prisma migrate dev --name <...>` для розробки — **проти власної Neon-гілки, не проти прод-гілки** (може запропонувати reset, створює/видаляє shadow DB). Прод отримує міграції лише через `pnpm prisma migrate deploy`, який `build` запускає через `scripts/migrate-deploy.mjs` (пропускається на preview-збірках Vercel). `prisma generate` — у `postinstall` і на початку `build`, бо `src/generated/` gitignored.
+- Seed: `pnpm seed` (`prisma db seed` → `tsx prisma/seed.mts`) — ідемпотентний upsert першого адміна по `SEED_ADMIN_EMAIL` (у нижньому регістрі). Повторний запуск дублів не створює.
+- `pnpm typecheck` (`tsc --noEmit`) — офлайн-перевірка типів (`next build` тепер потребує БД).
 
 ## Conventions that differ from defaults
 
@@ -67,8 +68,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Scaffolded: Next.js 16 (App Router, `src/`, Turbopack default), React 19.2, TypeScript 5, Tailwind CSS **v4** (CSS-first — theme in `src/app/globals.css` via `@theme`, no `tailwind.config.js`), ESLint 9 flat config, shadcn/ui (Tailwind v4 mode), Prisma **7** (`prisma-client` generator, output `src/generated/prisma`, `prisma7.config.ts` holds the connection URL — not `schema.prisma`).
 - Package manager: **pnpm** (installed globally via `npm i -g pnpm`; `corepack enable` fails on this machine — Node lives in `C:\Program Files\nodejs`, not user-writable). `packageManager` field pins the version.
 - Node: pinned to 24.x via `package.json` `engines` + `.nvmrc`.
-- Commands: `pnpm dev` (Turbopack), `pnpm build`, `pnpm lint`, `pnpm seed`.
-- Prisma 7 driver adapter wired (Story 1.4): `@prisma/adapter-pg` + `pg` over the pooled `DATABASE_URL`; the shared `PrismaClient` is `src/data/client.ts` (`export const db`). Migrations use the direct URL (`DATABASE_URL_UNPOOLED` / `DIRECT_URL`) via `prisma7.config.ts`. `postinstall` runs `prisma generate`; `build` runs `prisma migrate deploy` first.
+- Commands: `pnpm dev` (Turbopack), `pnpm build`, `pnpm lint`, `pnpm typecheck`, `pnpm seed`.
+- Prisma 7 driver adapter wired (Story 1.4): `@prisma/adapter-pg` + `pg` over the pooled `DATABASE_URL`; the shared `PrismaClient` is `src/data/client.ts` (`export const db`), imported from `@/generated/prisma/client`. Migrations use the direct URL (`DATABASE_URL_UNPOOLED` / `DIRECT_URL`) via `prisma7.config.ts`. `build` = `prisma generate && node scripts/migrate-deploy.mjs && next build` (the wrapper runs `migrate deploy` only when `VERCEL_ENV` is `production` or unset). `prisma/seed.mts` + `prisma7.config.ts` are the only sanctioned importers of the generated client outside `src/data/` (build/CLI scripts, not linted).
+- **No dev/staging database yet** — there is one Neon project. Recommended: create a personal Neon branch for `migrate dev`; only `migrate deploy` touches the prod branch.
 
 ## Domain boundaries (Story 1.3)
 

@@ -9,7 +9,7 @@ context:
 
 # Story 1.4: Auth-schema, migrations, and first-admin seed
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -100,6 +100,28 @@ Translated from `epics.md` → Epic 1 → Story 1.4. The Ukrainian source is aut
   - [x] `## Stack status`: adapter wired, `src/data/client.ts` (`db`), direct URL for migrations, `postinstall`+`build` wiring. Hosting: Neon marked provisioned.
 - [x] **Task 13 — Commit**
   - [x] committed on `main` — `feat(db): User model, first migration, first-admin seed (Story 1.4)`. Includes `prisma/migrations/**`. **Not pushed** — pushing triggers Vercel `build` → `prisma migrate deploy` against prod (migration is already applied there, so it would be a no-op, but holding per the Story 1.2/1.3 pattern of pushing after review).
+
+### Review Findings
+
+_Adversarial code review 2026-09-03 (`bmad-code-review`, 4 layers — Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor). Scope: `cd223c5..HEAD` (`prisma/**`, `prisma7.config.ts`, `src/data/**`, `package.json`, `next.config.ts`, `.env.example`, `AGENTS.md`, `pnpm-workspace.yaml`). Outcome: 1 decision-needed (resolved), 10 patch (applied), 5 defer, ~7 dismissed. No high-severity findings._
+
+- [x] [Review][Decision] **Deploy / DB-environment strategy** — all four layers flagged `build`↔DB coupling and the single prod DB. **Resolved: option (1).** `build` = `prisma generate && node scripts/migrate-deploy.mjs && next build`; the new `scripts/migrate-deploy.mjs` runs `prisma migrate deploy` only when `VERCEL_ENV` is `production` or unset (local) — preview/branch builds skip it (verified). AGENTS.md documents the build-env requirement and **recommends provisioning a Neon dev branch** for `migrate dev` (option 3 left to the user — a code review can't provision it). The "one prod DB, no from-empty CI check, `migrate reset` unusable" residue is in `deferred-work.md`.
+- [x] [Review][Patch] `AGENTS.md` — `node prisma/seed.ts` → `tsx prisma/seed.mts` (both the `bmad:context` line and the durable `bmad:manual` "Stack status" section). [AGENTS.md]
+- [x] [Review][Patch] `src/data/client.ts` — throws `"DATABASE_URL is not set …"` before constructing `PrismaPg`. [src/data/client.ts]
+- [x] [Review][Patch] `prisma/seed.mts` — added the missing-DB-URL guard (`process.exit(1)`); `SEED_ADMIN_EMAIL` now `.trim().toLowerCase()`. [prisma/seed.mts]
+- [x] [Review][Patch] `build` now starts with `prisma generate` (a schema pull without reinstall / an `--ignore-scripts` install no longer ships a stale/absent client). [package.json]
+- [x] [Review][Patch] Added `"typecheck": "tsc --noEmit"` — offline type check for `seed.mts` / `prisma7.config.ts` (verified clean). [package.json]
+- [x] [Review][Patch] `.env.example` rewritten — `vercel env pull` is the canonical path, `DATABASE_URL_UNPOOLED` explained, `DIRECT_URL` marked optional, no more "Copy to `.env`". [.env.example]
+- [x] [Review][Patch] `prisma7.config.ts` — `datasource.shadowDatabaseUrl: process.env["SHADOW_DATABASE_URL"]` wired (the `.env.example` line is no longer dead). [prisma7.config.ts]
+- [x] [Review][Patch] `src/data/README.md` + AGENTS.md — client path corrected to `@/generated/prisma/client`. [src/data/README.md, AGENTS.md]
+- [x] [Review][Patch] `src/data/README.md` + AGENTS.md — added an explicit "sanctioned exception to AD-11" note for `prisma/seed.mts` + `prisma7.config.ts` (build/CLI scripts, outside the lint scope by design). [src/data/README.md, AGENTS.md]
+- [x] [Review][Patch] `AGENTS.md` — hazard note: `migrate dev` against a personal Neon branch, never prod; only `migrate deploy` touches prod. [AGENTS.md]
+- [x] [Review][Patch] `next.config.ts` — comment corrected (`pg` dynamic requires / `pg-cloudflare`, not `pg-native` auto-load). Also updated `ARCHITECTURE-SPINE.md` code-tree `seed.ts` → `seed.mts`. [next.config.ts, ARCHITECTURE-SPINE.md]
+- [x] [Review][Defer] `src/data/client.ts` has no importer and no durable test — the runtime DB entrypoint is proven only by a since-deleted manual script. Story 1.5 will exercise it; a real test needs the test runner. — deferred, add to `deferred-work.md`.
+- [x] [Review][Defer] No from-empty migration replay in CI / durable AC-1 check (`migrate reset` is blocked; the `migrate dev` shadow DB did replay from zero but retains no artifact). Needs CI or a disposable Neon branch. Overlaps the existing "No CI gate" item. — deferred.
+- [x] [Review][Defer] `User.updatedAt` is `NOT NULL` with no DB default (asymmetric with `createdAt`'s `DEFAULT CURRENT_TIMESTAMP`); a non-Prisma insert would violate it. — deferred to the Story 1.5 Better-Auth reconciliation migration (add `@default(now())` then, or confirm Better Auth's adapter always sets it).
+- [x] [Review][Defer] `config({ path: [".env.local", ".env"] })` + the `DIRECT_URL ?? DATABASE_URL_UNPOOLED ?? DATABASE_URL` chain are duplicated in `prisma7.config.ts` and `prisma/seed.mts`. — deferred; extract a `prisma/` helper if a third consumer appears.
+- [x] [Review][Defer] `PrismaPg` pool has no `max` — on Vercel, many serverless instances at the `pg` default (10) could pressure Neon's ceiling (the pooled endpoint mitigates this). — deferred; tune when the client is under real load (Story 1.5+).
 
 ## Dev Notes
 
@@ -314,6 +336,7 @@ USER ROWS: [ { "id": "cmtlezdfq00004cg4ifucp6w8", "email": "nightfate1993@gmail.
 - `prisma/seed.mts`
 - `prisma/migrations/migration_lock.toml`
 - `prisma/migrations/20260903105840_init_user/migration.sql`
+- `scripts/migrate-deploy.mjs` _(code review)_
 
 **Modified:**
 - `prisma/schema.prisma`
@@ -326,6 +349,8 @@ USER ROWS: [ { "id": "cmtlezdfq00004cg4ifucp6w8", "email": "nightfate1993@gmail.
 - `src/data/README.md`
 - `AGENTS.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/deferred-work.md` _(code review)_
+- `_bmad-output/planning-artifacts/architecture/architecture-untitled-2026-09-02/ARCHITECTURE-SPINE.md` _(code review — `seed.mts` filename)_
 
 **Local only (git-ignored, not committed):**
 - `.env.local` — added `SEED_ADMIN_EMAIL=nightfate1993@gmail.com`
@@ -337,3 +362,4 @@ USER ROWS: [ { "id": "cmtlezdfq00004cg4ifucp6w8", "email": "nightfate1993@gmail.
 | --- | --- |
 | 2026-09-03 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-03 | Implemented: `User` model + first migration (`20260903105840_init_user`) applied to Neon; `src/data/client.ts` (`@prisma/adapter-pg`, pooled URL, `db` singleton); idempotent `prisma/seed.mts` (via `tsx`); `prisma7.config.ts` env/direct-URL/seed wiring; `postinstall: prisma generate` + `build: migrate deploy && next build`; `next.config.ts serverExternalPackages`. Seed verified idempotent; client smoke-tested; `pnpm lint` + `pnpm build` + `migrate status` clean on Node 24. Deviations: `tsx`/`.mts` for the seed; `migrate reset` skipped (prod DB / Prisma AI gate). Status: review. |
+| 2026-09-03 | Code review (`bmad-code-review`, 4 layers). 1 decision resolved (deploy guard: `scripts/migrate-deploy.mjs` skips `migrate deploy` on preview builds; Neon dev-branch recommended), 10 patches applied (env guards in `client.ts` + `seed.mts`, `.toLowerCase()` on the admin email, `prisma generate` in `build`, `typecheck` script, `.env.example` rewrite, `shadowDatabaseUrl` wired, client-path + AD-11-carve-out docs, `next.config.ts` comment, spine `seed.mts`). 5 items deferred (no client importer/test, no from-empty CI check, `updatedAt` default → 1.5, duplicated env logic, pool `max`). `pnpm lint` + `pnpm typecheck` + `pnpm build` clean. Status: done. |

@@ -185,7 +185,7 @@ src/
 prisma/
   schema.prisma
   migrations/
-  seed.ts             # перший адмін, довідкові дані
+  seed.mts            # перший адмін, довідкові дані (ESM, запуск через tsx)
 ```
 
 ## Capability → Architecture Map

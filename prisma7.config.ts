@@ -20,5 +20,7 @@ export default defineConfig({
       process.env["DIRECT_URL"] ??
       process.env["DATABASE_URL_UNPOOLED"] ??
       process.env["DATABASE_URL"],
+    // Optional: only used if `migrate dev` cannot create/drop its own shadow DB.
+    shadowDatabaseUrl: process.env["SHADOW_DATABASE_URL"],
   },
 });
