@@ -74,11 +74,15 @@ model Verification {
   @@map("verification")
 }
 
+/// Top-level kind of volleyball. v1 has data only for CLASSIC (AD-9); BEACH exists
+/// in the type but has no create path, no UI and no Server Actions.
 enum Discipline {
   CLASSIC
   BEACH
 }
 
+/// Category within a discipline (glossary "Тип турніру"). All types share the
+/// same championship logic (groups → playoff).
 enum TournamentType {
   CHAMPIONSHIP
   VETERAN
@@ -86,6 +90,8 @@ enum TournamentType {
   YOUTH
 }
 
+/// Lifecycle stage. Changed only by `transitionTournament` (Story 2.3 / AD-8) —
+/// never by a direct write. Forward-only: DRAFT → GROUP_STAGE → PLAYOFF → COMPLETED.
 enum TournamentState {
   DRAFT
   GROUP_STAGE
@@ -93,39 +99,55 @@ enum TournamentState {
   COMPLETED
 }
 
+/// Points rule (glossary "Система очок"). CLASSIC: match to 3 sets, 3/2/1/0 points.
+/// CUSTOM: every match is exactly 3 sets, 1 point per set won. Both rules are fixed
+/// in `src/domain/scoring.ts` — there is nothing per-tournament to configure.
 enum ScoringPreset {
   CLASSIC
   CUSTOM
 }
 
+/// A single competition instance. The group standings table and playoff placements
+/// are NEVER stored here (AD-4) — they are computed on read from matches.
 model Tournament {
   id            String            @id @default(cuid())
   discipline    Discipline
   type          TournamentType
   name          String
+  /// Calendar year of the competition, e.g. 2026. CHECK 2000..2100.
   year          Int
   state         TournamentState   @default(DRAFT)
   scoringPreset ScoringPreset
+  /// Planned field size — the number of teams the single group is drawn for.
+  /// Set at creation, editable only while DRAFT. CHECK > 0.
   teamCount     Int
+  /// Round-robin passes in the group ("кількість кіл"), not playoff rounds.
+  /// Set at creation, editable only while DRAFT. CHECK > 0.
   rounds        Int
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @default(now()) @updatedAt
+  createdAt     DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime          @default(now()) @updatedAt @db.Timestamptz(3)
   entries       TournamentEntry[]
 
-  @@index([discipline, state])
+  @@index([discipline, state, year])
   @@map("tournament")
 }
 
+/// A reusable club identity (glossary "Команда"). One row is entered into many
+/// tournaments via `TournamentEntry`. `name` is the identity — see Story 2.6 for
+/// the (currently case/whitespace-sensitive) uniqueness.
 model Team {
   id        String            @id @default(cuid())
   name      String            @unique
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @default(now()) @updatedAt
+  createdAt DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime          @default(now()) @updatedAt @db.Timestamptz(3)
   entries   TournamentEntry[]
 
   @@map("team")
 }
 
+/// A team's participation in one tournament (glossary "Заявка команди"). Owns the
+/// roster (`players`), which is specific to this tournament. At most one per
+/// (tournament, team). Deleting it deletes the roster (FR-9).
 model TournamentEntry {
   id           String     @id @default(cuid())
   tournamentId String
@@ -133,14 +155,17 @@ model TournamentEntry {
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   team         Team       @relation(fields: [teamId], references: [id], onDelete: Restrict)
   players      Player[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @default(now()) @updatedAt
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime   @default(now()) @updatedAt @db.Timestamptz(3)
 
   @@unique([tournamentId, teamId])
   @@index([teamId])
   @@map("tournament_entry")
 }
 
+/// One roster entry (glossary "Гравець"), scoped to a single `TournamentEntry` —
+/// there is no global player directory and no cross-entry dedup (PRD §4.3 / FR-10).
+/// Only `fullName` is required; every other field is optional free text by design.
 model Player {
   id         String          @id @default(cuid())
   entryId    String
@@ -152,8 +177,8 @@ model Player {
   position   String?
   height     String?
   weight     String?
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @default(now()) @updatedAt
+  createdAt  DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime        @default(now()) @updatedAt @db.Timestamptz(3)
 
   @@index([entryId])
   @@map("player")

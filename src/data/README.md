@@ -35,10 +35,13 @@ the single shared `PrismaClient` instance (`@prisma/adapter-pg` over the pooled
 Auth's adapter and never imports the Prisma client directly.
 
 **Sanctioned exception to AD-11:** the build/CLI scripts `prisma/seed.mts` and
-`prisma7.config.ts` construct their own client (direct/unpooled URL, own lifecycle).
-They live under `prisma/`, which the ESLint boundary blocks do not scope — this is
-intentional (they are not application code), not a gap. No other file outside
-`src/data/` may import the client.
+`prisma7.config.ts` construct their own client (direct/unpooled URL, own lifecycle);
+the diagnostic script `scripts/db-check.mts` imports the shared `db` (and the
+generated enums) directly for a live smoke check. None are application code and none
+sit under `src/`, so the ESLint boundary blocks do not scope them — intentional, not
+a gap. No file **inside `src/`** outside `src/data/` may import the client, and the
+"reads/writes go through a named `src/data` function" convention likewise does not
+bind the CLI scripts.
 
 **Must not import:** `src/actions`, `src/auth`, `src/app`, `src/components`, `next`,
 `react`.

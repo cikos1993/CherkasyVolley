@@ -8,6 +8,19 @@ Items surfaced during reviews that are real but not actionable in the story that
 - ~~**Neon migrations need a direct connection URL.**~~ **Resolved in Story 1.4.** `prisma7.config.ts` `datasource.url` = `DIRECT_URL ?? DATABASE_URL_UNPOOLED ?? DATABASE_URL`; `.env.example` documents `DIRECT_URL`. `migrate dev` applied clean.
 - ~~**`next.config.ts` is an empty placeholder** (no `serverExternalPackages`).~~ **Partly resolved in Story 1.4.** Added `serverExternalPackages: ["pg", "@prisma/adapter-pg"]`. Security headers / image config still deferred to a hardening pass.
 
+## Deferred from: code review of 2-1-tournament-team-player-schema (2026-09-03)
+
+- **`Tournament` has no natural-key uniqueness.** Nothing stops two identical `(discipline, type, year, name)` rows from an admin double-submit. Story 2.4's `createTournament` decides: add `@@unique([discipline, type, year, name])` or stay permissive (FR-8 spirit — "коректність — дисципліна адміна").
+- **No soft-delete / archival concept.** Deleting a `Tournament` DB-cascades its entries and players; deleting a `TournamentEntry` erases that team's roster; nothing restricts delete to `DRAFT`. The public archive shows `COMPLETED` tournaments forever. Story 2.5 owns tournament delete + its `ConfirmDialog`; decide then whether `COMPLETED` tournaments are delete-protected or need an `archived` flag instead of a row delete.
+- **`discipline` + `type` combination is unconstrained** — `BEACH` + `VETERAN` is representable (unreachable in v1: no `BEACH` create path, AD-9). Story 2.4's create form needs an `allowedTypes(discipline)` domain helper.
+- **`Team.name @unique` has no normalization.** "Спартак" / "спартак" / "Спартак " are three distinct teams. Story 2.6 (team directory) owns dedup — add a normalized `nameKey` (trim + case-fold) or a `citext` column, and handle the `P2002` on create.
+- **`P2002` / `P2003` mapping.** Unique-violation and FK-`RESTRICT` errors from Prisma have no `{ ok: false, code }` translation. The feature stories that write the create/delete actions (2.4 / 2.6 / 2.7) each need to catch `P2002` → `DUPLICATE` and `P2003` → `IN_USE`.
+- **`TournamentEntry` count vs `Tournament.teamCount`.** The schema allows more entries than the configured field size. Story 2.7's enroll action asserts `count < teamCount` before insert.
+- **`Tournament.state` is directly assignable in the schema.** AD-8 relies on convention until Story 2.3 lands `transitionTournament` + `src/domain/tournamentState.ts` and no `src/data` function accepts a `state` argument.
+- **No public URL identifier** — tournaments/teams are addressed by raw `cuid`. Story 2.9 (public tournament page) decides if a `slug` is worth it.
+- **Auth tables are still `timestamp` without time zone.** Only the four Epic-2 tables get `@db.Timestamptz(3)` in this story's follow-up. A maintenance migration should convert `user` / `session` / `account` / `verification` too (low impact — audit fields, and Vercel runs UTC).
+- **From-empty migration replay + constraint/cascade integration tests** — `migrate reset` is blocked, there is no CI, and `db-check.mts` only `count()`s empty tables. When Vitest lands (anticipated in Epic 3), a disposable-Neon-branch spec should round-trip `Tournament → TournamentEntry → Player` and assert `@unique`, the cascade/`Restrict` FKs, and the `@default(now())` timestamp behaviour. Overlaps the existing "no CI gate" / "no from-empty replay" items.
+
 ## Deferred from: code review of 1-8-public-shell-and-menu (2026-09-03)
 
 - **Discipline-nav touch targets stay below the 44px floor.** After the review the mobile links are ~36px (`py-2 sm:py-1.5` on 13px text); EXPERIENCE.md UX-DR13 wants ≥44px on `< 640px`. This is the same cross-cutting deferral tracked since Story 1.5 — a per-component bump would clash with `Button` (h-8), `Avatar` (size-8), tab chips, etc. Owner: the design-system / a11y pass, or Story 2.2.

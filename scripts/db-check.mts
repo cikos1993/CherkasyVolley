@@ -4,6 +4,7 @@ config({ path: [".env.local", ".env"] });
 // Smoke-checks the runtime DB client against the live database:
 //   pnpm exec tsx scripts/db-check.mts
 const { db } = await import("../src/data/client");
+const { Discipline } = await import("../src/generated/prisma/enums");
 
 const [users, sessions, accounts, verifications, tournaments, teams, entries, players] =
   await Promise.all([
@@ -18,7 +19,10 @@ const [users, sessions, accounts, verifications, tournaments, teams, entries, pl
   ]);
 
 // Exercise an enum-typed filter so the generated types are checked end to end.
-const classicTournaments = await db.tournament.findMany({ where: { discipline: "CLASSIC" } });
+const classicTournaments = await db.tournament.findMany({
+  where: { discipline: Discipline.CLASSIC },
+  take: 100,
+});
 
 console.log({
   users,
