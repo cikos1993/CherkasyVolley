@@ -12,7 +12,9 @@ const {
   VERCEL_ENV,
 } = process.env;
 
-if (VERCEL_ENV === "production") {
+// `next build` evaluates this module before the (runtime-only) Vercel env is
+// available, so only fail-fast on a real production cold start.
+if (VERCEL_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build") {
   const missing = Object.entries({
     BETTER_AUTH_URL,
     BETTER_AUTH_SECRET,
