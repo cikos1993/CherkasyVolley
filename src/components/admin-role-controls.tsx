@@ -1,21 +1,13 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useId, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { Loader2Icon } from "lucide-react";
 
 import { grantAdmin, revokeAdmin } from "@/actions/admin-roles";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { notify } from "@/lib/notify";
 
 export function GrantAdminButton({ userId }: { userId: string }) {
   const [pending, startTransition] = useTransition();
@@ -24,16 +16,17 @@ export function GrantAdminButton({ userId }: { userId: string }) {
     startTransition(async () => {
       try {
         const res = await grantAdmin(userId);
-        if (res.ok) toast.success("Доступ надано");
-        else toast.error(res.message);
+        if (res.ok) notify.success("Доступ надано");
+        else notify.error(res.message);
       } catch {
-        toast.error("Не вдалося надати доступ. Спробуйте ще раз.");
+        notify.error("Не вдалося надати доступ. Спробуйте ще раз.");
       }
     });
   }
 
   return (
     <Button size="sm" variant="outline" onClick={grant} disabled={pending}>
+      {pending ? <Loader2Icon className="animate-spin" /> : null}
       Надати доступ
     </Button>
   );
@@ -50,8 +43,6 @@ export function RevokeAdminButton({
 }) {
   const router = useRouter();
   const reasonId = useId();
-  const [open, setOpen] = useState(false);
-  const [pending, startTransition] = useTransition();
 
   if (disabled) {
     return (
@@ -66,49 +57,37 @@ export function RevokeAdminButton({
     );
   }
 
-  function revoke() {
-    startTransition(async () => {
-      try {
-        const res = await revokeAdmin(userId);
-        if (res.ok) {
-          setOpen(false);
-          toast.success("Доступ знято");
-          if (isSelf) {
-            router.push("/");
-            router.refresh();
-          }
-        } else {
-          toast.error(res.message);
-        }
-      } catch {
-        toast.error("Не вдалося зняти доступ. Спробуйте ще раз.");
-      }
+  async function revoke() {
+    const res = await revokeAdmin(userId).catch((): null => {
+      notify.error("Не вдалося зняти доступ. Спробуйте ще раз.");
+      return null;
     });
+    if (res === null) throw new Error("revoke request failed");
+    if (!res.ok) {
+      notify.error(res.message);
+      throw new Error(res.code);
+    }
+    notify.success("Доступ знято");
+    if (isSelf) router.push("/");
+    router.refresh();
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
-      <DialogTrigger render={<Button size="sm" variant="destructive" />}>
-        Зняти доступ
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Зняти доступ адміністратора?</DialogTitle>
-          <DialogDescription>
-            {isSelf
-              ? "Ви більше не зможете відкривати адмін-зону й керувати турнірами."
-              : "Користувач втратить доступ до адмін-зони та керування турнірами."}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" disabled={pending} />}>
-            Скасувати
-          </DialogClose>
-          <Button variant="destructive" onClick={revoke} disabled={pending}>
-            Зняти
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog
+      trigger={
+        <Button size="sm" variant="destructive">
+          Зняти доступ
+        </Button>
+      }
+      title="Зняти доступ адміністратора?"
+      description={
+        isSelf
+          ? "Ви більше не зможете відкривати адмін-зону й керувати турнірами."
+          : "Користувач втратить доступ до адмін-зони та керування турнірами."
+      }
+      confirmLabel="Зняти"
+      destructive
+      onConfirm={revoke}
+    />
   );
 }

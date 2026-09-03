@@ -2,6 +2,14 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from: code review of 2-2-reusable-ux-patterns (2026-09-04)
+
+_Pre-implementation review of the story draft (`bmad-code-review`, 4 layers). The story is still `ready-for-dev`; these are carried past it._
+
+- **The `admin-role-controls.tsx` migration (Story 2.2 / Task 6) ships to `main` — which auto-deploys to prod — gated only by a manual browser walkthrough.** No CI, no component tests until Vitest lands (Story 2.3). This is the same "no CI gate / no automated action-layer coverage" gap already tracked from the 1-1 and 1-7 reviews; the `admin-role-controls` migration widens the blast radius (it rewrites a shipped, code-reviewed Story 1.7 feature: drops `useTransition`, swaps the hand-rolled `Dialog` for `ConfirmDialog`, makes `revoke()` throw on failure). The 1-7 deferred-work mandate explicitly assigns the migration to Story 2.2, so it is not splittable. Story 2.2's Task 8 walkthrough must be thorough; a Vitest contract test for `ConfirmDialog` + `admin-role-controls` (resolve-closes / throw-stays-open / pending close-suppression / last-admin disabled branch / self-revoke navigation) should be the first thing written when the runner arrives in Story 2.3.
+- **`no-alert` (Story 2.2 / Task 4) has the same non-durable verification as the Story 1.3 import-boundary rules** — verified once with a throwaway probe that is then deleted, no committed negative fixture, and `next build` (the only thing that runs on push to `main`) does not run the ESLint blocks. A later `eslint-config-next` bump that reorders/overrides rule blocks, or an accidental deletion of the block, leaves `pnpm lint` green and a `confirm()` can ship — exactly the AC-1 violation the rule exists to prevent. Fold into the existing "committed `eslint` negative fixture check once Vitest lands" item (1-3 review).
+- **`ConfirmDialog` fully locks while `onConfirm` is in flight** (both buttons disabled + Esc/backdrop/X suppressed). Deliberate (the "don't close mid-request" requirement), and bounded by the platform function timeout (a hung Server Action rejects → the `catch` reopens the dialog), so not "user trapped forever" — but a slow action gives the user a spinner and no escape for up to that timeout. Revisit if a feature story wraps a genuinely long-running action in `ConfirmDialog`; a cancel affordance or a client-side timeout race would be the fix.
+
 ## Deferred from: code review of 1-1-starter-and-deploy (2026-09-03)
 
 - **No CI gate on push to `main`.** There is no `.github/workflows/`. `main` auto-deploys to Vercel, which runs `next build` (covers AC1's build half) but not `pnpm lint` (Next 16 dropped lint-during-build) and not a Node-24-pinned check. AC1's "lint clean on Node 24" is currently enforced only by a one-time manual local run. Candidate: a small CI story, or fold into Story 1.3 (which already touches the lint config).
@@ -37,7 +45,7 @@ Items surfaced during reviews that are real but not actionable in the story that
 - **No audit trail for role changes.** Grant = privilege escalation, revoke = a security action; neither is recorded. Add a small `AdminRoleChange` log (actor, target, action, timestamp) if the federation ever needs accountability.
 - **`grantAdmin` / `revokeAdmin` check row existence, not "has an account".** Any valid `User.id` can be promoted via a direct Server-Action POST, not only the rows `listAuthenticatedUsers()` returns. Negligible (OAuth always creates an `account`; the only account-less row is the seed admin, already an admin), but the server does not enforce the "has signed in" scope the UI implies.
 - **No automated end-to-end / action-layer coverage.** `LAST_ADMIN` and `NOT_FOUND` are verified only at the data-layer (script) and by a disabled button; the action-layer mapping, `revalidatePath` list refresh, and the dialog cancel path have no test. Add when a test runner + session-mock infra lands (Epic 3, per `AGENTS.md`).
-- **Buttons show only `disabled` while pending** — no spinner or "Надаю…"/"Знімаю…" label, contrary to EXPERIENCE.md ("Кнопка на час запиту — `disabled` + Skeleton/спінер у кнопці"). The reusable loading affordance is Story 2.2; apply it to `admin-role-controls.tsx` then.
+- ~~**Buttons show only `disabled` while pending**~~ **Resolved in Story 2.2.** `GrantAdminButton` shows a spinner while pending; the revoke flow now runs through `ConfirmDialog`, whose confirm button spins while `onConfirm` is in flight.
 
 ## Deferred from: code review of 1-6-require-admin-access-control (2026-09-03)
 

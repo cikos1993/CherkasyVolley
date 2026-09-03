@@ -34,6 +34,7 @@
   --color-success-foreground: var(--success-foreground);
   --color-success: var(--success);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -78,6 +79,7 @@
   --success: #1f8a54;
   --success-foreground: #ffffff;
   --destructive: #c4342b;
+  --destructive-foreground: #ffffff;
   --border: #e7e7e4;
   --input: oklch(0.922 0 0); /* base-nova default — DESIGN: input inherits from shadcn */
   --ring: #1f6feb;
@@ -106,5 +108,14 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Honour the OS "reduce motion" setting for the shared loading primitives
+   (Skeleton pulse, in-button spinners). Unlayered so it wins over the utilities. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse,
+  .animate-spin {
+    animation: none;
   }
 }

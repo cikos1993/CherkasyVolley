@@ -37,12 +37,13 @@ shadcn/ui + Tailwind, хостинг Vercel. Планування живе в `_
 - `src/domain/` — чисті функції: не імпортує `next`, Prisma-клієнт, `react`, `src/data`, `src/actions`, `src/auth`, `src/app`, `src/components`, `src/lib`.
 - Prisma-клієнт (`@/generated/prisma`; `@prisma/client` — реекспорт) імпортується лише в `src/data/`; усі читання/записи — через іменовані функції там. `src/auth/` бере спільний інстанс клієнта з `src/data/`.
 - Кожна мутація даних — Server Action у `src/actions/`, перший рядок `await requireAdmin()` (кидає `AdminRequiredError` → мапиться в `{ ok: false, code, message }`); `/admin/**` гейтиться в `src/app/admin/layout.tsx` через `requireAdminPage()` (редіректить). Тост-примітив — `sonner` (`<Toaster />` у `src/app/layout.tsx`).
+- Багаторазові UI-примітиви (Story 2.2, `src/components/README.md`): `notify` (`src/lib/notify.ts` — завжди він, не `toast` напряму, крім `ui/sonner.tsx` і `flash-toaster.tsx`); `ConfirmDialog` (`src/components/confirm-dialog.tsx`, обгортка над `ui/dialog`; `onConfirm` кидає ⇒ діалог лишається відкритим, тост не показує — месидж на боці caller); `EmptyState` + `src/lib/empty-states.ts` (єдине джерело копірайту); `Skeleton`/`TableSkeleton`/`CardSkeleton` (`src/components/skeletons.tsx` — жодних повносторінкових спінерів). Нативні `alert()`/`confirm()`/`prompt()` — помилка ESLint (`no-alert`).
 - Ролі: `grantAdmin` / `revokeAdmin` (`src/actions/admin-roles.ts`) — поверхня `/admin/people`. `User.isAdmin` пишуть лише `promoteToAdmin` / `demoteFromAdmin` у `src/data/users.ts`; `demoteFromAdmin` під `SELECT … FOR UPDATE` відмовляється зняти останнього адміна. «Користувач, що входив» = має рядок `account` (`listAuthenticatedUsers`).
 - Турнірна таблиця й місця плейофа обчислюються при читанні, ніколи не зберігаються в БД.
 - `Tournament.state` змінюється лише через Server Action `transitionTournament`, не присвоєнням.
 - Інтерфейс лише українською, без i18n-бібліотеки; час зберігається в UTC, показується в `Europe/Kyiv`; ID — cuid.
 - Планові документи — українською; ідентифікатори в коді — англійською.
-- Публічний каркас (Story 1.8): вордмарк + `DisciplineNav` (`src/components/discipline-nav.tsx`) у шапці `src/app/layout.tsx`; розділи `/classic` · `/beach` · `/archive` — незалежні дерева маршрутів; `/` редіректить на `/classic`. `EmptyState` (`src/components/empty-state.tsx`) — мінімальний примітив, Story 2.2 його формалізує.
+- Публічний каркас (Story 1.8): вордмарк + `DisciplineNav` (`src/components/discipline-nav.tsx`) у шапці `src/app/layout.tsx`; розділи `/classic` · `/beach` · `/archive` — незалежні дерева маршрутів; `/` редіректить на `/classic`. `EmptyState` (`src/components/empty-state.tsx`) формалізовано в Story 2.2 (`action` / `headingLevel` слоти, копірайт у `src/lib/empty-states.ts`).
 
 ## Known pitfalls
 

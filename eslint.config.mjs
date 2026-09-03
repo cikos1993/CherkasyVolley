@@ -199,6 +199,15 @@ const eslintConfig = defineConfig([
     },
   },
 
+  // Native browser dialogs (`alert` / `confirm` / `prompt`) block the event loop
+  // and are not styleable. Use ConfirmDialog or a toast instead.
+  {
+    files: [`src/${SRC}`],
+    rules: {
+      "no-alert": "error",
+    },
+  },
+
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
