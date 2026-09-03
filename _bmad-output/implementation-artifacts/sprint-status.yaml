@@ -27,7 +27,7 @@ development_status:
   1-3-domain-scaffold-boundaries: done
   1-4-auth-schema-migrations-seed: done
   1-5-google-sign-in: done
-  1-6-require-admin-access-control: review
+  1-6-require-admin-access-control: done
   1-7-admin-management: backlog
   1-8-public-shell-and-menu: backlog
   epic-1-retrospective: optional

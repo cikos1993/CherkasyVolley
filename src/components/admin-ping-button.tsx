@@ -12,13 +12,18 @@ export function AdminPingButton() {
 
   function check() {
     startTransition(async () => {
-      const res = await adminPing();
-      if (res.ok) {
-        setResult(`ok — ${res.data.id}`);
-        toast.success("Доступ підтверджено");
-      } else {
-        setResult(res.code);
-        toast.error(res.message);
+      try {
+        const res = await adminPing();
+        if (res.ok) {
+          setResult(`ok — ${res.data.id}`);
+          toast.success("Доступ підтверджено");
+        } else {
+          setResult(res.code);
+          toast.error(res.message);
+        }
+      } catch {
+        setResult("error");
+        toast.error("Не вдалося перевірити доступ. Спробуйте ще раз.");
       }
     });
   }
@@ -28,9 +33,9 @@ export function AdminPingButton() {
       <Button onClick={check} disabled={pending}>
         Перевірити доступ
       </Button>
-      {result && (
-        <span className="text-sm text-muted-foreground">{result}</span>
-      )}
+      <span className="text-sm text-muted-foreground" aria-live="polite">
+        {result}
+      </span>
     </div>
   );
 }

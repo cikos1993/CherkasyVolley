@@ -17,17 +17,21 @@ function FlashReader() {
   useEffect(() => {
     if (!error) return;
     const message = FLASH_MESSAGES[error];
-    if (message) toast.error(message);
-    router.replace(pathname);
-  }, [error, pathname, router]);
+    if (message) toast.error(message, { id: `flash-${error}` });
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("error");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  }, [error, pathname, router, searchParams]);
 
   return null;
 }
 
 /**
- * Shows a one-shot toast for an `?error` query param, then strips the param so a
- * refresh does not re-fire it. The reader sits in its own Suspense boundary so
- * `useSearchParams` does not opt static pages out of prerendering.
+ * Shows a one-shot toast for an `?error` query param, then strips just that param
+ * so a refresh does not re-fire it. The reader sits in its own Suspense boundary
+ * so `useSearchParams` does not opt static pages out of prerendering.
  */
 export function FlashToaster() {
   return (

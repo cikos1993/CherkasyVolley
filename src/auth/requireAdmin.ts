@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -10,10 +11,12 @@ export class AdminRequiredError extends Error {
   }
 }
 
-export async function getSessionUser() {
+// `cache()` dedupes the session read (a DB round-trip — no cookie cache) across the
+// layout, page, and any child that needs the user within one request.
+export const getSessionUser = cache(async () => {
   const session = await auth.api.getSession({ headers: await headers() });
   return session?.user ?? null;
-}
+});
 
 /**
  * First line of every Server Action. Throws {@link AdminRequiredError} before any

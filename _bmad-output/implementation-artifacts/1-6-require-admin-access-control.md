@@ -11,7 +11,7 @@ context:
 
 # Story 1.6: `requireAdmin()` and access control
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -79,13 +79,32 @@ Translated from `epics.md` → Epic 1 → Story 1.6. The Ukrainian source is aut
   - [x] `AGENTS.md` — one line on `/admin/**` gate + `await requireAdmin()` + `sonner`.
 - [x] **Task 9 — Verification gate** (AC: all)
   - [x] `pnpm lint` (exit 0) + `pnpm typecheck` (exit 0) + `pnpm build` clean on Node 24. `/admin` **dynamic** (ƒ); `/` and `/sign-in` **static** (○) — see Debug Log.
-  - [~] **Manual (`pnpm dev`):**
+  - [x] **Manual:**
     - [x] anonymous → `GET /admin` → `307` → `location: /sign-in?from=/admin` (curl, dev :3111).
-    - [ ] signed-in non-admin → `/admin` → `/` + toast — **pending user browser walkthrough** (needs a second Google account; same code path as the anonymous case, which is verified).
-    - [ ] signed-in admin (`SEED_ADMIN_EMAIL`) → `/admin` renders + "Перевірити доступ" → `{ ok: true }` — **pending user browser walkthrough**.
+    - [x] signed-in non-admin → `/admin` → redirected to `/` + toast "Потрібні права адміністратора" — user-confirmed browser walkthrough 2026-09-03 (prod). No automated regression test (story's no-Vitest decision) — see Review Findings / deferred-work.
+    - [x] signed-in admin (`SEED_ADMIN_EMAIL`) → `/admin` renders "Адмін-зона" + "Перевірити доступ" → `{ ok: true }` — user-confirmed browser walkthrough 2026-09-03 (prod).
     - [x] **Server-side proof:** `POST /sign-in` with `Next-Action: <adminPing id>` and no session → `200` body `{"ok":false,"code":"FORBIDDEN","message":"Потрібні права адміністратора"}`. The server rejects a non-admin with the UI bypassed entirely.
   - [x] Command output + walkthrough captured in the Dev Agent Record.
 - [x] **Task 10 — Commit** — `feat(auth): requireAdmin guard + /admin gate (Story 1.6)`. Committed to `main`; push deploys to Vercel.
+
+### Review Findings
+
+Code review 2026-09-03 (`bmad-code-review`, 3 layers — Blind Hunter, Edge Case Hunter, Verification Gap; Acceptance Auditor hit a rate limit and did not run). 9 patch, 5 defer, 8 dismissed.
+
+- [x] [Review][Patch] `adminPing()` rejection is unhandled in the button — a non-`AdminRequiredError` throw (DB down, session read fails) rejects inside `startTransition` with no toast, no result, button silently re-enables [src/components/admin-ping-button.tsx:13]
+- [x] [Review][Patch] `FlashToaster` strips the whole query string — `router.replace(pathname)` drops any sibling param; rebuild the query without `error` only [src/components/flash-toaster.tsx:19]
+- [x] [Review][Patch] `FlashToaster` toast can double-fire under React dev StrictMode (effect re-invoked before `router.replace` lands) — give `toast.error` a stable `id` [src/components/flash-toaster.tsx:18]
+- [x] [Review][Patch] `getSessionUser()` is not request-deduped — layout + page + children each hit `auth.api.getSession` (a live DB round-trip, no cookie cache); wrap in React `cache()` [src/auth/requireAdmin.ts:13]
+- [x] [Review][Patch] `toActionError` hand-duplicates the `{ ok: false }` shape and `code: string` is unconstrained — derive the return type from `ActionResult` and add an `ActionErrorCode` union [src/actions/result.ts:9]
+- [x] [Review][Patch] `AGENTS.md` "Running and verifying" still says "`src/auth/` імпортує лише `src/data`" — now false (`requireAdmin.ts` imports `next/headers` + `next/navigation`); align with `src/README.md` / `src/auth/README.md` [AGENTS.md]
+- [x] [Review][Patch] `sonner.tsx` hardcoded `theme="light"` has its rationale only in this story file — add a one-line code comment so a future dev does not re-add `next-themes` [src/components/ui/sonner.tsx:6]
+- [x] [Review][Patch] `AdminPingButton` inline result `<span>` is not announced to assistive tech — add `aria-live="polite"` [src/components/admin-ping-button.tsx:31]
+- [x] [Review][Patch] Dev Agent Record records AC1 (non-admin → home + toast) and the admin happy path as "pending" though the user confirmed the browser walkthrough — record the confirmation and note the residual gap (no automated regression test, per the story's no-Vitest decision) [story Dev Agent Record]
+- [x] [Review][Defer] `requireAdminPage()` sends a bare `from=/admin` — a deep link like `/admin/tournaments/123` returns to `/admin` after login; needs the deferred middleware pre-check [src/auth/requireAdmin.ts:31] — deferred, spec explicitly scopes gating to the layout
+- [x] [Review][Defer] `ActionResult<T = undefined>` still forces `data: undefined` at call sites for payload-less actions — revisit when Story 1.7 adds grant/revoke [src/actions/result.ts:3] — deferred, forward-looking
+- [x] [Review][Defer] A role revoked mid-session could serve a stale `/admin` via the client Router Cache — no revoke action exists yet (Story 1.7) and Next 16 does not client-cache dynamic routes by default [src/app/admin/layout.tsx] — deferred, not reachable this story
+- [x] [Review][Defer] A DB outage during `getSessionUser()` renders a raw error on `/admin` instead of a graceful state [src/auth/requireAdmin.ts:14] — deferred, error/empty patterns are Story 2.2
+- [x] [Review][Defer] The concrete gate contract (`?error=admin-required`, one-shot toast) is not in `EXPERIENCE.md` — deferred, outside this story's doc scope (captured in `src/auth/README.md`)
 
 ## Dev Notes
 
@@ -292,3 +311,4 @@ $ curl -so/dev/null -w '%{http_code}' 'http://localhost:3111/?error=admin-requir
 | --- | --- |
 | 2026-09-03 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-03 | Implemented Tasks 1–10: `requireAdmin`/`requireAdminPage` guards, `/admin` layout gate + placeholder page, `adminPing` demo action + `ActionResult`, `sonner` + `FlashToaster`, docs. `lint`/`typecheck`/`build` green; anonymous redirect + server-side non-admin rejection verified. Status: in-progress → review. |
+| 2026-09-03 | `bmad-code-review` (3 layers; Acceptance Auditor rate-limited). Applied 9 patches: button error-catch + `aria-live`, `FlashToaster` param-preserving strip + deduped toast, `getSessionUser` in `cache()`, `ActionError`/`ActionErrorCode` types, `AGENTS.md` auth-import line, `sonner` light-only comment, Dev Agent Record accuracy. 5 deferred → `deferred-work.md`. Status: review → done. |

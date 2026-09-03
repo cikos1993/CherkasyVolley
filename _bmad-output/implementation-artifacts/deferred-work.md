@@ -8,6 +8,14 @@ Items surfaced during reviews that are real but not actionable in the story that
 - ~~**Neon migrations need a direct connection URL.**~~ **Resolved in Story 1.4.** `prisma7.config.ts` `datasource.url` = `DIRECT_URL ?? DATABASE_URL_UNPOOLED ?? DATABASE_URL`; `.env.example` documents `DIRECT_URL`. `migrate dev` applied clean.
 - ~~**`next.config.ts` is an empty placeholder** (no `serverExternalPackages`).~~ **Partly resolved in Story 1.4.** Added `serverExternalPackages: ["pg", "@prisma/adapter-pg"]`. Security headers / image config still deferred to a hardening pass.
 
+## Deferred from: code review of 1-6-require-admin-access-control (2026-09-03)
+
+- **`requireAdminPage()` sends a bare `from=/admin`.** A signed-in-but-anonymous-session user deep-linking to `/admin/tournaments/123` returns to `/admin` after sign-in, not the sub-path. The story deliberately scopes gating to the `/admin` layout and defers the `getSessionCookie` middleware pre-check; sub-path return-to belongs with that middleware.
+- **`ActionResult<T = undefined>` forces `data: undefined` at call sites.** `{ ok: true; data: T }` always requires the key. Story 1.7's grant/revoke actions likely return no payload — decide then between `data?: T`, an overload, or a `void`-friendly variant.
+- **Stale `/admin` via the client Router Cache after a mid-session role revoke.** No revoke action exists until Story 1.7, and Next 16 does not client-cache dynamic (`ƒ`) routes by default, so this is not reachable now. When Story 1.7 lands revoke, confirm a soft nav back to `/admin` re-runs the guard (or add `export const dynamic` / a middleware check).
+- **DB outage during `getSessionUser()` renders a raw error on `/admin`.** `auth.api.getSession` throwing (Neon down) propagates out of the layout Server Component — fails closed (no access) but with no graceful UI. Error/empty-state patterns are Story 2.2; revisit `/admin/error.tsx` then.
+- **The concrete gate contract is not in `EXPERIENCE.md`.** The redirect targets (`/sign-in?from=/admin`, `/?error=admin-required`) and the one-shot-toast-then-strip-param mechanic are recorded in `src/auth/README.md` and this story, but not the behavior source of truth. Fold into the next EXPERIENCE.md revision (Story 1.7 or 1.8).
+
 ## Deferred from: code review of 1-5-google-sign-in (2026-09-03)
 
 - **`updatedAt` is `NOT NULL` with no DB default on `session` / `account` / `verification`** (and still `user`, from the 1.4 defer). Better Auth's Prisma adapter sets `updatedAt` on every write, so this is inert today — but a raw-SQL or non-Better-Auth insert would violate it. Fold `@default(now())` into the next auth-touching migration if such a write path ever appears.
