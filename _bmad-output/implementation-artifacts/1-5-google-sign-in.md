@@ -11,7 +11,7 @@ context:
 
 # Story 1.5: Google sign-in
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -63,16 +63,16 @@ Translated from `epics.md` → Epic 1 → Story 1.5. The Ukrainian source is aut
 - [x] **Task 7 — Minimal user menu** `src/components/user-menu.tsx` + `layout.tsx` (AC: 2, 3)
   - [x] Client Component via `useSession()`: not signed in → "Увійти" link to `/sign-in?from=<pathname>`; signed in → `DropdownMenu` + `Avatar` (image/initials) with name/email and "Вийти" → `signOut()` + `router.refresh()`.
   - [x] Mounted in `layout.tsx` in a minimal right-aligned `<header>` strip. Preserved `lang="uk"`, `metadata`, `min-h-full flex flex-col`, `import "./globals.css"`. `layout.tsx` does **not** call `auth.api.getSession` — pages stay static (`/` and `/sign-in` prerender).
-- [~] **Task 8 — Env + Google Cloud OAuth** (AC: 1) — **external dependency, needs the user**
-  - [x] `.env.example` Story 1.5 block activated with the Google Cloud redirect-URI / JS-origin instructions and the `BETTER_AUTH_SECRET`/`BETTER_AUTH_URL` guidance.
-  - [x] `.env.local` (git-ignored): `BETTER_AUTH_SECRET` generated (`npx @better-auth/cli secret`), `BETTER_AUTH_URL=http://localhost:3000`, empty `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` placeholders.
-  - [ ] **PENDING (user):** create the Google Cloud OAuth 2.0 Web client; put `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` into `.env.local` **and** Vercel env; add `BETTER_AUTH_SECRET` / `BETTER_AUTH_URL` (= prod origin) to Vercel env.
+- [x] **Task 8 — Env + Google Cloud OAuth** (AC: 1)
+  - [x] `.env.example` Story 1.5 block activated with the Google Cloud redirect-URI / JS-origin instructions.
+  - [x] `.env.local`: `BETTER_AUTH_SECRET` generated, `BETTER_AUTH_URL=http://localhost:3000`.
+  - [x] **User** created the Google Cloud OAuth 2.0 Web client (localhost + Vercel redirect URIs / JS origins) and put `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` into `.env.local`. Vercel env — see the Handoff note (add before the production sign-in test).
 - [x] **Task 9 — `next.config.ts` / build** (AC: 1)
   - [x] `pnpm exec next build` clean with **no** `next.config.ts` change — `better-auth` bundles fine under Turbopack. Routes: `/` + `/sign-in` static, `/api/auth/[...all]` dynamic.
-- [~] **Task 10 — Verification gate** (AC: all)
-  - [x] `pnpm prisma migrate status` → up to date; `user` has `emailVerified`/`image`/`isAdmin`, no `googleSub`; `session`/`account`/`verification` exist (checked via a temp `tsx` script, deleted).
+- [x] **Task 10 — Verification gate** (AC: all)
+  - [x] `pnpm prisma migrate status` → up to date; `migrate diff` (live DB vs schema) → empty; `user` has `emailVerified`/`image`/`isAdmin`, no `googleSub`; `session`/`account`/`verification`(+`issuer`) exist.
   - [x] `pnpm lint` + `pnpm typecheck` + `pnpm build` clean on Node 24. Routes: `/` + `/sign-in` static, `/api/auth/[...all]` dynamic.
-  - [ ] **PENDING (user — needs real Google creds):** the manual OAuth round-trip — sign in via Google, seeded-admin linking (no duplicate, `isAdmin` stays true), non-seed sign-in (`isAdmin=false`, UI == anonymous), "Вийти" clears the session.
+  - [x] **Manual OAuth round-trip — DONE (local, `pnpm dev`).** Signed in as `SEED_ADMIN_EMAIL`: the **seeded** `user` row was linked (`users: 1` — no duplicate; same `id` `cmtlezdfq…`), `account` row created (`providerId: google`, `issuer: https://accounts.google.com`), `session` persisted; `name` + `image` backfilled from Google (`updateUserInfoOnLink`); `emailVerified` flipped to `true`; **`isAdmin` stayed `true`** (`input: false` untouched); returned to the origin page; the user-menu avatar appeared. **"Вийти"** → `sessions: 0`, menu back to "Увійти". Two bugs found & fixed here (see Debug Log). Non-seed sign-in not tested (no second Google account) — the create path is exercised by the same code and `isAdmin` defaults `false`.
 - [x] **Task 11 — Docs** (housekeeping)
   - [x] `src/auth/README.md` rewritten — `auth.ts` instance, the view↔auth bridge (route handler + `auth-client.ts`), Google-only, `isAdmin` additional field.
   - [x] `AGENTS.md` `## Stack status` — Better Auth 1.7.x note (Google-only, table names, `User`→`user` rename, `googleSub` drop, env vars, callback URI).
@@ -241,17 +241,18 @@ All code written; migration applied; `pnpm lint` + `pnpm typecheck` + `pnpm buil
 - `next build` needed no `serverExternalPackages` for `better-auth`.
 - `pg` SSL-mode deprecation warning on connections — cosmetic, pre-existing (Story 1.4 review).
 
-**PENDING — needs the user (Google account access; the agent cannot do this):**
-1. Create a Google Cloud **OAuth 2.0 Web client** (redirect URIs for `localhost:3000` + the Vercel domain, at `/api/auth/callback/google`).
-2. Put `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` into `.env.local` **and** Vercel env; add `BETTER_AUTH_SECRET` (already in `.env.local`) + `BETTER_AUTH_URL=https://cherkasy-volley.vercel.app` to Vercel env.
-3. Run the manual OAuth round-trip (Task 10): sign in → seeded-admin links with no duplicate, `isAdmin` stays true → non-seed account gets `isAdmin=false` and anonymous-identical UI → "Вийти" clears the session.
+**Two runtime bugs found during the manual OAuth round-trip (static review missed both):**
+- **`account_not_linked` on first sign-in.** Better Auth 1.7's `account.accountLinking.requireLocalEmailVerified` defaults to `true` — it refuses to link a social account to a *local* user whose `emailVerified` is `false`, and `trustedProviders` does **not** bypass this clause. The seeded admin is exactly that. Fix: `requireLocalEmailVerified: false` (the seed is itself the trust decision).
+- **Page crash on avatar click** — `Base UI: MenuGroupContext is missing`. base-nova's `DropdownMenuLabel` is `@base-ui/react` `Menu.GroupLabel`, which requires a `<Menu.Group>` parent (unlike Radix). Replaced the label with a plain `<div>` for the name/email header.
+
+**Deferred to the production sign-in test (still user-side):** add `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `BETTER_AUTH_SECRET` / `BETTER_AUTH_URL` (= prod origin) to the Vercel project env, push `main`, repeat the round-trip on `https://cherkasy-volley.vercel.app`.
 
 ### Completion Notes List
 
 - **Code complete + code-reviewed + remediated.** Everything verifiable without live Google credentials passes: `migrate status` clean, `prisma migrate diff` (live DB vs schema) → empty, seeded admin row preserved through the `User`→`user` rename, `googleSub` dropped, `session`/`account`/`verification`(+`issuer`) present; `pnpm lint` + `pnpm typecheck` + `pnpm build` clean; `/` and `/sign-in` prerender static, `/api/auth/[...all]` dynamic. **Server auth path smoke-tested:** `auth.api.getSession({ headers: new Headers() })` → `null` (anonymous) with no error — proves the Better Auth instance, the Prisma adapter, and the config (`additionalFields`, `generateId:false`, `nextCookies`) all initialize. This is the same path Story 1.6's `requireAdmin` uses.
-- **AC 1** — Better Auth + Google provider + Prisma adapter over `db` wired; `/sign-in` triggers `signIn.social({ provider:"google", callbackURL })` with a validated same-origin `?from` (return-to-origin). Account linking (`trustedProviders: ["google"]`) will link the seeded admin. *The OAuth flow itself is unverified pending credentials.*
-- **AC 2** — no admin/edit surfaces exist yet; public pages are not auth-gated; the only auth-dependent UI is the client-hydrated user menu (a nav element). `session.user.isAdmin` exists and defaults `false`. AD-7 / EXPERIENCE.md "no edit buttons in the DOM" is the governing principle for later stories.
-- **AC 3** — the user menu's "Вийти" calls `authClient.signOut()` + `router.refresh()`. *Unverified pending credentials.*
+- **AC 1 — verified (local).** Signed in via Google as `SEED_ADMIN_EMAIL`: the seeded `user` row was **found & linked** (one row, same `id`), the `session` persisted, the browser returned to the origin page. `account` row: `providerId: google`, `issuer: https://accounts.google.com`. `name` + `image` came from Google; `isAdmin` stayed `true`.
+- **AC 2 — verified (structural).** No admin/edit surfaces exist; public pages are not auth-gated; the only auth-dependent UI is the client-hydrated user menu. `session.user.isAdmin` is typed (client `inferAdditionalFields`) and was `true` for the admin — a new (non-seed) user gets `false`. AD-7 / EXPERIENCE.md "no edit buttons in the DOM" governs later stories. (Non-seed account not tested — no second Google account.)
+- **AC 3 — verified (local).** "Вийти" → `authClient.signOut()` + `router.replace("/")` + `router.refresh()` → `session` row deleted, menu reverts to "Увійти".
 - **Schema reconciliation (Story 1.4-review item):** `googleSub` removed; OAuth identity is now `account` (`providerId`/`accountId`). `epics.md`'s `googleSub`-on-`User` is superseded.
 - **Deviations:** hand-written migration SQL (rename, not drop-recreate); `.env.local` carries a generated `BETTER_AUTH_SECRET` + placeholder Google vars.
 - **`updatedAt` no-DB-default (1.4 deferred item)** — not addressed here; Better Auth's adapter sets `updatedAt` on every write, so left as-is.
@@ -308,4 +309,5 @@ Once verified, set the story + `sprint-status.yaml` to `done`.
 | --- | --- |
 | 2026-09-03 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-03 | Implemented: `better-auth@1.7.2`; `src/auth/auth.ts` (Google-only, `isAdmin` additionalField, account linking, `nextCookies`); `src/lib/auth-client.ts`; `/api/auth/[...all]` route; `/sign-in` page; `UserMenu` in `layout.tsx`. Schema reconciled into Better Auth shape (`User`→`user`, +`emailVerified`/`image`, −`googleSub`; +`session`/`account`/`verification`) via a hand-written rename migration (`20260903115000_add_better_auth`) applied with `migrate deploy` — seeded admin row preserved, `migrate status` clean. `pnpm lint` + `pnpm typecheck` + `pnpm build` clean. Committed `9042697`. **Pending user:** Google Cloud OAuth client + the manual sign-in round-trip. Status: review. |
-| 2026-09-03 | Code review (`bmad-code-review`, 4 layers). **1 high** fixed: `account` was missing `issuer` + `@@unique([issuer, accountId])` (`@better-auth/cli` lags the 1.7.2 runtime) — first sign-in would have failed; migration `20260903120000_account_issuer` applied, DB now structurally matches the schema. 2 decisions resolved (view↔auth bridge → spine/README/ESLint; lowercase `@@map` tables everywhere). 12 patches: env fail-fast in `auth.ts`, `updateUserInfoOnLink`, explicit `emailAndPassword:false`, client `inferAdditionalFields`, hardened `safeCallback`, sign-in/sign-out error handling, `from` keeps query string, `aria-label`/focus-ring/CLS-placeholder/`/sign-in`-hide on `UserMenu`, `runtime="nodejs"`, `epics.md` note, `scripts/db-check.mts`. 5 deferred. `pnpm lint` + `pnpm typecheck` + `pnpm build` clean. Status: review (manual OAuth round-trip still pending the user). |
+| 2026-09-03 | Code review (`bmad-code-review`, 4 layers). **1 high** fixed: `account` was missing `issuer` + `@@unique([issuer, accountId])` (`@better-auth/cli` lags the 1.7.2 runtime) — first sign-in would have failed; migration `20260903120000_account_issuer` applied, DB now structurally matches the schema. 2 decisions resolved (view↔auth bridge → spine/README/ESLint; lowercase `@@map` tables everywhere). 12 patches: env fail-fast in `auth.ts`, `updateUserInfoOnLink`, explicit `emailAndPassword:false`, client `inferAdditionalFields`, hardened `safeCallback`, sign-in/sign-out error handling, `from` keeps query string, `aria-label`/focus-ring/CLS-placeholder/`/sign-in`-hide on `UserMenu`, `runtime="nodejs"`, `epics.md` note, `scripts/db-check.mts`. 5 deferred. `pnpm lint` + `pnpm typecheck` + `pnpm build` clean. Status: review. |
+| 2026-09-03 | User created the Google OAuth client. Manual OAuth round-trip run locally (`pnpm dev`). Two runtime bugs found & fixed (`632ee26`): `accountLinking.requireLocalEmailVerified: false` (Better Auth 1.7 blocked linking to the unverified-email seeded admin) and the `UserMenu` `DropdownMenuLabel` crash (base-ui `GroupLabel` needs a `Group` parent). **AC 1/2/3 verified locally** — seeded admin linked with no duplicate (`isAdmin` preserved, name/avatar from Google), sign-out clears the session. Prod sign-in test (Vercel env + push) still user-side. Status: **done**. |
