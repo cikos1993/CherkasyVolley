@@ -30,13 +30,14 @@ shadcn/ui + Tailwind, хостинг Vercel. Планування живе в `_
 - Міграції: `pnpm prisma migrate dev --name <...>` для розробки — **проти власної Neon-гілки, не проти прод-гілки** (може запропонувати reset, створює/видаляє shadow DB). Прод отримує міграції лише через `pnpm prisma migrate deploy`, який `build` запускає через `scripts/migrate-deploy.mjs` (пропускається на preview-збірках Vercel). `prisma generate` — у `postinstall` і на початку `build`, бо `src/generated/` gitignored.
 - Seed: `pnpm seed` (`prisma db seed` → `tsx prisma/seed.mts`) — ідемпотентний upsert першого адміна по `SEED_ADMIN_EMAIL` (у нижньому регістрі). Повторний запуск дублів не створює.
 - `pnpm typecheck` (`tsc --noEmit`) — офлайн-перевірка типів (`next build` тепер потребує БД).
+- `pnpm exec tsx scripts/verify-admin-roles.mts` — регрес-перевірка шару ролей (`src/data/users.ts`): гілки `not_found` / `last_admin` / ідемпотентність. Не руйнівна (адмінів не знімає).
 
 ## Conventions that differ from defaults
 
 - `src/domain/` — чисті функції: не імпортує `next`, Prisma-клієнт, `react`, `src/data`, `src/actions`, `src/auth`, `src/app`, `src/components`, `src/lib`.
 - Prisma-клієнт (`@/generated/prisma`; `@prisma/client` — реекспорт) імпортується лише в `src/data/`; усі читання/записи — через іменовані функції там. `src/auth/` бере спільний інстанс клієнта з `src/data/`.
 - Кожна мутація даних — Server Action у `src/actions/`, перший рядок `await requireAdmin()` (кидає `AdminRequiredError` → мапиться в `{ ok: false, code, message }`); `/admin/**` гейтиться в `src/app/admin/layout.tsx` через `requireAdminPage()` (редіректить). Тост-примітив — `sonner` (`<Toaster />` у `src/app/layout.tsx`).
-- Ролі: `grantAdmin` / `revokeAdmin` (`src/actions/admin-roles.ts`) — поверхня `/admin/people`. `User.isAdmin` пишуть лише `promoteToAdmin` / `demoteFromAdmin` у `src/data/users.ts`; `demoteFromAdmin` у транзакції відмовляється зняти останнього адміна.
+- Ролі: `grantAdmin` / `revokeAdmin` (`src/actions/admin-roles.ts`) — поверхня `/admin/people`. `User.isAdmin` пишуть лише `promoteToAdmin` / `demoteFromAdmin` у `src/data/users.ts`; `demoteFromAdmin` під `SELECT … FOR UPDATE` відмовляється зняти останнього адміна. «Користувач, що входив» = має рядок `account` (`listAuthenticatedUsers`).
 - Турнірна таблиця й місця плейофа обчислюються при читанні, ніколи не зберігаються в БД.
 - `Tournament.state` змінюється лише через Server Action `transitionTournament`, не присвоєнням.
 - Інтерфейс лише українською, без i18n-бібліотеки; час зберігається в UTC, показується в `Europe/Kyiv`; ID — cuid.

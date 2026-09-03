@@ -8,6 +8,16 @@ Items surfaced during reviews that are real but not actionable in the story that
 - ~~**Neon migrations need a direct connection URL.**~~ **Resolved in Story 1.4.** `prisma7.config.ts` `datasource.url` = `DIRECT_URL ?? DATABASE_URL_UNPOOLED ?? DATABASE_URL`; `.env.example` documents `DIRECT_URL`. `migrate dev` applied clean.
 - ~~**`next.config.ts` is an empty placeholder** (no `serverExternalPackages`).~~ **Partly resolved in Story 1.4.** Added `serverExternalPackages: ["pg", "@prisma/adapter-pg"]`. Security headers / image config still deferred to a hardening pass.
 
+## Deferred from: code review of 1-7-admin-management (2026-09-03)
+
+- **`promoteToAdmin` / `demoteFromAdmin` throw an unhandled Prisma `P2025`** if the target `user` row disappears between the `findUnique` read and the `update`. Harmless today (nothing deletes users), but when a delete-user path is added, wrap the write in `try/catch (P2025) → { outcome: "not_found" }`.
+- **`countAdmins()` and `listAuthenticatedUsers()` count different populations.** `countAdmins` counts every `isAdmin` row; the list only shows users with an `account`. A seeded admin who never signed in is counted but not shown, so the self-revoke button can be enabled when it should be disabled. No such phantom exists now (the seed admin has logged in) and a phantom recovers by signing in. Reconcile if a second seeded/imported admin ever lands without an account.
+- **The `/admin/people` user list is unbounded.** No `take`, no pagination, no search. The site is public; over years, viewers who signed in (they have no reason to, but nothing stops them) accumulate on the admin-management screen. Add a cap + filter when the list gets long.
+- **No audit trail for role changes.** Grant = privilege escalation, revoke = a security action; neither is recorded. Add a small `AdminRoleChange` log (actor, target, action, timestamp) if the federation ever needs accountability.
+- **`grantAdmin` / `revokeAdmin` check row existence, not "has an account".** Any valid `User.id` can be promoted via a direct Server-Action POST, not only the rows `listAuthenticatedUsers()` returns. Negligible (OAuth always creates an `account`; the only account-less row is the seed admin, already an admin), but the server does not enforce the "has signed in" scope the UI implies.
+- **No automated end-to-end / action-layer coverage.** `LAST_ADMIN` and `NOT_FOUND` are verified only at the data-layer (script) and by a disabled button; the action-layer mapping, `revalidatePath` list refresh, and the dialog cancel path have no test. Add when a test runner + session-mock infra lands (Epic 3, per `AGENTS.md`).
+- **Buttons show only `disabled` while pending** — no spinner or "Надаю…"/"Знімаю…" label, contrary to EXPERIENCE.md ("Кнопка на час запиту — `disabled` + Skeleton/спінер у кнопці"). The reusable loading affordance is Story 2.2; apply it to `admin-role-controls.tsx` then.
+
 ## Deferred from: code review of 1-6-require-admin-access-control (2026-09-03)
 
 - **`requireAdminPage()` sends a bare `from=/admin`.** A signed-in-but-anonymous-session user deep-linking to `/admin/tournaments/123` returns to `/admin` after sign-in, not the sub-path. The story deliberately scopes gating to the `/admin` layout and defers the `getSessionCookie` middleware pre-check; sub-path return-to belongs with that middleware.

@@ -17,9 +17,10 @@ export function countAdmins() {
   return db.user.count({ where: { isAdmin: true } });
 }
 
-type RoleChangeOutcome = { outcome: "ok" | "not_found" | "last_admin" };
+type GrantOutcome = { outcome: "ok" | "not_found" };
+type RevokeOutcome = { outcome: "ok" | "not_found" | "last_admin" };
 
-export async function promoteToAdmin(id: string): Promise<RoleChangeOutcome> {
+export async function promoteToAdmin(id: string): Promise<GrantOutcome> {
   const target = await db.user.findUnique({ where: { id }, select: { isAdmin: true } });
   if (!target) return { outcome: "not_found" };
   if (!target.isAdmin) await db.user.update({ where: { id }, data: { isAdmin: true } });
@@ -27,16 +28,20 @@ export async function promoteToAdmin(id: string): Promise<RoleChangeOutcome> {
 }
 
 /**
- * Clears `isAdmin`, unless the target is the only remaining admin. The count and
- * the update run in one transaction so two concurrent self-revokes cannot both
- * pass the check and leave the system with no admin.
+ * Clears `isAdmin`, unless the target is the only remaining admin. `FOR UPDATE`
+ * locks the whole admin set for the transaction, so two concurrent revokes are
+ * serialised and cannot both pass the count check and leave the system with no
+ * admin.
  */
-export function demoteFromAdmin(id: string): Promise<RoleChangeOutcome> {
+export function demoteFromAdmin(id: string): Promise<RevokeOutcome> {
   return db.$transaction(async (tx) => {
     const target = await tx.user.findUnique({ where: { id }, select: { isAdmin: true } });
     if (!target) return { outcome: "not_found" };
     if (!target.isAdmin) return { outcome: "ok" };
-    if ((await tx.user.count({ where: { isAdmin: true } })) <= 1) return { outcome: "last_admin" };
+    const admins = await tx.$queryRaw<
+      { id: string }[]
+    >`SELECT id FROM "user" WHERE "isAdmin" = true FOR UPDATE`;
+    if (admins.length <= 1) return { outcome: "last_admin" };
     await tx.user.update({ where: { id }, data: { isAdmin: false } });
     return { outcome: "ok" };
   });

@@ -11,7 +11,7 @@ context:
 
 # Story 1.7: Admin management (grant / revoke `isAdmin`)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -99,6 +99,27 @@ Translated from `epics.md` → Epic 1 → Story 1.7. The Ukrainian source is aut
   - [x] **Browser click-through** (prod, `nightfate1993@gmail.com` admin + `kiperandrii@gmail.com` second account) — user-confirmed 2026-09-03: grant → second account opens `/admin` with no re-login; revoke via the confirm dialog → second account's next `/admin` redirects to `/` with the toast "Потрібні права адміністратора" (shown bottom-right — sonner default; `?error` param stripped); self-revoke button disabled while sole admin. `/` is still the Next starter placeholder — Story 1.8.
   - [x] Command output captured in the Dev Agent Record.
 - [x] **Task 10 — Commit** — `feat(admin): grant/revoke admin on /admin/people (Story 1.7)`. Committed to `main`; push deploys to Vercel.
+
+### Review Findings
+
+Code review 2026-09-03 (`bmad-code-review`, all 4 layers ran). 9 patch, 7 defer, ~10 dismissed.
+
+- [x] [Review][Patch] `demoteFromAdmin` transaction runs at READ COMMITTED — two concurrent revokes each read `adminCount > 1` and both commit, leaving zero admins; the code comment claims a guarantee it does not provide. Lock the admin set (`SELECT id FROM "user" WHERE "isAdmin" = true FOR UPDATE`) inside the tx, then count from that. [src/data/users.ts:34]
+- [x] [Review][Patch] `promoteToAdmin` return type includes `"last_admin"` which it never returns; both actions fall through to `{ ok: true }` for any unhandled outcome. Split into `GrantOutcome` (`"ok" | "not_found"`) / `RevokeOutcome` so the action fall-through is provably exhaustive. [src/data/users.ts:20, src/actions/admin-roles.ts]
+- [x] [Review][Patch] `/admin/**` dynamism is implicit (via the layout's `headers()`). Add `export const dynamic = "force-dynamic"` to `src/app/admin/layout.tsx` — admin role data must never be served from cache. [src/app/admin/layout.tsx]
+- [x] [Review][Patch] Revoke dialog stays dismissable (Esc / backdrop / "Скасувати") while the transition is pending, and closes even on failure. Block dismissal while `pending`; close only on success; keep it open + toast on error; `router.refresh()` after the self-revoke `router.push("/")`. [src/components/admin-role-controls.tsx:63]
+- [x] [Review][Patch] `/admin/people` row polish: render `user.name?.trim() || user.email` (name is currently shown untrimmed); `AvatarImage referrerPolicy="no-referrer"` (Google avatars 403 without it); `←` wrapped in `aria-hidden`; disabled revoke button linked to its "Ви єдиний адміністратор" reason via `aria-describedby`. [src/app/admin/people/page.tsx]
+- [x] [Review][Patch] Neither `/admin` nor `/admin/people` exports `metadata` — the browser tab shows the default app title. Add `export const metadata = { title: … }` to both. [src/app/admin/page.tsx, src/app/admin/people/page.tsx]
+- [x] [Review][Patch] Copy mixes "роль" and "доступ" for one operation (dialog title "Зняти роль адміна?" vs button/toasts "…доступ…"). Align on "доступ". [src/components/admin-role-controls.tsx]
+- [x] [Review][Patch] The safety-critical last-admin / not-found / idempotency branches have no retained regression check (the verification script was run once and deleted). Restore `scripts/verify-admin-roles.mts` as a committed **assertion** script and document it in `AGENTS.md`. [scripts/verify-admin-roles.mts, AGENTS.md]
+- [x] [Review][Patch] `AGENTS.md` role line omits that "authenticated user" = has an `account` row (the filter that defines the whole `/admin/people` screen). Add it. [AGENTS.md]
+- [x] [Review][Defer] `promoteToAdmin` / `demoteFromAdmin` throw an unhandled Prisma `P2025` if the target row is deleted between the read and the write [src/data/users.ts] — deferred, no user-deletion feature exists yet
+- [x] [Review][Defer] `countAdmins()` counts every `isAdmin` row while the list only shows users with an `account`; a seeded admin who never logged in is counted but not listed, so the self-revoke button can be wrongly enabled [src/app/admin/people/page.tsx] — deferred, no such phantom admin exists and it can recover by signing in
+- [x] [Review][Defer] The user list is unbounded — no `take`, no search/filter; over years a public sign-in could fill it with non-staff [src/app/admin/people/page.tsx] — deferred, federation scale, viewers have no reason to sign in
+- [x] [Review][Defer] No audit trail for grant/revoke (who changed whose role, when) — deferred, explicitly out of Story 1.7 scope
+- [x] [Review][Defer] `grantAdmin` / `revokeAdmin` accept any `User.id`, not only rows returned by `listAuthenticatedUsers()` (existence-checked, not account-checked) [src/actions/admin-roles.ts] — deferred, negligible surface (OAuth always creates an account)
+- [x] [Review][Defer] No end-to-end / action-layer test for the `LAST_ADMIN` and `NOT_FOUND` mappings, `revalidatePath` list refresh, or the dialog cancel path — deferred, needs Vitest + session test infra (Epic 3)
+- [x] [Review][Defer] Buttons show only `disabled` while pending, no spinner / label change (EXPERIENCE.md "Skeleton/спінер у кнопці") [src/components/admin-role-controls.tsx] — deferred, the reusable loading pattern is Story 2.2
 
 ## Dev Notes
 
@@ -290,8 +311,12 @@ adminCount after: 1   # unchanged
 
 **Modified**
 - `src/actions/result.ts` — `ActionErrorCode` += `"LAST_ADMIN" | "NOT_FOUND"`
-- `src/app/admin/page.tsx` — demo button → link to `/admin/people`
+- `src/app/admin/page.tsx` — demo button → link to `/admin/people`; `metadata` title
+- `src/app/admin/layout.tsx` — `export const dynamic = "force-dynamic"` (review)
 - `src/data/README.md`, `src/actions/README.md`, `AGENTS.md`
+
+**New (review)**
+- `scripts/verify-admin-roles.mts` — committed data-layer regression check
 
 **Deleted**
 - `src/actions/admin-ping.ts`
@@ -304,3 +329,4 @@ adminCount after: 1   # unchanged
 | 2026-09-03 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-03 | Implemented Tasks 1–10: `src/data/users.ts` (list + `promoteToAdmin` / `demoteFromAdmin` transactional last-admin guard), `grantAdmin` / `revokeAdmin` actions, `/admin/people` page + `admin-role-controls` (revoke confirm `Dialog`), removed the 1.6 demo. `lint`/`typecheck`/`build` green; anonymous redirect, server-side `FORBIDDEN`, and the last-admin / not-found / idempotency paths verified. Status: in-progress → review. |
 | 2026-09-03 | User-confirmed the full prod browser walkthrough (grant → instant access → revoke → redirect + toast → last-admin button disabled). AC 1–4 satisfied end-to-end. |
+| 2026-09-03 | `bmad-code-review` (4 layers). Applied 9 patches: `FOR UPDATE` lock on the last-admin guard (was a racy READ-COMMITTED check with a false-guarantee comment), split grant/revoke outcome types, `dynamic = "force-dynamic"` on the admin layout, revoke-dialog hardening (no dismiss while pending, stay open on error, `router.refresh()` on self-revoke), row a11y + trimmed name + `referrerPolicy`, page `metadata` titles, "доступ" copy consistency, restored `scripts/verify-admin-roles.mts` as a committed assertion check, `AGENTS.md` accuracy. 7 deferred → `deferred-work.md`. `lint`/`typecheck`/`build` green; `verify-admin-roles.mts` passes. Status: review → done. |

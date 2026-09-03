@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -49,14 +49,20 @@ export function RevokeAdminButton({
   disabled?: boolean;
 }) {
   const router = useRouter();
+  const reasonId = useId();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
   if (disabled) {
     return (
-      <Button size="sm" variant="destructive" disabled>
-        Зняти доступ
-      </Button>
+      <div className="flex flex-col items-end gap-1">
+        <Button size="sm" variant="destructive" disabled aria-describedby={reasonId}>
+          Зняти доступ
+        </Button>
+        <span id={reasonId} className="text-xs text-muted-foreground">
+          Ви єдиний адміністратор
+        </span>
+      </div>
     );
   }
 
@@ -64,10 +70,13 @@ export function RevokeAdminButton({
     startTransition(async () => {
       try {
         const res = await revokeAdmin(userId);
-        setOpen(false);
         if (res.ok) {
+          setOpen(false);
           toast.success("Доступ знято");
-          if (isSelf) router.push("/");
+          if (isSelf) {
+            router.push("/");
+            router.refresh();
+          }
         } else {
           toast.error(res.message);
         }
@@ -78,13 +87,13 @@ export function RevokeAdminButton({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
       <DialogTrigger render={<Button size="sm" variant="destructive" />}>
         Зняти доступ
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Зняти роль адміна?</DialogTitle>
+          <DialogTitle>Зняти доступ адміністратора?</DialogTitle>
           <DialogDescription>
             {isSelf
               ? "Ви більше не зможете відкривати адмін-зону й керувати турнірами."
@@ -92,7 +101,9 @@ export function RevokeAdminButton({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Скасувати</DialogClose>
+          <DialogClose render={<Button variant="outline" disabled={pending} />}>
+            Скасувати
+          </DialogClose>
           <Button variant="destructive" onClick={revoke} disabled={pending}>
             Зняти
           </Button>
