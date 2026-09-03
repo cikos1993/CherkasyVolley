@@ -10,18 +10,21 @@ AD-11); this file is the working copy for people editing `src/`.
 | Shell | `actions/` | Server Actions: authorize → read → call core → write | domain, data, auth |
 | Domain | `domain/` | Pure functions: scoring, tiebreak, bracket, schedule, validation | nothing internal |
 | Data | `data/` | Prisma client + queries; the sole owner and writer of every entity | Prisma + schema types |
-| Auth | `auth/` | Better Auth instance (`auth.ts`), `requireAdmin()` | data |
+| Auth | `auth/` | Better Auth instance (`auth.ts`), role guards (`requireAdmin.ts`) | data |
 
 (Spine § Design Paradigm gives Shell's dependencies as `domain, data`; `auth` is
 added here because AD-3's own graph shows `shell → auth`. `lib/` is grouped with
 View per Story 1.3.)
 
-**View ↔ auth (Story 1.5).** The view never imports `src/auth` directly. Client
-Components read the session and sign in/out through `src/lib/auth-client.ts`
-(`better-auth/react`, an HTTP client). The one exception is the transport endpoint
-`src/app/api/auth/[...all]/route.ts`, which imports `@/auth/auth` — it is Better
-Auth's HTTP handler, not a component (spine AD-1 note). `src/components/**` is
-lint-blocked from importing `@/auth`.
+**View ↔ auth (Story 1.5 / 1.6).** The view never imports the auth *instance*
+(`@/auth/auth`) directly. Client Components read the session and sign in/out
+through `src/lib/auth-client.ts` (`better-auth/react`, an HTTP client). Two
+sanctioned exceptions: the transport endpoint `src/app/api/auth/[...all]/route.ts`
+imports `@/auth/auth` (Better Auth's HTTP handler, not a component); and
+`src/app/admin/layout.tsx` imports the **guard surface** `@/auth/requireAdmin`
+(`requireAdminPage()`) to gate `/admin/**`. `src/components/**` is lint-blocked
+from importing `@/auth`; `src/app/**` is not, so pages/layouts use the guard
+surface but not the instance.
 
 ## Dependency direction
 
@@ -55,7 +58,7 @@ read-time computation only. This is a known open item, not a settled decision.
 - The Prisma client may be imported only under `src/data/**`; everywhere else, call
   a named function from `src/data`. `src/auth` gets the shared client from `src/data`.
 - `src/data/**` must not import `actions`, `auth`, the view layer, `next`, or `react`.
-- `src/auth/**` may import only `src/data`.
+- `src/auth/**` may import only `src/data` (plus `next/*` and `better-auth/*`).
 
 ## Manual-review invariants (not lint-checked)
 

@@ -35,7 +35,7 @@ shadcn/ui + Tailwind, хостинг Vercel. Планування живе в `_
 
 - `src/domain/` — чисті функції: не імпортує `next`, Prisma-клієнт, `react`, `src/data`, `src/actions`, `src/auth`, `src/app`, `src/components`, `src/lib`.
 - Prisma-клієнт (`@/generated/prisma`; `@prisma/client` — реекспорт) імпортується лише в `src/data/`; усі читання/записи — через іменовані функції там. `src/auth/` бере спільний інстанс клієнта з `src/data/`.
-- Кожна мутація даних — Server Action у `src/actions/`, перший рядок `await requireAdmin()`.
+- Кожна мутація даних — Server Action у `src/actions/`, перший рядок `await requireAdmin()` (кидає `AdminRequiredError` → мапиться в `{ ok: false, code, message }`); `/admin/**` гейтиться в `src/app/admin/layout.tsx` через `requireAdminPage()` (редіректить). Тост-примітив — `sonner` (`<Toaster />` у `src/app/layout.tsx`).
 - Турнірна таблиця й місця плейофа обчислюються при читанні, ніколи не зберігаються в БД.
 - `Tournament.state` змінюється лише через Server Action `transitionTournament`, не присвоєнням.
 - Інтерфейс лише українською, без i18n-бібліотеки; час зберігається в UTC, показується в `Europe/Kyiv`; ID — cuid.

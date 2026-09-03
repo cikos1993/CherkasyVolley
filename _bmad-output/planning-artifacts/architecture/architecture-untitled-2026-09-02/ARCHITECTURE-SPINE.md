@@ -42,6 +42,7 @@ companions: []
 - **Prevents:** розходження окремих фронтенду й бекенду; два деплої; CORS-поверхня для соло-супроводу
 - **Rule:** увесь код — в одному Next.js-проєкті. Публічні сторінки — Server Components; усі зміни — Server Actions. Окремого API-сервісу немає.
 - **Виняток (Story 1.5):** один route handler `src/app/api/auth/[...all]/route.ts` — HTTP-ендпоінт Better Auth. Це транспорт, не окремий сервіс.
+- **Виняток (Story 1.6):** `src/app/admin/layout.tsx` імпортує гейт-поверхню `@/auth/requireAdmin` (`requireAdminPage()`) для захисту маршрутів `/admin/**`. Це санкціонований край `view → auth` для route protection — на відміну від інстансу Better Auth (`@/auth/auth`), який лишається поза view.
 
 ### AD-2 — Доменна логіка лише в `src/domain/`, чиста
 
@@ -54,6 +55,7 @@ companions: []
 - **Binds:** усі модулі
 - **Prevents:** цикли; доступ ядра до БД; логіку в шарі відображення
 - **Rule:** `view → shell → {domain, data}`; `auth → data`. Заборонено: `domain → *` (внутрішнє), `data → {domain, actions, view}`, `view → data (запис)`.
+- **Note (Story 1.6):** гейт-поверхня `src/auth/requireAdmin.ts` (`requireAdmin`, `requireAdminPage`, `getSessionUser`) — санкціонований край `view → auth` для захисту маршрутів; інстанс `src/auth/auth.ts` лишається поза view. Lint блокує `src/components/**` від `@/auth`, але не `src/app/**`.
 
 ```mermaid
 graph TD

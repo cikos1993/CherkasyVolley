@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+import { FlashToaster } from "@/components/flash-toaster";
 import { UserMenu } from "@/components/user-menu";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
   title: "Волейбол Черкащини",
@@ -17,6 +19,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <UserMenu />
         </header>
         {children}
+        <Toaster />
+        <FlashToaster />
       </body>
     </html>
   );

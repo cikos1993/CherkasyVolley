@@ -26,4 +26,10 @@ Conventions below are manual-review, not lint-checked:
 - Actions return `{ ok: true, data }` or `{ ok: false, code, message }`.
 - After every write, call `revalidatePath` / `revalidateTag` for the affected routes.
 
-Actions are wired in their feature stories; this directory starts empty.
+Actions are wired in their feature stories.
+
+- `result.ts` — the shared `ActionResult<T>` type and `toActionError()`, which maps
+  `AdminRequiredError` to `{ ok: false, code: "FORBIDDEN" }` and re-throws anything
+  else (including `NEXT_REDIRECT`).
+- `admin-ping.ts` — a Story 1.6 demo proving the server enforces the role
+  independent of the UI. Story 1.7 removes it and adds the real grant/revoke actions.
