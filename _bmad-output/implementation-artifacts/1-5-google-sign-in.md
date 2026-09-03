@@ -11,7 +11,7 @@ context:
 
 # Story 1.5: Google sign-in
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -54,11 +54,10 @@ Translated from `epics.md` → Epic 1 → Story 1.5. The Ukrainian source is aut
   - [x] `export const { GET, POST } = toNextJsHandler(auth)`. Bridge documented in `src/auth/README.md`.
 - [x] **Task 4 — Auth client** `src/lib/auth-client.ts` (AC: 1, 3)
   - [x] `createAuthClient()` (same origin), re-exports `signIn`/`signOut`/`useSession`. In `src/lib` (view util), not `src/auth`.
-- [~] **Task 5 — Reconcile `prisma/schema.prisma` + Better Auth schema** (AC: 1)
-  - [x] `npx @better-auth/cli@latest generate --config src/auth/auth.ts` ran → merged `User` (+`emailVerified @default(false)`, `image`, relations, `@@map("user")`), added `Session`/`Account`/`Verification`.
-  - [x] Hand-reconciled: **dropped `googleSub`** (CLI kept it — OAuth identity is now `account`); added `@default(cuid())` to `Session`/`Account`/`Verification` `id`; `token @unique`; `onDelete: Cascade` on both FKs; kept `@@map` lowercase. `pnpm prisma validate` ✓, `pnpm prisma generate` ✓.
-  - [ ] **`pnpm prisma migrate dev --name add_better_auth` — PENDING** (touches the prod DB: `ALTER TABLE "User" RENAME TO "user"`, `DROP COLUMN "googleSub"` + index, add `emailVerified`/`image`, `CREATE TABLE session/account/verification`). Awaiting the user's go-ahead.
-  - [ ] `prisma/seed.mts` — verify unaffected after the migration (still upserts `user` by `email`).
+- [x] **Task 5 — Reconcile `prisma/schema.prisma` + Better Auth schema** (AC: 1)
+  - [x] `@better-auth/cli generate` merged the four models; hand-reconciled (dropped `googleSub`, `@default(cuid())` on all ids, `token @unique`, `onDelete: Cascade`, `@@map` lowercase). `prisma validate` + `generate` ✓.
+  - [x] **Migration applied.** `prisma migrate dev` refused non-interactively **and** planned a `DROP TABLE "User"` (Prisma does not infer the `@@map` rename → data loss). Instead: generated the SQL with `prisma migrate diff --from-config-datasource --to-schema`, hand-edited the `User` part to `ALTER TABLE ... RENAME` + `RENAME CONSTRAINT` + `RENAME INDEX` + `DROP COLUMN "googleSub"` + `ADD COLUMN emailVerified/image`, kept Prisma's verbatim SQL for the three new tables. Committed as `prisma/migrations/20260903115000_add_better_auth/`, applied with `prisma migrate deploy`. `prisma migrate status` → "Database schema is up to date!" (no drift).
+  - [x] The seeded admin row **survived** — same `id` (`cmtlezdfq…`), `email`, `isAdmin: true`, `createdAt`; new `emailVerified: false`, `image: null`, no `googleSub`. `session`/`account` tables present (0 rows). `pnpm seed` re-run → still idempotent.
 - [x] **Task 6 — `/sign-in` page** `src/app/sign-in/page.tsx` (AC: 1)
   - [x] Client Component; `<Suspense>` around the `useSearchParams` inner form (Next 16 requirement) — page still prerenders static. Primary `Button` "Увійти через Google" → `signIn.social({ provider:"google", callbackURL })`. `callbackURL` = validated same-origin `?from` path, else `/`. Redirects to `callbackURL` if already signed in.
 - [x] **Task 7 — Minimal user menu** `src/components/user-menu.tsx` + `layout.tsx` (AC: 2, 3)
@@ -70,18 +69,15 @@ Translated from `epics.md` → Epic 1 → Story 1.5. The Ukrainian source is aut
   - [ ] **PENDING (user):** create the Google Cloud OAuth 2.0 Web client; put `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` into `.env.local` **and** Vercel env; add `BETTER_AUTH_SECRET` / `BETTER_AUTH_URL` (= prod origin) to Vercel env.
 - [x] **Task 9 — `next.config.ts` / build** (AC: 1)
   - [x] `pnpm exec next build` clean with **no** `next.config.ts` change — `better-auth` bundles fine under Turbopack. Routes: `/` + `/sign-in` static, `/api/auth/[...all]` dynamic.
-- [ ] **Task 10 — Verification gate** (AC: all)
-  - [ ] `pnpm prisma migrate status` → up to date; the `user` table has `emailVerified`/`image`/`isAdmin`, no `googleSub`; `session`/`account`/`verification` exist.
-  - [ ] `pnpm lint` clean (Story 1.3 boundaries intact — `src/auth/auth.ts` imports `db` not `@prisma/client`; `src/lib/auth-client.ts` clean), `pnpm typecheck` clean, `pnpm build` clean on Node 24.
-  - [ ] **Manual, with real Google creds:** `pnpm dev` → open `/classic/anything` (or `/`) → user menu shows "Увійти" → click → `/sign-in?from=…` → "Увійти через Google" → Google consent → returns to the `from` page, signed in. `session` row created; `account` row with `providerId="google"`. If signing in as `SEED_ADMIN_EMAIL`: the **existing** seeded `user` row is linked (no duplicate), `isAdmin` still `true`.
-  - [ ] Sign in as a **non-seed** Google account → new `user` row, `isAdmin = false`; UI identical to anonymous (only the user menu differs).
-  - [ ] "Вийти" → `session` cleared, menu back to "Увійти".
-  - [ ] Capture: migration SQL, `migrate status`, lint/typecheck/build tails, and a description of the manual OAuth round-trip (+ row counts) in the Dev Agent Record.
+- [~] **Task 10 — Verification gate** (AC: all)
+  - [x] `pnpm prisma migrate status` → up to date; `user` has `emailVerified`/`image`/`isAdmin`, no `googleSub`; `session`/`account`/`verification` exist (checked via a temp `tsx` script, deleted).
+  - [x] `pnpm lint` + `pnpm typecheck` + `pnpm build` clean on Node 24. Routes: `/` + `/sign-in` static, `/api/auth/[...all]` dynamic.
+  - [ ] **PENDING (user — needs real Google creds):** the manual OAuth round-trip — sign in via Google, seeded-admin linking (no duplicate, `isAdmin` stays true), non-seed sign-in (`isAdmin=false`, UI == anonymous), "Вийти" clears the session.
 - [x] **Task 11 — Docs** (housekeeping)
   - [x] `src/auth/README.md` rewritten — `auth.ts` instance, the view↔auth bridge (route handler + `auth-client.ts`), Google-only, `isAdmin` additional field.
   - [x] `AGENTS.md` `## Stack status` — Better Auth 1.7.x note (Google-only, table names, `User`→`user` rename, `googleSub` drop, env vars, callback URI).
   - [x] `.env.example` (Task 8).
-- [ ] **Task 12 — Commit** — after the migration lands.
+- [x] **Task 12 — Commit** — `9042697` on `main` — `feat(auth): Google sign-in via Better Auth (Story 1.5)` (18 files, incl. `prisma/migrations/20260903115000_add_better_auth/`). Not pushed.
 
 ## Dev Notes
 
@@ -213,21 +209,29 @@ claude-sonnet-5 (Claude Code, `/bmad-dev-story`)
 
 ### Debug Log References
 
-**Paused for two external blockers** (Tasks 5 migration + 8 Google OAuth). All code is written; `pnpm lint` + `pnpm typecheck` + `pnpm exec next build` are clean.
+All code written; migration applied; `pnpm lint` + `pnpm typecheck` + `pnpm build` clean.
 
-- `@better-auth/cli generate` merged the four models into `prisma/schema.prisma` but **kept** the custom `googleSub` field (the CLI only adds, never removes) → hand-removed it + its `@unique`. The CLI's generated `Session`/`Account`/`Verification` had bare `id String @id` → added `@default(cuid())` to match the Consistency Convention. `token String` → `token String @unique`. Both FKs → `onDelete: Cascade`.
-- `betterAuth()` at import only **warns** ("Social provider google is missing clientId or clientSecret") when the Google env vars are empty — it does not throw, so `generate` / `next build` / `typecheck` all succeed without real credentials. OAuth itself will not work until they are set.
-- `useSearchParams()` on the `/sign-in` page needs a `<Suspense>` boundary in Next 16 or the build errors — wrapped the inner form; `/sign-in` still prerenders as static.
-- `next build` needed no `serverExternalPackages` addition for `better-auth`.
+- `@better-auth/cli generate` merged the four models but **kept** `googleSub` (CLI only adds) → hand-removed. Generated `Session`/`Account`/`Verification` had bare `id String @id` → added `@default(cuid())`; `token` → `token @unique`; both FKs → `onDelete: Cascade`.
+- `betterAuth()` only **warns** on empty Google env vars — does not throw. `generate` / `build` / `typecheck` succeed without real credentials. OAuth won't function until they're set.
+- **Migration required a hand-written SQL file.** `prisma migrate dev` is non-interactive-hostile here, and it planned `DROP TABLE "User"` (Prisma cannot infer that `@@map("user")` is a rename → would lose the seeded admin). Workaround: `prisma migrate diff --from-config-datasource --to-schema --script` for the base SQL, then rewrote the `User` section as `ALTER TABLE "User" RENAME TO "user"` + `RENAME CONSTRAINT` + `RENAME INDEX` + `DROP COLUMN "googleSub"` + `ADD COLUMN emailVerified/image`, kept Prisma's verbatim SQL for the 3 new tables. Applied via `prisma migrate deploy`. `migrate status` reports no drift.
+- `useSearchParams()` on `/sign-in` needs a `<Suspense>` boundary in Next 16 → wrapped the inner form; `/sign-in` still prerenders static.
+- `next build` needed no `serverExternalPackages` for `better-auth`.
+- `pg` SSL-mode deprecation warning on connections — cosmetic, pre-existing (Story 1.4 review).
 
-**Blocked — needs the user:**
-1. **Task 5 migration** against the single prod Neon DB — `ALTER TABLE "User" RENAME TO "user"`, `DROP COLUMN "googleSub"` (+ its unique index), add `emailVerified`/`image`, `CREATE TABLE session/account/verification`. The one existing row (seeded admin) survives the rename; `googleSub` is `NULL` for it, so the drop loses nothing. Not run — awaiting go-ahead (and/or a Neon dev branch per the Story 1.4 recommendation).
-2. **Task 8 Google OAuth** — the user must create a Google Cloud OAuth 2.0 Web client and provide `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` (`.env.local` + Vercel). `BETTER_AUTH_SECRET` (generated) and `BETTER_AUTH_URL` are already in `.env.local`; the prod values need adding to Vercel env.
-3. **Task 10 manual verification** — the Google OAuth round-trip (sign in / link seeded admin / sign in as non-admin / sign out) can only be done once #2 is in place.
+**PENDING — needs the user (Google account access; the agent cannot do this):**
+1. Create a Google Cloud **OAuth 2.0 Web client** (redirect URIs for `localhost:3000` + the Vercel domain, at `/api/auth/callback/google`).
+2. Put `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` into `.env.local` **and** Vercel env; add `BETTER_AUTH_SECRET` (already in `.env.local`) + `BETTER_AUTH_URL=https://cherkasy-volley.vercel.app` to Vercel env.
+3. Run the manual OAuth round-trip (Task 10): sign in → seeded-admin links with no duplicate, `isAdmin` stays true → non-seed account gets `isAdmin=false` and anonymous-identical UI → "Вийти" clears the session.
 
 ### Completion Notes List
 
-_Pending — story not yet complete (see Debug Log blockers)._
+- **Code complete, migration applied.** Everything verifiable without live Google credentials passes: `migrate status` clean, seeded admin row preserved through the `User`→`user` rename, `googleSub` dropped, `session`/`account`/`verification` created; `pnpm lint` + `pnpm typecheck` + `pnpm build` clean; `/` and `/sign-in` prerender static, `/api/auth/[...all]` dynamic.
+- **AC 1** — Better Auth + Google provider + Prisma adapter over `db` wired; `/sign-in` triggers `signIn.social({ provider:"google", callbackURL })` with a validated same-origin `?from` (return-to-origin). Account linking (`trustedProviders: ["google"]`) will link the seeded admin. *The OAuth flow itself is unverified pending credentials.*
+- **AC 2** — no admin/edit surfaces exist yet; public pages are not auth-gated; the only auth-dependent UI is the client-hydrated user menu (a nav element). `session.user.isAdmin` exists and defaults `false`. AD-7 / EXPERIENCE.md "no edit buttons in the DOM" is the governing principle for later stories.
+- **AC 3** — the user menu's "Вийти" calls `authClient.signOut()` + `router.refresh()`. *Unverified pending credentials.*
+- **Schema reconciliation (Story 1.4-review item):** `googleSub` removed; OAuth identity is now `account` (`providerId`/`accountId`). `epics.md`'s `googleSub`-on-`User` is superseded.
+- **Deviations:** hand-written migration SQL (rename, not drop-recreate); `.env.local` carries a generated `BETTER_AUTH_SECRET` + placeholder Google vars.
+- **`updatedAt` no-DB-default (1.4 deferred item)** — not addressed here; Better Auth's adapter sets `updatedAt` on every write, so left as-is.
 
 ### File List
 
@@ -238,6 +242,7 @@ _Pending — story not yet complete (see Debug Log blockers)._
 - `src/app/sign-in/page.tsx`
 - `src/components/user-menu.tsx`
 - `src/components/ui/card.tsx`, `src/components/ui/dropdown-menu.tsx`, `src/components/ui/avatar.tsx` _(shadcn add, base-nova defaults)_
+- `prisma/migrations/20260903115000_add_better_auth/migration.sql` _(hand-written — rename, not drop-recreate)_
 
 **Modified:**
 - `prisma/schema.prisma` (+ `Session`/`Account`/`Verification`; `User` → `@@map("user")`, +`emailVerified`/`image`, −`googleSub`)
@@ -248,9 +253,6 @@ _Pending — story not yet complete (see Debug Log blockers)._
 - `package.json` / `pnpm-lock.yaml` (`better-auth`)
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
-**Pending:**
-- `prisma/migrations/<ts>_add_better_auth/**` (Task 5, not yet generated)
-
 **Local only (git-ignored):**
 - `.env.local` — `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, empty `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`
 - `src/generated/prisma/**` — regenerated (now includes `Session`/`Account`/`Verification`)
@@ -260,3 +262,4 @@ _Pending — story not yet complete (see Debug Log blockers)._
 | Date | Change |
 | --- | --- |
 | 2026-09-03 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
+| 2026-09-03 | Implemented: `better-auth@1.7.2`; `src/auth/auth.ts` (Google-only, `isAdmin` additionalField, account linking, `nextCookies`); `src/lib/auth-client.ts`; `/api/auth/[...all]` route; `/sign-in` page; `UserMenu` in `layout.tsx`. Schema reconciled into Better Auth shape (`User`→`user`, +`emailVerified`/`image`, −`googleSub`; +`session`/`account`/`verification`) via a hand-written rename migration (`20260903115000_add_better_auth`) applied with `migrate deploy` — seeded admin row preserved, `migrate status` clean. `pnpm lint` + `pnpm typecheck` + `pnpm build` clean. Committed `9042697`. **Pending user:** Google Cloud OAuth client + the manual sign-in round-trip. Status: review. |
