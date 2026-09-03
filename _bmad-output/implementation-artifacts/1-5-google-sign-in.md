@@ -248,13 +248,29 @@ All code written; migration applied; `pnpm lint` + `pnpm typecheck` + `pnpm buil
 
 ### Completion Notes List
 
-- **Code complete, migration applied.** Everything verifiable without live Google credentials passes: `migrate status` clean, seeded admin row preserved through the `User`→`user` rename, `googleSub` dropped, `session`/`account`/`verification` created; `pnpm lint` + `pnpm typecheck` + `pnpm build` clean; `/` and `/sign-in` prerender static, `/api/auth/[...all]` dynamic.
+- **Code complete + code-reviewed + remediated.** Everything verifiable without live Google credentials passes: `migrate status` clean, `prisma migrate diff` (live DB vs schema) → empty, seeded admin row preserved through the `User`→`user` rename, `googleSub` dropped, `session`/`account`/`verification`(+`issuer`) present; `pnpm lint` + `pnpm typecheck` + `pnpm build` clean; `/` and `/sign-in` prerender static, `/api/auth/[...all]` dynamic. **Server auth path smoke-tested:** `auth.api.getSession({ headers: new Headers() })` → `null` (anonymous) with no error — proves the Better Auth instance, the Prisma adapter, and the config (`additionalFields`, `generateId:false`, `nextCookies`) all initialize. This is the same path Story 1.6's `requireAdmin` uses.
 - **AC 1** — Better Auth + Google provider + Prisma adapter over `db` wired; `/sign-in` triggers `signIn.social({ provider:"google", callbackURL })` with a validated same-origin `?from` (return-to-origin). Account linking (`trustedProviders: ["google"]`) will link the seeded admin. *The OAuth flow itself is unverified pending credentials.*
 - **AC 2** — no admin/edit surfaces exist yet; public pages are not auth-gated; the only auth-dependent UI is the client-hydrated user menu (a nav element). `session.user.isAdmin` exists and defaults `false`. AD-7 / EXPERIENCE.md "no edit buttons in the DOM" is the governing principle for later stories.
 - **AC 3** — the user menu's "Вийти" calls `authClient.signOut()` + `router.refresh()`. *Unverified pending credentials.*
 - **Schema reconciliation (Story 1.4-review item):** `googleSub` removed; OAuth identity is now `account` (`providerId`/`accountId`). `epics.md`'s `googleSub`-on-`User` is superseded.
 - **Deviations:** hand-written migration SQL (rename, not drop-recreate); `.env.local` carries a generated `BETTER_AUTH_SECRET` + placeholder Google vars.
 - **`updatedAt` no-DB-default (1.4 deferred item)** — not addressed here; Better Auth's adapter sets `updatedAt` on every write, so left as-is.
+
+### Handoff — the one remaining step (user acceptance)
+
+The implementation is complete and reviewed. It cannot be *behaviourally* verified by the agent because Google OAuth needs a real OAuth client only the account owner can create. To close the story:
+
+1. **Google Cloud Console → APIs & Services → Credentials → Create OAuth client ID → Web application.**
+   - Authorized redirect URIs: `http://localhost:3000/api/auth/callback/google` and `https://cherkasy-volley.vercel.app/api/auth/callback/google`
+   - Authorized JavaScript origins: `http://localhost:3000`, `https://cherkasy-volley.vercel.app`
+2. Put `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` in `.env.local` **and** Vercel project env (all environments). Add `BETTER_AUTH_SECRET` (already in `.env.local`, value in the file) and `BETTER_AUTH_URL=https://cherkasy-volley.vercel.app` to Vercel env.
+3. `pnpm dev` → open any page → "Увійти" → `/sign-in` → "Увійти через Google". Verify:
+   - signing in as `SEED_ADMIN_EMAIL` links the **existing** `user` row (run `pnpm exec tsx scripts/db-check.mts` — `users` stays `1`, `accounts` becomes `1`), `isAdmin` stays `true`, and the menu shows the Google name/avatar;
+   - signing in as a different Google account creates a new `user` (`isAdmin` = `false`), the page returns to where you started, and the UI is identical to anonymous apart from the menu;
+   - "Вийти" clears the session (`sessions` count drops) and the menu reverts to "Увійти".
+4. Push `main` (deploys to Vercel, applies the two migrations) and repeat step 3 on the production URL.
+
+Once verified, set the story + `sprint-status.yaml` to `done`.
 
 ### File List
 
