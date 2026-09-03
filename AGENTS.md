@@ -42,6 +42,7 @@ shadcn/ui + Tailwind, хостинг Vercel. Планування живе в `_
 - `Tournament.state` змінюється лише через Server Action `transitionTournament`, не присвоєнням.
 - Інтерфейс лише українською, без i18n-бібліотеки; час зберігається в UTC, показується в `Europe/Kyiv`; ID — cuid.
 - Планові документи — українською; ідентифікатори в коді — англійською.
+- Публічний каркас (Story 1.8): вордмарк + `DisciplineNav` (`src/components/discipline-nav.tsx`) у шапці `src/app/layout.tsx`; розділи `/classic` · `/beach` · `/archive` — незалежні дерева маршрутів; `/` редіректить на `/classic`. `EmptyState` (`src/components/empty-state.tsx`) — мінімальний примітив, Story 2.2 його формалізує.
 
 ## Known pitfalls
 

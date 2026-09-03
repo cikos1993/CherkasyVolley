@@ -11,7 +11,7 @@ context:
 
 # Story 1.8: Public shell and menu
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -48,66 +48,40 @@ Translated from `epics.md` → Epic 1 → Story 1.8. The Ukrainian source is aut
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — `EmptyState` component** `src/components/empty-state.tsx` (NEW) (AC: 2, 3)
-  - [ ] Server-safe (no `"use client"`), presentational. Props: `title: string`, `children: ReactNode` (the one-line description).
-  - [ ] Markup per DESIGN.md UX-DR9 / mockup `.C .empty`: a centered block, `border border-dashed`, `rounded-lg` (maps to the 14px token), generous padding (`p-8` / `p-10`), `text-center`. `title` in the `display` register — `text-2xl font-bold tracking-tight` (the `display-sm` scale is still un-tokenised, deferred from Story 1.2 — a plain class is fine, same as the `/admin` headings). Description line in `text-sm text-muted-foreground`, `mt-2`.
-  - [ ] Minimal by design — Story 2.2 formalises the reusable `EmptyState` (5 documented cases). This is the primitive; do not add variants, icons, or an admin-CTA slot.
-- [ ] **Task 2 — `DisciplineNav` component** `src/components/discipline-nav.tsx` (NEW) (AC: 1, 4)
-  - [ ] `"use client"` — needs `usePathname()` for the active item. Three `next/link`s: `Класичний` → `/classic`, `Пляжний` → `/beach`, `Архів` → `/archive`.
-  - [ ] Active when `pathname === href || pathname.startsWith(href + "/")` (so `/classic/anything` keeps `Класичний` active — future-proofs Epic 2).
-  - [ ] Container: `flex items-center gap-1`. Link: `rounded-sm px-2.5 py-1.5 text-[13px] text-muted-foreground transition-colors`. Active: `bg-muted font-semibold text-foreground`. Inactive hover: `hover:text-foreground` (no blue — DESIGN.md "синій не для hover").
-  - [ ] Keyboard-reachable, visible focus ring (`focus-visible:ring-2 focus-visible:ring-ring` or rely on the global `outline-ring/50` base). `aria-current="page"` on the active link.
-  - [ ] No `⋯` / Sheet collapse (see AC 4 note).
-- [ ] **Task 3 — Header wiring** `src/app/layout.tsx` (UPDATE) (AC: 1)
-  - [ ] In the existing `<header>`: left = a wordmark `<Link href="/classic">` with the site name ("Волейбол Черкащини" or a short "Волейбол Черкащини" text — `font-semibold`), then `<DisciplineNav />`; right = the existing `<UserMenu />`.
-  - [ ] Layout the header as `flex items-center justify-between gap-4 border-b px-4 py-2` (add the `border-b`; keep `px-4 py-2`). Wrap the left cluster (`wordmark + nav`) in a `div className="flex items-center gap-4 min-w-0"`. On narrow screens the nav must not push `UserMenu` off-screen or cause horizontal scroll — `flex-wrap` on the header or `overflow-x-auto` on the nav cluster if needed; verify at 360px.
-  - [ ] **Preserve:** `lang="uk"`, `import "./globals.css"`, `<Toaster />` + `<FlashToaster />`, `min-h-full flex flex-col` on `<body>`.
-  - [ ] Update `metadata` to a title template so section pages compose cleanly:
-    ```ts
-    export const metadata: Metadata = {
-      title: { default: "Волейбол Черкащини", template: "%s · Волейбол Черкащини" },
-      description:
-        "Платформа турнірів Федерації волейболу Черкащини — розклад, таблиці, результати.",
-    };
-    ```
-    (Existing `/admin` and `/admin/people` `title` strings then render as "Адмін-зона · Волейбол Черкащини" — fine, no change needed there.)
-- [ ] **Task 4 — `/` → `/classic` redirect** `src/app/page.tsx` (REPLACE) (AC: 1)
-  - [ ] Replace the entire Next.js starter file with:
-    ```tsx
-    import { redirect } from "next/navigation";
-
-    export default function Home() {
-      redirect("/classic");
-    }
-    ```
-  - [ ] This removes the `next/image` import and the `/next.svg` / `/vercel.svg` usage. Leave the SVG files in `public/` (harmless; deleting them is out of scope).
-- [ ] **Task 5 — `/classic` page** `src/app/classic/page.tsx` (NEW) (AC: 3, 5)
-  - [ ] Server Component. No data fetch (no `Tournament` model yet). Section heading ("Класичний" — `display` register, `text-2xl font-bold tracking-tight` or a `<h1>`), then `<EmptyState title="Ще немає турнірів">` + a one-line description, e.g. «Активні турніри зʼявляться тут, коли їх створить адміністратор.»
-  - [ ] `export const metadata = { title: "Класичний" };`
-  - [ ] Wrap content in the shared page container: `main className="mx-auto w-full max-w-[1120px] px-4 py-8"` (DESIGN.md `contentMaxWidth` 1120px). Use the same container on `/beach` and `/archive`.
-- [ ] **Task 6 — `/beach` page** `src/app/beach/page.tsx` (NEW) (AC: 2)
-  - [ ] Server Component, no data. Heading "Пляжний", then `<EmptyState title="Незабаром">` + «У розділі «Пляжний» ще немає турнірів.» No tournament links, no CTA.
-  - [ ] `export const metadata = { title: "Пляжний" };`
-- [ ] **Task 7 — `/archive` page** `src/app/archive/page.tsx` (NEW) (AC: 3)
-  - [ ] Server Component, no data. Heading "Архів", then `<EmptyState title="Архів порожній">` + «Завершені турніри зʼявляться тут за роками.»
-  - [ ] `export const metadata = { title: "Архів" };`
-- [ ] **Task 8 — Docs** (housekeeping)
-  - [ ] `AGENTS.md` — one line under "Conventions" or "Stack status": public shell = `DisciplineNav` + wordmark in `src/app/layout.tsx`; routes `/classic` · `/beach` · `/archive`; `/` redirects to `/classic`; `EmptyState` (`src/components/empty-state.tsx`) is the minimal primitive, Story 2.2 formalises it.
-  - [ ] `src/README.md` — if it lists routes/structure, add the three public routes; otherwise no change. (`src/components/**` needs no README.)
-  - [ ] `EXPERIENCE.md` is **not** edited (consistent with 1.6/1.7).
-- [ ] **Task 9 — Verification gate** (AC: all)
-  - [ ] `pnpm lint` + `pnpm typecheck` + `pnpm build` clean on Node 24.
-  - [ ] Build route table: `/classic`, `/beach`, `/archive` **static** (○) — they have no dynamic data; `/` shows as a redirect. `/admin/**` stay dynamic (ƒ). `/sign-in` stays static.
-  - [ ] `grep -rn "next.svg\|vercel.svg\|To get started" src/` → empty (the starter page is gone).
-  - [ ] **Manual (`pnpm dev`):**
-    - open `/` → lands on `/classic`; header shows wordmark + `Класичний · Пляжний · Архів` + the user slot; `Класичний` is the active (muted-bg, bold) item.
-    - click `Пляжний` → full navigation to `/beach`, "Незабаром" empty state, `Пляжний` now active.
-    - click `Архів` → `/archive` empty state, `Архів` active.
-    - resize to **360px** → all three nav items reachable, no horizontal page scroll, `UserMenu` still visible.
-    - browser tab title on `/beach` reads "Пляжний · Волейбол Черкащини".
-    - `/classic` still opens with no sign-in (AC — viewer, no auth).
-  - [ ] Capture command output + the walkthrough in the Dev Agent Record.
-- [ ] **Task 10 — Commit** — `feat(shell): public discipline nav + /classic /beach /archive (Story 1.8)`. Commit to `main`; push deploys to Vercel. This closes Epic 1.
+- [x] **Task 1 — `EmptyState` component** `src/components/empty-state.tsx` (NEW) (AC: 2, 3)
+  - [x] No `"use client"`, presentational. Props `title: string`, `children: ReactNode`.
+  - [x] `rounded-lg border border-dashed px-6 py-10 text-center`; title `text-2xl font-bold tracking-tight`; line `mt-2 text-sm text-muted-foreground`.
+  - [x] Minimal primitive — Story 2.2 formalises the reusable version.
+- [x] **Task 2 — `DisciplineNav` component** `src/components/discipline-nav.tsx` (NEW) (AC: 1, 4)
+  - [x] `"use client"`, `usePathname()`; three `next/link`s from an `ITEMS` const.
+  - [x] Active: `pathname === href || pathname.startsWith(href + "/")`.
+  - [x] `flex items-center gap-1`; link `rounded-sm px-2.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground`; active `bg-muted font-semibold text-foreground`.
+  - [x] `aria-current="page"` on the active link; focus ring from the global `outline-ring/50` base. No `⋯` collapse.
+- [x] **Task 3 — Header wiring** `src/app/layout.tsx` (UPDATE) (AC: 1)
+  - [x] `<header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-2">`; left cluster `<div className="flex min-w-0 items-center gap-4">` = wordmark `<Link href="/classic">Волейбол Черкащини</Link>` + `<DisciplineNav />`; right = `<UserMenu />`. `flex-wrap` keeps the header from overflowing on narrow screens.
+  - [x] Preserved `lang="uk"`, `import "./globals.css"`, `<Toaster />` + `<FlashToaster />`, `min-h-full flex flex-col`.
+  - [x] `metadata.title` → `{ default: "Волейбол Черкащини", template: "%s · Волейбол Черкащини" }`. `/admin` + `/admin/people` titles now render "… · Волейбол Черкащини" (no change needed there).
+- [x] **Task 4 — `/` → `/classic` redirect** `src/app/page.tsx` (REPLACE) (AC: 1)
+  - [x] Whole file → `import { redirect } from "next/navigation"; export default function Home() { redirect("/classic"); }`. `next/image` / SVG usage gone; SVG files left in `public/`.
+- [x] **Task 5 — `/classic` page** `src/app/classic/page.tsx` (NEW) (AC: 3, 5)
+  - [x] Server Component, no data. `<main className="mx-auto w-full max-w-[1120px] px-4 py-8">`, `<h1 className="text-2xl font-bold tracking-tight">Класичний</h1>`, `<EmptyState title="Ще немає турнірів">Активні турніри зʼявляться тут, коли їх створить адміністратор.</EmptyState>`.
+  - [x] `export const metadata = { title: "Класичний" };`
+- [x] **Task 6 — `/beach` page** `src/app/beach/page.tsx` (NEW) (AC: 2)
+  - [x] Heading "Пляжний" + `<EmptyState title="Незабаром">У розділі «Пляжний» ще немає турнірів.</EmptyState>`. No links, no CTA. `metadata.title` = "Пляжний".
+- [x] **Task 7 — `/archive` page** `src/app/archive/page.tsx` (NEW) (AC: 3)
+  - [x] Heading "Архів" + `<EmptyState title="Архів порожній">Завершені турніри зʼявляться тут за роками.</EmptyState>`. `metadata.title` = "Архів".
+- [x] **Task 8 — Docs** (housekeeping)
+  - [x] `AGENTS.md` — one line on the public shell + routes + `EmptyState` primitive.
+  - [x] `src/README.md` — no route list there, no change.
+  - [x] `EXPERIENCE.md` not edited.
+- [x] **Task 9 — Verification gate** (AC: all)
+  - [x] `pnpm lint` (exit 0) + `pnpm typecheck` (exit 0) + `pnpm build` clean on Node 24.
+  - [x] Build route table: `/classic`, `/beach`, `/archive`, `/`, `/sign-in` **static** (○); `/admin`, `/admin/people` **dynamic** (ƒ) — see Debug Log.
+  - [x] `grep -rn "next.svg\|vercel.svg\|To get started" src/` → empty.
+  - [x] **Automated (dev :3111):** `GET /` → `307` → `location: /classic`; `/classic` → `200` with `<title>Класичний · Волейбол Черкащини</title>`, the wordmark, `aria-current="page"` on `Класичний`, the "Ще немає турнірів" empty state; `/beach` → "Незабаром" + `aria-current` on `Пляжний`; `/archive` → "Архів порожній" + `aria-current` on `Архів`; `/classic` reachable with no sign-in (`200`).
+  - [~] **360px visual** — the header uses `flex-wrap` (nav wraps under the wordmark rather than overflowing) and the page container is `max-w-[1120px] px-4`, so no horizontal `body` scroll by construction. Visual confirmation on a real narrow viewport left to the user (Story 1.5–1.7 pattern).
+  - [x] Command output captured in the Dev Agent Record.
+- [x] **Task 10 — Commit** — `feat(shell): public discipline nav + /classic /beach /archive (Story 1.8)`. Committed to `main`; push deploys to Vercel. Closes Epic 1.
 
 ## Dev Notes
 
@@ -214,16 +188,74 @@ No `project-context.md`. Binding docs: `epics.md` (Story 1.8 AC + Epic 1 demo cr
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-sonnet-5
 
 ### Debug Log References
 
+**`pnpm build`** (Node 24, Turbopack):
+
+```
+✓ Compiled successfully
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /admin
+├ ƒ /admin/people
+├ ƒ /api/auth/[...all]
+├ ○ /archive
+├ ○ /beach
+├ ○ /classic
+└ ○ /sign-in
+```
+
+`/`, `/classic`, `/beach`, `/archive`, `/sign-in` static (○); `/admin/**` dynamic (ƒ). `pnpm typecheck` / `pnpm lint` → exit 0. `grep -rn "next.svg\|vercel.svg\|To get started" src/` → no matches.
+
+**Automated (dev :3111):**
+
+```
+$ curl -sD- http://localhost:3111/
+HTTP/1.1 307 Temporary Redirect
+location: /classic
+
+$ curl -s http://localhost:3111/classic  | grep title/nav/empty
+<title>Класичний · Волейбол Черкащини</title>
+aria-current="page"  (on Класичний)
+Волейбол Черкащини   (wordmark)
+Ще немає турнірів     (empty state)
+
+$ curl -s http://localhost:3111/beach     -> <title>Пляжний · Волейбол Черкащини</title>, "Незабаром", aria-current on Пляжний
+$ curl -s http://localhost:3111/archive   -> <title>Архів · Волейбол Черкащини</title>, "Архів порожній", aria-current on Архів
+$ curl -so/dev/null -w '%{http_code}' http://localhost:3111/classic   -> 200   (no sign-in)
+```
+
 ### Completion Notes List
 
+- **Public shell is in the root layout** — wordmark (`→ /classic`) + `<DisciplineNav />` in the left header cluster, `<UserMenu />` on the right, `flex-wrap` on the `<header>` so a narrow viewport wraps rather than overflows. Shows on every route (incl. `/admin`, `/sign-in`); a distinct admin chrome is a later concern.
+- **`DisciplineNav`** is the only Client Component (`usePathname` for the active item); it fetches nothing, so `/classic` `/beach` `/archive` stay static RSCs. Active item: `bg-muted font-semibold text-foreground` + `aria-current="page"` (DESIGN.md brand spec / mockup `.C .nav`).
+- **`/` → `/classic`** — `src/app/page.tsx` is now just `redirect("/classic")`; the Next.js starter (image, SVGs, "To get started") is gone. `public/next.svg` + `public/vercel.svg` left in place (harmless).
+- **`EmptyState`** — minimal primitive (dashed `rounded-lg`, `title` + one line). `/classic` and `/archive` render it unconditionally (no `Tournament` model until Epic 2, Story 2.1); the "(адміну) Створити турнір" CTA is Epic 2. Story 2.2 formalises the reusable `EmptyState` and refactors these three call sites.
+- **AC 5** ("no cross-section leakage") is satisfied structurally — `/classic` `/beach` `/archive` are separate route trees and none fetches data. The `Tournament.discipline` filter (AD-9) arrives with the entities in Epic 2.
+- **`metadata` title template** on the root layout — section pages set a bare `title` and the tab reads "Пляжний · Волейбол Черкащини". `/admin*` titles compose the same way, no edit needed.
+- **Known deferred:** nav link touch targets (~32px) are below the EXPERIENCE.md 44px floor — the same design-system item flagged since Story 1.5; not fixed here.
+- No unit tests — pure view, no domain/data/actions (per the story's testing note). Gate is `lint` + `typecheck` + `build` + the redirect/nav/route-classification walkthrough above.
+
 ### File List
+
+**New**
+- `src/components/empty-state.tsx`
+- `src/components/discipline-nav.tsx`
+- `src/app/classic/page.tsx`
+- `src/app/beach/page.tsx`
+- `src/app/archive/page.tsx`
+
+**Modified**
+- `src/app/layout.tsx` — header (wordmark + `DisciplineNav`), `metadata` title template
+- `src/app/page.tsx` — Next starter → `redirect("/classic")`
+- `AGENTS.md`
 
 ## Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-03 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
+| 2026-09-03 | Implemented Tasks 1–10: `DisciplineNav` + wordmark in the root header, `/` → `/classic`, `/classic` `/beach` `/archive` pages with a minimal `EmptyState`, `metadata` title template. Starter `page.tsx` removed. `lint`/`typecheck`/`build` green; redirect + nav active-state + route classification verified. Status: in-progress → review. |
