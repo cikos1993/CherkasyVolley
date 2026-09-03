@@ -5,6 +5,16 @@ The only place in `src/` where the generated Prisma client
 goes through a named function exported from here — `getPublicTournaments`,
 `saveMatchResult`, and so on. There is one owner and one writer per entity.
 
+## Modules
+
+- `users.ts` — `listAuthenticatedUsers()` (users with ≥1 `account` row, i.e. who
+  have completed Google sign-in at least once; `session` rows expire, so account
+  presence is the durable signal), `countAdmins()`, and the sole writers of
+  `User.isAdmin`: `promoteToAdmin(id)` and `demoteFromAdmin(id)` (transactional —
+  refuses to clear the last admin). Both return `{ outcome: "ok" | "not_found" |
+  "last_admin" }` and are called only from `grantAdmin` / `revokeAdmin` under
+  `requireAdmin()`.
+
 **May import:** the Prisma client and generated schema types. `client.ts` constructs
 the single shared `PrismaClient` instance (`@prisma/adapter-pg` over the pooled
 `DATABASE_URL`) and exports it as `db`; `src/auth` imports `db` from here for Better

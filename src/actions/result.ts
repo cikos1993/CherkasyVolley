@@ -1,6 +1,6 @@
 import { AdminRequiredError } from "@/auth/requireAdmin";
 
-export type ActionErrorCode = "FORBIDDEN";
+export type ActionErrorCode = "FORBIDDEN" | "LAST_ADMIN" | "NOT_FOUND";
 
 export type ActionError = { ok: false; code: ActionErrorCode; message: string };
 

@@ -11,7 +11,7 @@ context:
 
 # Story 1.7: Admin management (grant / revoke `isAdmin`)
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -48,85 +48,57 @@ Translated from `epics.md` → Epic 1 → Story 1.7. The Ukrainian source is aut
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — User data functions** `src/data/users.ts` (NEW) (AC: 1, 2, 3, 4)
-  - [ ] `listAuthenticatedUsers()` → `db.user.findMany({ where: { accounts: { some: {} } }, orderBy: [{ isAdmin: "desc" }, { name: "asc" }, { email: "asc" }], select: { id: true, name: true, email: true, image: true, isAdmin: true, createdAt: true } })`. Returns the admin-only list (drafts/DRAFT filter is an AD-7 concern for tournaments, N/A here).
-  - [ ] `setUserIsAdmin(id: string, isAdmin: boolean)` → `db.user.update({ where: { id }, data: { isAdmin }, select: { id: true, isAdmin: true } })`.
-  - [ ] `countAdmins()` → `db.user.count({ where: { isAdmin: true } })`.
-  - [ ] `getUserById(id: string)` → `db.user.findUnique({ where: { id }, select: { id: true, isAdmin: true } })` — for existence + current-role checks in the actions.
-  - [ ] Import `db` from `@/data/client`. `src/data/**` lint block: no `next`/`react`/`actions`/`auth`/view — this file imports only `db` + generated types. Compliant.
-  - [ ] `src/data/README.md` — add `users.ts` to the "named functions" list; note "authenticated users" = has ≥1 `Account`.
-- [ ] **Task 2 — Grant / revoke Server Actions** `src/actions/admin-roles.ts` (NEW) (AC: 1, 2, 3, 4)
-  - [ ] `"use server"` file. Both actions: first line `const me = await requireAdmin();` (`requireAdmin` returns the acting user — Story 1.6).
-  - [ ] `grantAdmin(userId: string): Promise<ActionResult<{ id: string }>>`:
-    ```ts
-    const target = await getUserById(userId);
-    if (!target) return { ok: false, code: "NOT_FOUND", message: "Користувача не знайдено." };
-    if (!target.isAdmin) await setUserIsAdmin(userId, true);   // idempotent
-    revalidatePath("/admin/people");
-    return { ok: true, data: { id: userId } };
-    ```
-  - [ ] `revokeAdmin(userId: string): Promise<ActionResult<{ id: string }>>`:
-    ```ts
-    const target = await getUserById(userId);
-    if (!target) return { ok: false, code: "NOT_FOUND", message: "Користувача не знайдено." };
-    if (target.isAdmin && (await countAdmins()) <= 1) {
-      return { ok: false, code: "LAST_ADMIN", message: "Не можна зняти роль з останнього адміністратора." };
-    }
-    if (target.isAdmin) await setUserIsAdmin(userId, false);   // idempotent
-    revalidatePath("/admin/people");
-    return { ok: true, data: { id: userId } };
-    ```
-  - [ ] Wrap the `countAdmins()` + `setUserIsAdmin(false)` pair in `db.$transaction(async (tx) => …)` **or** accept the tiny read-committed race (two admins self-revoking at the same millisecond). Recommended: transaction with the count re-checked inside. Document the choice.
-  - [ ] Errors are returned, not thrown (AC wants a rejection the UI can show). `requireAdmin()`'s `AdminRequiredError` is still mapped by `toActionError` if you prefer try/catch — but the reachable failures here (`NOT_FOUND`, `LAST_ADMIN`) are plain returns.
-  - [ ] `revalidatePath("/admin/people")` after every successful write (Consistency Conventions: `revalidatePath` after each mutation).
-  - [ ] `src/actions/README.md` — replace the `admin-ping.ts` bullet with `admin-roles.ts` (`grantAdmin` / `revokeAdmin`, `requireAdmin()` first line, last-admin guard).
-- [ ] **Task 3 — Extend `ActionErrorCode`** `src/actions/result.ts` (UPDATE) (AC: 3)
-  - [ ] `export type ActionErrorCode = "FORBIDDEN" | "LAST_ADMIN" | "NOT_FOUND";`
-  - [ ] Nothing else changes — `ActionError` / `ActionResult` / `toActionError` already derive from it.
-- [ ] **Task 4 — `/admin/people` page** `src/app/admin/people/page.tsx` (NEW) (AC: 1, 2, 3)
-  - [ ] Server Component. No own guard needed — `src/app/admin/layout.tsx` (`requireAdminPage()`, Story 1.6) already gates `/admin/**`.
-  - [ ] Read: `const me = await getSessionUser();` (from `@/auth/requireAdmin`, `cache()`-wrapped — no extra DB hit), `const users = await listAuthenticatedUsers();`, `const adminCount = await countAdmins();`.
-  - [ ] Heading `<h1 className="text-2xl font-bold">Керування адмінами</h1>` + one line: "Роль адміна дає доступ до керування турнірами."
-  - [ ] Render `users` as a plain list (`<ul>` / `<div>` rows — **no** shadcn `table`). Each row: `Avatar` (existing `@/components/ui/avatar`, `AvatarImage src={user.image}` + `AvatarFallback` = first letter of name/email), name (or email if no name), email in `text-muted-foreground`, and for the current user a "(ви)" marker.
-  - [ ] Per-row action, passed to the client component (Task 5):
-    - `!user.isAdmin` → grant control.
-    - `user.isAdmin && user.id !== me.id` → revoke control.
-    - `user.isAdmin && user.id === me.id` → revoke control with `isSelf`; `disabled` when `adminCount <= 1`, with visible text "Ви єдиний адміністратор".
-  - [ ] Empty list (only possible before anyone but the seed admin has an account, and the seed admin always shows) → a plain "Ще ніхто не входив." line. Do not build the `EmptyState` component (Story 2.2).
-  - [ ] `LayoutProps` / `PageProps` not needed (no params). `/admin/people` inherits `dynamic` from the layout's `headers()` use.
-- [ ] **Task 5 — Grant / revoke client controls** `src/components/admin-role-controls.tsx` (NEW) (AC: 1, 2, 3)
-  - [ ] `"use client"`. Exports `GrantAdminButton` and `RevokeAdminButton` (or one `AdminRoleControl` with a `mode` prop — keep it small).
-  - [ ] `GrantAdminButton({ userId })` — `Button` "Надати доступ", `useTransition`, calls `grantAdmin(userId)`; on `res.ok` → `toast.success("Доступ надано")`; else `toast.error(res.message)`. Try/catch around the call → generic error toast (pattern from the Story 1.6 review fix on `admin-ping-button`).
-  - [ ] `RevokeAdminButton({ userId, isSelf, disabled })` — `Button` "Зняти доступ" (`variant="destructive"`), opens a shadcn `Dialog` (title "Зняти роль адміна?", body names the consequence, confirm button `variant="destructive"` "Зняти", cancel "Скасувати"). Confirm → `useTransition` → `revokeAdmin(userId)`; on `res.ok` → `toast.success("Доступ знято")` + close dialog; on `res.code === "LAST_ADMIN"` → `toast.error(res.message)` + close; else `toast.error(res.message)`. Try/catch → generic error toast.
-  - [ ] `disabled` prop short-circuits: render the button `disabled`, no dialog.
-  - [ ] After a successful **self**-revoke (`isSelf` and `res.ok`), `router.push("/")` — the admin has just dropped their own access; leaving them on `/admin/people` means the next click redirects them anyway. Non-self revoke stays on the page (the list revalidates).
-  - [ ] Imports the actions from `@/actions/admin-roles` (Client Components may import Server Actions). Imports `toast` from `sonner`. `src/components/**` lint block forbids `@/auth` — not used here.
-- [ ] **Task 6 — shadcn `dialog`** (AC: 2)
-  - [ ] `pnpm dlx shadcn@latest add dialog` → `src/components/ui/dialog.tsx` (base-nova defaults, no brand edits — DESIGN.md "as-is zі shadcn"). Confirm it adds no runtime dependency beyond what `@base-ui/react` already provides (base-nova `Dialog` = `@base-ui/react` `Dialog`, same as `dropdown-menu`). If it pulls an unexpected package, stop and flag (Story 1.6 hit this with `sonner` → `next-themes`).
-  - [ ] No `<DialogProvider>` / portal wiring needed in `layout.tsx` — base-nova `Dialog` self-portals (same as the existing `DropdownMenu`).
-- [ ] **Task 7 — Remove the Story 1.6 demo** (housekeeping)
-  - [ ] Delete `src/actions/admin-ping.ts` and `src/components/admin-ping-button.tsx`.
-  - [ ] `src/app/admin/page.tsx` — remove `<AdminPingButton />` and its import; replace with a link to `/admin/people` (`<Link href="/admin/people">Керування адмінами</Link>` — `next/link`). Keep the "Адмін-зона" heading + one line.
-  - [ ] `src/actions/README.md` — drop the `admin-ping.ts` line (Task 2 already adds the `admin-roles.ts` line).
-  - [ ] `grep -rn "adminPing\|admin-ping\|AdminPingButton" src/` must return nothing after this task.
-- [ ] **Task 8 — Docs** (housekeeping)
-  - [ ] `src/data/README.md` — `users.ts` functions + "authenticated user" definition (done in Task 1).
-  - [ ] `src/actions/README.md` — `admin-roles.ts` (done in Task 2).
-  - [ ] `AGENTS.md` — one line under "Conventions": grant/revoke admin = `grantAdmin` / `revokeAdmin` in `src/actions/admin-roles.ts`; last admin cannot be demoted; `/admin/people` is the surface.
-  - [ ] `EXPERIENCE.md` is **not** updated here (out of doc scope, consistent with Story 1.6). The `/admin/people` behaviour is captured in this story + `src/actions/README.md`.
-- [ ] **Task 9 — Verification gate** (AC: all)
-  - [ ] `pnpm lint` + `pnpm typecheck` + `pnpm build` clean on Node 24. `/admin/people` shows as **dynamic** (ƒ). `/` and `/sign-in` still **static** (○).
-  - [ ] `grep -rn "adminPing\|AdminPingButton" src/` → empty.
-  - [ ] **Manual (`pnpm dev`, or prod after deploy):**
-    - as the seed admin, open `/admin/people` → the list shows every user with a linked Google account; the seed admin row is marked "(ви)" and its "Зняти доступ" is disabled ("Ви єдиний адміністратор") **when they are the only admin**.
-    - sign in (other browser / incognito) as a **second** Google account → that user now appears in the list as non-admin.
-    - as admin, click "Надати доступ" for the second user → toast "Доступ надано", row flips to admin.
-    - in the second user's session, open `/admin` → it now renders (no re-login).
-    - as admin, "Зняти доступ" for the second user → confirm dialog → "Зняти" → toast, row flips back; second user's next `/admin` load redirects to `/` with the toast.
-    - as admin (now the only admin again), try "Зняти доступ" on your own row → button disabled; and via the server (below) the action returns `LAST_ADMIN`.
-    - **Server-side proof (UI bypassed):** with **two** admins, POST the `revokeAdmin` Next-Action for your own id with a **non-admin** session cookie (or no cookie) → `{ ok: false, code: "FORBIDDEN" }`. With an admin session and `adminCount === 1`, POST `revokeAdmin(me.id)` → `{ ok: false, code: "LAST_ADMIN" }`. Capture how you exercised it (the Story 1.6 pattern: read the action id from `.next/dev/server/app/**/server-reference-manifest.json`, `curl -X POST <page> -H 'Next-Action: <id>' -H 'Content-Type: text/plain;charset=UTF-8' --data-raw '["<userId>"]'`).
-  - [ ] Capture command output + the manual walkthrough (which accounts, what happened) in the Dev Agent Record.
-- [ ] **Task 10 — Commit** — `feat(admin): grant/revoke admin on /admin/people (Story 1.7)`. Commit to `main`; push deploys to Vercel (prod auth configured in Story 1.5).
+- [x] **Task 1 — User data functions** `src/data/users.ts` (NEW) (AC: 1, 2, 3, 4)
+  - [x] `listAuthenticatedUsers()` → `db.user.findMany({ where: { accounts: { some: {} } }, orderBy: [{ isAdmin: "desc" }, { name: "asc" }, { email: "asc" }], select: { id, name, email, image, isAdmin, createdAt } })`.
+  - [x] `countAdmins()` → `db.user.count({ where: { isAdmin: true } })`.
+  - [x] **`promoteToAdmin(id)` / `demoteFromAdmin(id)`** — the sole writers of `User.isAdmin`, each returns `{ outcome: "ok" | "not_found" | "last_admin" }`. **Deviation from the drafted `setUserIsAdmin` + `getUserById`:** the last-admin check must be atomic with the write, and `db.$transaction` may not be called from `src/actions` (raw-Prisma ban). So the transaction lives in `demoteFromAdmin` (count + update in one `db.$transaction`); `promoteToAdmin` is a plain idempotent update. The actions map the outcome — no `getUserById`/`countAdmins` calls from the action layer.
+  - [x] Imports only `db` from `@/data/client`. `pnpm lint` green.
+  - [x] `src/data/README.md` — `users.ts` documented; "authenticated user" = has ≥1 `account`.
+- [x] **Task 2 — Grant / revoke Server Actions** `src/actions/admin-roles.ts` (NEW) (AC: 1, 2, 3, 4)
+  - [x] `"use server"` file. Both actions: first line `await requireAdmin()`, wrapped in `try/catch` → `toActionError(error)` (maps `AdminRequiredError` → `FORBIDDEN`, re-throws the rest).
+  - [x] `grantAdmin(userId)` → `promoteToAdmin`; `not_found` → `{ ok: false, code: "NOT_FOUND" }`; else `revalidatePath("/admin/people")`, `{ ok: true, data: { id } }`.
+  - [x] `revokeAdmin(userId)` → `demoteFromAdmin`; `not_found` → `NOT_FOUND`; `last_admin` → `{ ok: false, code: "LAST_ADMIN", message: "Не можна зняти роль з останнього адміністратора." }`; else `revalidatePath`, `{ ok: true }`.
+  - [x] Last-admin check is target-based (any revoke that would zero the admin count) — the AC's "revoke from self as last admin" is the only reachable case (a non-admin can't call the action).
+  - [x] Transaction: inside `demoteFromAdmin` (`src/data`), not the action — see Task 1 deviation note.
+  - [x] `src/actions/README.md` — `admin-ping.ts` bullet replaced with `admin-roles.ts`.
+- [x] **Task 3 — Extend `ActionErrorCode`** `src/actions/result.ts` (UPDATE) (AC: 3)
+  - [x] `export type ActionErrorCode = "FORBIDDEN" | "LAST_ADMIN" | "NOT_FOUND";` — nothing else changed.
+- [x] **Task 4 — `/admin/people` page** `src/app/admin/people/page.tsx` (NEW) (AC: 1, 2, 3)
+  - [x] Server Component; no own guard (inherits `requireAdminPage()` from `src/app/admin/layout.tsx`).
+  - [x] `Promise.all([getSessionUser(), listAuthenticatedUsers(), countAdmins()])`.
+  - [x] `← Адмін-зона` back-link, `<h1>Керування адмінами</h1>`, one line "Роль адміна дає доступ до керування турнірами."
+  - [x] Plain `<ul className="divide-y">` (no shadcn `table`); each row: `Avatar` (image or initials fallback), name-or-email, "(ви)" marker on the current user, email in `text-muted-foreground`.
+  - [x] Per-row: `!isAdmin` → `<GrantAdminButton>`; `isAdmin` → `<RevokeAdminButton isSelf disabled={isSelf && adminCount<=1}>` with "Ви єдиний адміністратор" text when disabled.
+  - [x] Empty list → "Ще ніхто не входив." (no `EmptyState` component).
+- [x] **Task 5 — Grant / revoke client controls** `src/components/admin-role-controls.tsx` (NEW) (AC: 1, 2, 3)
+  - [x] `"use client"`. `GrantAdminButton` (`variant="outline"`) + `RevokeAdminButton` (`variant="destructive"`).
+  - [x] Grant: `useTransition` → `grantAdmin(userId)` → success/error toast; `try/catch` → generic toast.
+  - [x] Revoke: shadcn `Dialog` (controlled `open`), title "Зняти роль адміна?", consequence body (self vs other wording), confirm `Button variant="destructive"` "Зняти", `DialogClose` "Скасувати". Confirm → `revokeAdmin(userId)` → close + toast; `try/catch` → generic toast.
+  - [x] `disabled` prop → renders a plain disabled destructive button, no dialog (hooks still called before the early return).
+  - [x] Successful **self**-revoke → `router.push("/")`.
+  - [x] Imports actions from `@/actions/admin-roles`, `toast` from `sonner`. No `@/auth` import.
+- [x] **Task 6 — shadcn `dialog`** (AC: 2)
+  - [x] `pnpm dlx shadcn@latest add dialog` → `src/components/ui/dialog.tsx` (`@base-ui/react/dialog`, self-portalling). **No new dependency** — `package.json` / `pnpm-lock.yaml` unchanged. Declined the CLI's offer to overwrite `button.tsx` (base-nova re-lists it as a dep; our branded `button.tsx` must stay).
+  - [x] No `layout.tsx` wiring needed.
+- [x] **Task 7 — Remove the Story 1.6 demo** (housekeeping)
+  - [x] Deleted `src/actions/admin-ping.ts`, `src/components/admin-ping-button.tsx`.
+  - [x] `src/app/admin/page.tsx` — demo button gone; `<Link href="/admin/people">Керування адмінами</Link>` added; heading + line kept.
+  - [x] `src/actions/README.md` — `admin-ping.ts` line dropped.
+  - [x] `grep -rn "adminPing\|admin-ping\|AdminPingButton" src/` → empty.
+- [x] **Task 8 — Docs** (housekeeping)
+  - [x] `src/data/README.md`, `src/actions/README.md` (Tasks 1–2).
+  - [x] `AGENTS.md` — one line: `grantAdmin` / `revokeAdmin` in `src/actions/admin-roles.ts`, `/admin/people` surface, `promoteToAdmin` / `demoteFromAdmin` sole writers, last admin protected in a transaction.
+  - [x] `EXPERIENCE.md` not touched (out of doc scope, as planned).
+- [x] **Task 9 — Verification gate** (AC: all)
+  - [x] `pnpm lint` (exit 0) + `pnpm typecheck` (exit 0) + `pnpm build` clean on Node 24. `/admin/people` **dynamic** (ƒ); `/` and `/sign-in` **static** (○) — see Debug Log.
+  - [x] `grep -rn "adminPing\|AdminPingButton" src/` → empty.
+  - [x] **Automated / data-layer:**
+    - anonymous `GET /admin/people` → `307` → `location: /sign-in?from=/admin` (inherited layout guard). `GET /admin` unchanged.
+    - server-side (UI bypassed, no session): `POST` `grantAdmin` and `revokeAdmin` Next-Action → both `{"ok":false,"code":"FORBIDDEN","message":"Потрібні права адміністратора"}`.
+    - data layer against the live DB (non-destructive, `adminCount === 1`): `demoteFromAdmin(<sole admin id>)` → `{ outcome: "last_admin" }` **with no write** (`adminCount` unchanged); `demoteFromAdmin(<bad id>)` → `{ outcome: "not_found" }`; `promoteToAdmin(<existing admin>)` → `{ outcome: "ok" }` idempotent. `listAuthenticatedUsers()` returns the seed admin + the existing second account (`kiperandrii@gmail.com`, `isAdmin=false`).
+  - [~] **Browser click-through** (needs the two Google sessions — same as Story 1.5/1.6): grant the second user → they open `/admin` with no re-login → revoke via the confirm dialog → they're redirected out. **Pending user confirmation** (every server-side path above is verified).
+  - [x] Command output captured in the Dev Agent Record.
+- [x] **Task 10 — Commit** — `feat(admin): grant/revoke admin on /admin/people (Story 1.7)`. Committed to `main`; push deploys to Vercel.
 
 ## Dev Notes
 
@@ -249,16 +221,85 @@ No `project-context.md`. Binding docs: `ARCHITECTURE-SPINE.md` (AD-6, AD-7, AD-1
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-sonnet-5
 
 ### Debug Log References
 
+**`pnpm build`** (Node 24, Turbopack):
+
+```
+✓ Compiled successfully
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /admin
+├ ƒ /admin/people
+├ ƒ /api/auth/[...all]
+└ ○ /sign-in
+```
+
+`/admin/people` is dynamic (ƒ, inherits `headers()` via the layout guard); `/` and `/sign-in` stay static (○).
+`pnpm typecheck` → exit 0. `pnpm lint` → exit 0. `grep -rn "adminPing\|admin-ping\|AdminPingButton" src/` → no matches.
+
+**Manual (dev server on :3111):**
+
+```
+$ curl -sD- http://localhost:3111/admin/people        # anonymous
+HTTP/1.1 307 Temporary Redirect
+location: /sign-in?from=/admin
+
+$ curl -s -X POST http://localhost:3111/sign-in \
+    -H 'Next-Action: 40276fdf223ba2909f9a5cdad3ee025678795546ea' \  # grantAdmin
+    -H 'Content-Type: text/plain;charset=UTF-8' --data-raw '["cktest…"]'   # no session
+1:{"ok":false,"code":"FORBIDDEN","message":"Потрібні права адміністратора"}
+
+$ curl … -H 'Next-Action: 40aff75cc2c9e0c74c1ecf500f94de389e123413ac' …   # revokeAdmin, no session
+1:{"ok":false,"code":"FORBIDDEN","message":"Потрібні права адміністратора"}
+```
+
+**Data layer against the live DB** (throwaway `scripts/verify-admin-roles.mts`, run then deleted; non-destructive because `adminCount === 1`):
+
+```
+adminCount: 1   admins: [ nightfate1993@gmail.com ]
+authenticatedUsers: [ nightfate1993@gmail.com isAdmin=true, kiperandrii@gmail.com isAdmin=false ]
+demoteFromAdmin(nonexistent):  { outcome: 'not_found' }
+demoteFromAdmin(sole admin):   { outcome: 'last_admin' }   # no write
+promoteToAdmin(existing admin):{ outcome: 'ok' }           # idempotent
+adminCount after: 1   # unchanged
+```
+
 ### Completion Notes List
 
+- **`src/data/users.ts`** — first real `src/data` entity module. Write path is two outcome-returning functions: `promoteToAdmin` (idempotent update) and `demoteFromAdmin` (`db.$transaction`: re-count admins inside the tx, refuse if `<= 1`, else clear). Consolidated from the drafted `setUserIsAdmin` + `getUserById` + action-side `db.$transaction` because **`src/actions` may not touch the Prisma client** (raw-Prisma ban / `src/data` README "callers get named functions, never a raw `PrismaClient`"). Keeping the transaction in `src/data` is both boundary-correct and race-safe against two simultaneous self-revokes.
+- **Last-admin rule generalised** to "any revoke that would zero the admin count" (AC-interpretation note in this story sanctioned this). The self-only case is the only reachable one — a non-admin cannot reach the action.
+- **AC 1 "immediate access"** — `isAdmin` is read from the DB on every `auth.api.getSession` (no `session.cookieCache`), so a granted user's next `/admin` request passes. `revalidatePath("/admin/people")` refreshes the acting admin's own list. Verified server-side that the guard + actions reject a non-admin; the grant→access→revoke **browser** click-through needs the two Google sessions and is left for user confirmation (Story 1.5/1.6 pattern). A real second non-admin (`kiperandrii@gmail.com`) already exists in the list.
+- **AC 3 last-admin** — `demoteFromAdmin` returns `last_admin` and writes nothing when there is one admin; verified live (non-destructive) and the action maps it to `{ ok: false, code: "LAST_ADMIN" }`. The UI also disables the self-revoke button in this state.
+- **Revoke confirm** — shadcn `dialog` added as-is (`@base-ui/react/dialog`, self-portalling, zero new deps). Declined the CLI's `button.tsx` overwrite to preserve the branded primary variant. Reusable `ConfirmDialog` remains Story 2.2.
+- **Story 1.6 demo removed** — `admin-ping.ts` + `admin-ping-button.tsx` deleted; `/admin` now links to `/admin/people`.
+- **No migration** — `User.isAdmin` already exists. `schema.prisma` / `prisma/migrations/**` untouched.
+- **No unit tests / no Vitest** — no `src/domain` code; per the story's testing note the gate is operational (lint + typecheck + build + the anonymous/server-side/data-layer walkthrough above).
+
 ### File List
+
+**New**
+- `src/data/users.ts`
+- `src/actions/admin-roles.ts`
+- `src/app/admin/people/page.tsx`
+- `src/components/admin-role-controls.tsx`
+- `src/components/ui/dialog.tsx`
+
+**Modified**
+- `src/actions/result.ts` — `ActionErrorCode` += `"LAST_ADMIN" | "NOT_FOUND"`
+- `src/app/admin/page.tsx` — demo button → link to `/admin/people`
+- `src/data/README.md`, `src/actions/README.md`, `AGENTS.md`
+
+**Deleted**
+- `src/actions/admin-ping.ts`
+- `src/components/admin-ping-button.tsx`
 
 ## Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-03 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
+| 2026-09-03 | Implemented Tasks 1–10: `src/data/users.ts` (list + `promoteToAdmin` / `demoteFromAdmin` transactional last-admin guard), `grantAdmin` / `revokeAdmin` actions, `/admin/people` page + `admin-role-controls` (revoke confirm `Dialog`), removed the 1.6 demo. `lint`/`typecheck`/`build` green; anonymous redirect, server-side `FORBIDDEN`, and the last-admin / not-found / idempotency paths verified. Status: in-progress → review. |

@@ -28,8 +28,10 @@ Conventions below are manual-review, not lint-checked:
 
 Actions are wired in their feature stories.
 
-- `result.ts` — the shared `ActionResult<T>` type and `toActionError()`, which maps
-  `AdminRequiredError` to `{ ok: false, code: "FORBIDDEN" }` and re-throws anything
-  else (including `NEXT_REDIRECT`).
-- `admin-ping.ts` — a Story 1.6 demo proving the server enforces the role
-  independent of the UI. Story 1.7 removes it and adds the real grant/revoke actions.
+- `result.ts` — the shared `ActionResult<T>` / `ActionError` / `ActionErrorCode`
+  types and `toActionError()`, which maps `AdminRequiredError` to
+  `{ ok: false, code: "FORBIDDEN" }` and re-throws anything else (including
+  `NEXT_REDIRECT`).
+- `admin-roles.ts` — `grantAdmin(userId)` / `revokeAdmin(userId)`. First line
+  `await requireAdmin()`; `revokeAdmin` refuses to clear the last admin
+  (`code: "LAST_ADMIN"`), enforced in a `src/data` transaction, not the UI.

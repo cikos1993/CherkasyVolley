@@ -1,4 +1,4 @@
-import { AdminPingButton } from "@/components/admin-ping-button";
+import Link from "next/link";
 
 export default function AdminPage() {
   return (
@@ -7,9 +7,11 @@ export default function AdminPage() {
       <p className="mt-2 text-muted-foreground">
         Керування турнірами зʼявиться в наступних історіях.
       </p>
-      <div className="mt-6">
-        <AdminPingButton />
-      </div>
+      <nav className="mt-6">
+        <Link href="/admin/people" className="text-sm underline underline-offset-4">
+          Керування адмінами
+        </Link>
+      </nav>
     </main>
   );
 }
