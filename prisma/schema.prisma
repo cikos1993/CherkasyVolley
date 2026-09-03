@@ -73,3 +73,88 @@ model Verification {
   @@index([identifier])
   @@map("verification")
 }
+
+enum Discipline {
+  CLASSIC
+  BEACH
+}
+
+enum TournamentType {
+  CHAMPIONSHIP
+  VETERAN
+  WOMEN
+  YOUTH
+}
+
+enum TournamentState {
+  DRAFT
+  GROUP_STAGE
+  PLAYOFF
+  COMPLETED
+}
+
+enum ScoringPreset {
+  CLASSIC
+  CUSTOM
+}
+
+model Tournament {
+  id            String            @id @default(cuid())
+  discipline    Discipline
+  type          TournamentType
+  name          String
+  year          Int
+  state         TournamentState   @default(DRAFT)
+  scoringPreset ScoringPreset
+  teamCount     Int
+  rounds        Int
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @default(now()) @updatedAt
+  entries       TournamentEntry[]
+
+  @@index([discipline, state])
+  @@map("tournament")
+}
+
+model Team {
+  id        String            @id @default(cuid())
+  name      String            @unique
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @default(now()) @updatedAt
+  entries   TournamentEntry[]
+
+  @@map("team")
+}
+
+model TournamentEntry {
+  id           String     @id @default(cuid())
+  tournamentId String
+  teamId       String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team         Team       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  players      Player[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @default(now()) @updatedAt
+
+  @@unique([tournamentId, teamId])
+  @@index([teamId])
+  @@map("tournament_entry")
+}
+
+model Player {
+  id         String          @id @default(cuid())
+  entryId    String
+  entry      TournamentEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  fullName   String
+  birthDate  String?
+  birthPlace String?
+  sportRank  String?
+  position   String?
+  height     String?
+  weight     String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @default(now()) @updatedAt
+
+  @@index([entryId])
+  @@map("player")
+}

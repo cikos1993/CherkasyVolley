@@ -15,6 +15,20 @@ goes through a named function exported from here — `getPublicTournaments`,
   "last_admin" }` and are called only from `grantAdmin` / `revokeAdmin` under
   `requireAdmin()`.
 
+The `Tournament`, `Team`, `TournamentEntry` and `Player` entities (schema landed in
+Story 2.1, migration `20260903174727_tournament_schema`) are owned here too; their
+query/write functions arrive with the feature stories (create → 2.4, team directory
+→ 2.6, entries → 2.7, players → 2.8). Two query flavours per read:
+
+- **public** — filter `state != DRAFT` **and** `discipline = CLASSIC` (AD-7, AD-9).
+  Called from Server Components, no auth.
+- **admin** — includes drafts; a separate function, called only from under
+  `requireAdmin()`.
+
+`Tournament.state` is written only by `transitionTournament` (Story 2.3 / AD-8),
+never assigned. Standings and playoff placements are **never** stored (AD-4) —
+there is deliberately no such column.
+
 **May import:** the Prisma client and generated schema types. `client.ts` constructs
 the single shared `PrismaClient` instance (`@prisma/adapter-pg` over the pooled
 `DATABASE_URL`) and exports it as `db`; `src/auth` imports `db` from here for Better
