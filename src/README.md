@@ -6,15 +6,22 @@ AD-11); this file is the working copy for people editing `src/`.
 
 | Layer | Directory | Contains | May import |
 | --- | --- | --- | --- |
-| View | `app/`, `components/`, `lib/` | Server/Client Components, presentation only (`lib/` = the `cn` class-name helper) | shell, data (reads only) |
+| View | `app/`, `components/`, `lib/` | Server/Client Components, presentation only. `lib/` = view utilities: `cn` (class-names), `auth-client` (Better Auth browser client) | shell, data (reads only), `lib/auth-client` |
 | Shell | `actions/` | Server Actions: authorize → read → call core → write | domain, data, auth |
 | Domain | `domain/` | Pure functions: scoring, tiebreak, bracket, schedule, validation | nothing internal |
 | Data | `data/` | Prisma client + queries; the sole owner and writer of every entity | Prisma + schema types |
-| Auth | `auth/` | Better Auth config, `requireAdmin()` | data |
+| Auth | `auth/` | Better Auth instance (`auth.ts`), `requireAdmin()` | data |
 
 (Spine § Design Paradigm gives Shell's dependencies as `domain, data`; `auth` is
 added here because AD-3's own graph shows `shell → auth`. `lib/` is grouped with
 View per Story 1.3.)
+
+**View ↔ auth (Story 1.5).** The view never imports `src/auth` directly. Client
+Components read the session and sign in/out through `src/lib/auth-client.ts`
+(`better-auth/react`, an HTTP client). The one exception is the transport endpoint
+`src/app/api/auth/[...all]/route.ts`, which imports `@/auth/auth` — it is Better
+Auth's HTTP handler, not a component (spine AD-1 note). `src/components/**` is
+lint-blocked from importing `@/auth`.
 
 ## Dependency direction
 

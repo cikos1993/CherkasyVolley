@@ -79,6 +79,29 @@ Translated from `epics.md` → Epic 1 → Story 1.5. The Ukrainian source is aut
   - [x] `.env.example` (Task 8).
 - [x] **Task 12 — Commit** — `9042697` on `main` — `feat(auth): Google sign-in via Better Auth (Story 1.5)` (18 files, incl. `prisma/migrations/20260903115000_add_better_auth/`). Not pushed.
 
+### Review Findings
+
+_Adversarial code review 2026-09-03 (`bmad-code-review`, 4 layers). Scope: `a6275d5..HEAD` (`src/auth/**`, `src/lib/auth-client.ts`, `src/app/api/auth/**`, `src/app/sign-in/**`, `src/components/user-menu.tsx`, `src/app/layout.tsx`, `prisma/**`, `.env.example`, `AGENTS.md`, `package.json`). Outcome: 2 decision-needed (resolved), 12 patch (applied), 5 defer, ~6 dismissed. **1 high-severity schema bug found and fixed.**_
+
+- [x] [Review][Patch][HIGH] **`Account` schema was missing `issuer` (required by the runtime) and `@@unique([issuer, accountId])`.** `@better-auth/cli@1.4.21` lags `better-auth@1.7.2`; the runtime (`@better-auth/core/db/get-tables.mjs`) defines `account.issuer` as required and keys accounts on `(issuer, accountId)`, and `oauth2/link-account.mjs` writes `issuer` on every account create → the **first Google sign-in would have failed** on the `account` insert. Added `issuer String` + `@@unique([issuer, accountId])`; migration `20260903120000_account_issuer` applied; `prisma migrate diff --from-config-datasource --to-schema` now returns an empty diff (DB structurally matches the schema). [prisma/schema.prisma, prisma/migrations/]
+- [x] [Review][Decision] **AD-3 `view → auth` bridge** — **Resolved: option (a).** Added an AD-1 companion note in `ARCHITECTURE-SPINE.md` (the `[...all]` route handler is sanctioned transport, not a service); added `src/lib` to the spine's View row and `src/README.md` layer table with the bridge rule; added a `src/components/**` ESLint block forbidding `@/auth` imports (components use `@/lib/auth-client`). [ARCHITECTURE-SPINE.md, src/README.md, eslint.config.mjs]
+- [x] [Review][Decision] **DB table-name convention** — **Resolved: option (a).** Lowercase `@@map` for all tables going forward; recorded in `AGENTS.md` ("All table names are lowercase via `@@map`") and `epics.md` (the Story 1.4 clarification note). Epic 2 models follow this. [AGENTS.md, epics.md]
+- [x] [Review][Patch] `src/auth/auth.ts` — no fail-fast on missing env. Added: throw when `VERCEL_ENV === "production"` and `BETTER_AUTH_SECRET` / `BETTER_AUTH_URL` / `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` is unset (mirrors `src/data/client.ts`). Unset `BETTER_AUTH_SECRET` otherwise → per-instance random secret → sessions drop across redeploys. [src/auth/auth.ts]
+- [x] [Review][Patch] `account.accountLinking.updateUserInfoOnLink: true` added — Better Auth defaults it off, so the seeded admin's `name`/`image` would never populate from Google and the menu would show "—" forever. [src/auth/auth.ts]
+- [x] [Review][Patch] `emailAndPassword: { enabled: false }` set explicitly (was relying on the default) — documents the SPEC "Google-only" constraint and the unused `account.password` column. [src/auth/auth.ts]
+- [x] [Review][Patch] `src/lib/auth-client.ts` — added `inferAdditionalFields` (config-literal form, no server import) so `session.user.isAdmin` is typed client-side; removed the unused `signIn`/`signOut`/`useSession` re-exports. [src/lib/auth-client.ts]
+- [x] [Review][Patch] `safeCallback` hardened — rejects backslashes, control chars, `//`, and a `/sign-in` prefix (redirect loop); checks the decoded form. [src/app/sign-in/page.tsx]
+- [x] [Review][Patch] `/sign-in` — `try/catch/finally` around `signIn.social`; `submitting` resets and an error message shows on failure (previously the button locked forever). [src/app/sign-in/page.tsx]
+- [x] [Review][Patch] `UserMenu` — `from` now carries the query string (`pathname` + `useSearchParams`); `aria-label` on the dropdown trigger; a fixed-size placeholder instead of `null` while `isPending` (no CLS); focus ring on the "Увійти" link; `signOut` guarded against double-click. Returns `null` on `/sign-in` so the header link doesn't duplicate the page CTA. [src/components/user-menu.tsx]
+- [x] [Review][Patch] `route.ts` — export all verbs `toNextJsHandler` returns; `export const runtime = "nodejs"` (explicit — `pg` cannot run on Edge). [src/app/api/auth/[...all]/route.ts]
+- [x] [Review][Patch] `epics.md` — note added at Story 1.4 that `googleSub` is superseded by the `account` table (Story 1.5). [epics.md]
+- [x] [Review][Patch] Migration durability — the hand-written `add_better_auth` SQL was only ever applied to the one prod DB. Verified now: `prisma migrate diff --from-config-datasource --to-schema` → empty (live DB == schema); `migrate status` clean. Captured the `migrate diff` command + a `scripts/db-check.mts` conformance script (re-usable) in the repo. [scripts/db-check.mts, AGENTS.md]
+- [x] [Review][Defer] `updatedAt` is `NOT NULL` with no DB default on `session`/`account`/`verification` (and `user`, from the 1.4 defer). Better Auth's adapter always sets it; a raw / non-Better-Auth insert would fail. Fold `@default(now())` into a future migration if such a path appears. — `deferred-work.md`.
+- [x] [Review][Defer] Interactive targets below the EXPERIENCE 44×44px a11y floor (base-nova `Button` `h-8`, `Avatar` `size-8`, the text "Увійти" link). Cross-cutting design-system decision (button/avatar sizing vs. "shadcn as-is") — Story 2.2 / a design-system pass. — `deferred-work.md`.
+- [x] [Review][Defer] `session.cookieCache` not configured — every `useSession` / future server check hits Postgres. Add a short-TTL signed cookie cache when session reads get hot (Story 1.6). — `deferred-work.md`.
+- [x] [Review][Defer] No committed OAuth integration test / manual-checklist script — needs the test runner; the story records the pending manual steps. — `deferred-work.md`.
+- [x] [Review][Defer] Preview-deploy auth won't work (Google redirect URIs can't wildcard `*.vercel.app`; single `BETTER_AUTH_URL`). Document; revisit if preview auth is needed. — `deferred-work.md`.
+
 ## Dev Notes
 
 ### What this story is / is NOT
@@ -243,15 +266,21 @@ All code written; migration applied; `pnpm lint` + `pnpm typecheck` + `pnpm buil
 - `src/components/user-menu.tsx`
 - `src/components/ui/card.tsx`, `src/components/ui/dropdown-menu.tsx`, `src/components/ui/avatar.tsx` _(shadcn add, base-nova defaults)_
 - `prisma/migrations/20260903115000_add_better_auth/migration.sql` _(hand-written — rename, not drop-recreate)_
+- `prisma/migrations/20260903120000_account_issuer/migration.sql` _(code review — `account.issuer` + `@@unique`)_
+- `scripts/db-check.mts` _(code review — DB conformance smoke)_
 
 **Modified:**
-- `prisma/schema.prisma` (+ `Session`/`Account`/`Verification`; `User` → `@@map("user")`, +`emailVerified`/`image`, −`googleSub`)
+- `prisma/schema.prisma` (+ `Session`/`Account`/`Verification`; `User` → `@@map("user")`, +`emailVerified`/`image`, −`googleSub`; +`Account.issuer` + `@@unique([issuer, accountId])`)
 - `src/app/layout.tsx` (mount `UserMenu`)
 - `src/auth/README.md`
 - `AGENTS.md`
 - `.env.example`
 - `package.json` / `pnpm-lock.yaml` (`better-auth`)
-- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `eslint.config.mjs` _(code review — `src/components/**` ∌ `@/auth`)_
+- `_bmad-output/planning-artifacts/architecture/architecture-untitled-2026-09-02/ARCHITECTURE-SPINE.md` _(code review — AD-1 route-handler note, `src/lib` in the View row)_
+- `_bmad-output/planning-artifacts/epics.md` _(code review — `googleSub` / table-name clarification)_
+- `src/README.md` _(code review — view↔auth bridge)_
+- `_bmad-output/implementation-artifacts/deferred-work.md` / `sprint-status.yaml`
 
 **Local only (git-ignored):**
 - `.env.local` — `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, empty `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`
@@ -263,3 +292,4 @@ All code written; migration applied; `pnpm lint` + `pnpm typecheck` + `pnpm buil
 | --- | --- |
 | 2026-09-03 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-03 | Implemented: `better-auth@1.7.2`; `src/auth/auth.ts` (Google-only, `isAdmin` additionalField, account linking, `nextCookies`); `src/lib/auth-client.ts`; `/api/auth/[...all]` route; `/sign-in` page; `UserMenu` in `layout.tsx`. Schema reconciled into Better Auth shape (`User`→`user`, +`emailVerified`/`image`, −`googleSub`; +`session`/`account`/`verification`) via a hand-written rename migration (`20260903115000_add_better_auth`) applied with `migrate deploy` — seeded admin row preserved, `migrate status` clean. `pnpm lint` + `pnpm typecheck` + `pnpm build` clean. Committed `9042697`. **Pending user:** Google Cloud OAuth client + the manual sign-in round-trip. Status: review. |
+| 2026-09-03 | Code review (`bmad-code-review`, 4 layers). **1 high** fixed: `account` was missing `issuer` + `@@unique([issuer, accountId])` (`@better-auth/cli` lags the 1.7.2 runtime) — first sign-in would have failed; migration `20260903120000_account_issuer` applied, DB now structurally matches the schema. 2 decisions resolved (view↔auth bridge → spine/README/ESLint; lowercase `@@map` tables everywhere). 12 patches: env fail-fast in `auth.ts`, `updateUserInfoOnLink`, explicit `emailAndPassword:false`, client `inferAdditionalFields`, hardened `safeCallback`, sign-in/sign-out error handling, `from` keeps query string, `aria-label`/focus-ring/CLS-placeholder/`/sign-in`-hide on `UserMenu`, `runtime="nodejs"`, `epics.md` note, `scripts/db-check.mts`. 5 deferred. `pnpm lint` + `pnpm typecheck` + `pnpm build` clean. Status: review (manual OAuth round-trip still pending the user). |

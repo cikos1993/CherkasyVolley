@@ -179,6 +179,26 @@ const eslintConfig = defineConfig([
     },
   },
 
+  // Components are pure view — they reach auth only through the browser client
+  // (`@/lib/auth-client`), never the server instance. The `/api/auth/[...all]`
+  // route handler is the one sanctioned view→auth import (transport, not a view).
+  {
+    files: [`src/components/${SRC}`],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/auth", "@/auth/**", "**/auth/auth", "**/auth/auth.*"],
+              message: "Components use @/lib/auth-client, not src/auth.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

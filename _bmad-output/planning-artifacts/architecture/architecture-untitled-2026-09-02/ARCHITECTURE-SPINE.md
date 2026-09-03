@@ -28,7 +28,7 @@ companions: []
 
 | Шар | Каталог | Що містить | Залежить від |
 | --- | --- | --- | --- |
-| View | `src/app/**`, `src/components/**` | Server/Client Components, тільки відображення | shell, data (лише читання) |
+| View | `src/app/**`, `src/components/**`, `src/lib/**` | Server/Client Components, тільки відображення; `src/lib` — view-утиліти (`cn`, `auth-client`) | shell, data (лише читання), `src/lib/auth-client` для сесії |
 | Shell (імперативна оболонка) | `src/actions/**` | Server Actions: авторизація → читання → виклик ядра → запис | domain, data |
 | Domain (функціональне ядро) | `src/domain/**` | Чисті функції: підрахунок, посів, сітка, валідація | нічого внутрішнього |
 | Data | `src/data/**` | Prisma-клієнт і запити; єдиний власник кожної сутності | Prisma + типи схеми |
@@ -41,6 +41,7 @@ companions: []
 - **Binds:** усю систему — UI і серверну логіку
 - **Prevents:** розходження окремих фронтенду й бекенду; два деплої; CORS-поверхня для соло-супроводу
 - **Rule:** увесь код — в одному Next.js-проєкті. Публічні сторінки — Server Components; усі зміни — Server Actions. Окремого API-сервісу немає.
+- **Виняток (Story 1.5):** один route handler `src/app/api/auth/[...all]/route.ts` — HTTP-ендпоінт Better Auth. Це транспорт, не окремий сервіс.
 
 ### AD-2 — Доменна логіка лише в `src/domain/`, чиста
 
