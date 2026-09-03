@@ -89,6 +89,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - **Production:** https://cherkasy-volley.vercel.app (Vercel, team `volley3`, project `cherkasy-volley`, region `fra1`). Auto-deploys on push to `main`.
 - CLI: `npx vercel link --yes --project cherkasy-volley` links to `volley3/cherkasy-volley` (writes `.vercel/`, `.env.local` — both gitignored).
-- Neon Postgres: provisioned via Vercel → Storage (project `twilight-dust-91359102`). Sets `DATABASE_URL` (pooled) + `DATABASE_URL_UNPOOLED` (direct) in Vercel env. Local: `npx vercel env pull .env.local`.
+- Neon Postgres: provisioned via Vercel → Storage (project `twilight-dust-91359102`). Local: `npx vercel env pull .env.local` → `DATABASE_URL` (pooled) + `DATABASE_URL_UNPOOLED` (direct).
+- Vercel **Production** env (Story 1.5, set via `vercel env add`): `DATABASE_URL` + `DATABASE_URL_UNPOOLED` as **plain** vars (the Neon integration's Secret `DATABASE_URL` did not reach the serverless runtime); `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET`, `DIRECT_URL` sensitive; `BETTER_AUTH_URL=https://cherkasy-volley.vercel.app`. Module-level env guards in `src/data/client.ts` / `src/auth/auth.ts` skip `NEXT_PHASE === "phase-production-build"` (build can't see runtime-only vars).
 
 <!-- /bmad:manual -->
