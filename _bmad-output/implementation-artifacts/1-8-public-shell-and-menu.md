@@ -11,7 +11,7 @@ context:
 
 # Story 1.8: Public shell and menu
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -79,9 +79,29 @@ Translated from `epics.md` → Epic 1 → Story 1.8. The Ukrainian source is aut
   - [x] Build route table: `/classic`, `/beach`, `/archive`, `/`, `/sign-in` **static** (○); `/admin`, `/admin/people` **dynamic** (ƒ) — see Debug Log.
   - [x] `grep -rn "next.svg\|vercel.svg\|To get started" src/` → empty.
   - [x] **Automated (dev :3111):** `GET /` → `307` → `location: /classic`; `/classic` → `200` with `<title>Класичний · Волейбол Черкащини</title>`, the wordmark, `aria-current="page"` on `Класичний`, the "Ще немає турнірів" empty state; `/beach` → "Незабаром" + `aria-current` on `Пляжний`; `/archive` → "Архів порожній" + `aria-current` on `Архів`; `/classic` reachable with no sign-in (`200`).
-  - [~] **360px visual** — the header uses `flex-wrap` (nav wraps under the wordmark rather than overflowing) and the page container is `max-w-[1120px] px-4`, so no horizontal `body` scroll by construction. Visual confirmation on a real narrow viewport left to the user (Story 1.5–1.7 pattern).
+  - [x] **Narrow viewport** (browser-measured after the review restructure) — below `sm` (640px) the wordmark is `display:none`, so the header carries only the `<nav>` (222px measured) + the user slot (~49px) + chrome (~44px) ≈ 315px; `document.documentElement.scrollWidth === clientWidth` (no horizontal `body` scroll). Client-side `<Link>` nav `/classic` → `/beach` verified: URL + `h1`/`h2` + `aria-current` + active styling update with **no full reload**.
   - [x] Command output captured in the Dev Agent Record.
 - [x] **Task 10 — Commit** — `feat(shell): public discipline nav + /classic /beach /archive (Story 1.8)`. Committed to `main`; push deploys to Vercel. Closes Epic 1.
+
+### Review Findings
+
+Code review 2026-09-03 (`bmad-code-review`, all 4 layers ran). 10 patch, 5 defer, ~8 dismissed.
+
+- [x] [Review][Patch] Header can overflow the viewport ≤ ~400px — the left cluster (`whitespace-nowrap` wordmark + non-shrinking `<nav>`) sits inside `min-w-0` but its children don't shrink, so `flex-wrap` drops it whole and it still exceeds 360px → horizontal `body` scroll (AC 4). Restructure: drop `flex-wrap`, `hidden sm:block shrink-0` on the wordmark, `flex items-center justify-between gap-3` header. [src/app/layout.tsx]
+- [x] [Review][Patch] `usePathname()` is dereferenced without a null guard — `pathname.startsWith(...)` throws if it returns `null`. `const pathname = usePathname() ?? "";` [src/components/discipline-nav.tsx]
+- [x] [Review][Patch] Nav links + wordmark have no explicit focus ring — they fall back to the global `outline-ring/50` (colour only, no width). Match the `user-menu.tsx` convention: `focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary`. [src/components/discipline-nav.tsx, src/app/layout.tsx]
+- [x] [Review][Patch] `<nav>` has no accessible name — with `UserMenu` also in the header there are two nav landmarks. Add `aria-label="Розділи"`. [src/components/discipline-nav.tsx]
+- [x] [Review][Patch] `aria-current="page"` is set for prefix matches too; it should be `"page"` only on an exact match, `"true"` for an ancestor-active route (relevant once Epic 2 adds `/classic/[t]`). [src/components/discipline-nav.tsx]
+- [x] [Review][Patch] Section labels are triplicated (nav label / page `<h1>` / `metadata.title`) with no single source — AC 1 and AC 5 both hinge on them staying in lockstep. Extract `SECTIONS` + an `isActiveSection(pathname, href)` helper to `src/lib/sections.ts`; consume it in the nav and the three pages. [new src/lib/sections.ts, discipline-nav.tsx, 3 pages]
+- [x] [Review][Patch] The page shell (`<main className="mx-auto max-w-[1120px] px-4 py-8">` + `<h1>`) is copy-pasted three times. Extract a `SectionShell` component. [new src/components/section-shell.tsx, 3 pages]
+- [x] [Review][Patch] `EmptyState` — the visually prominent title is a `<p>` (not in the heading outline) and `text-2xl font-bold` (identical to the page `<h1>` → two stacked same-size bold lines). Render `<h2 className="text-lg font-semibold">`; rename `children: ReactNode` → `description: string` (it is rendered inside a `<p>`, so block content would be invalid HTML). Update the 3 call sites. [src/components/empty-state.tsx, 3 pages]
+- [x] [Review][Patch] `/` redirect is a runtime 307 rendered by a component. Move it to `next.config.ts` `redirects()` with `permanent: true` (308, cacheable, crawler-friendly) and delete `src/app/page.tsx`. [next.config.ts, delete src/app/page.tsx]
+- [x] [Review][Patch] No localised `not-found.tsx` — an unknown path (`/beahc`, `/classic/typo`) renders Next's default English 404 with no shell, violating the UA-only rule. Add a minimal `src/app/not-found.tsx` (shell + Ukrainian line + link to `/classic`). Also `satisfies Metadata` on the page `metadata` exports; remove the five dead `public/*.svg` starter assets. [new src/app/not-found.tsx, 3 pages, public/]
+- [x] [Review][Defer] Nav touch targets (~32–36px) stay below the EXPERIENCE.md 44px floor [src/components/discipline-nav.tsx] — deferred, the same cross-cutting design-system item tracked since Story 1.5; a per-component bump would clash with every other control
+- [x] [Review][Defer] No formal `⋯` / `Sheet` mobile collapse of the nav (UX-DR3 "згортаються") — deferred, unnecessary for three short words once the header restructure makes them fit; revisit with the design-system pass
+- [x] [Review][Defer] No OpenGraph tags / `metadataBase` / web manifest — deferred, SEO polish beyond the shell story
+- [x] [Review][Defer] `aria-current` ancestor semantics only partially handled — deferred, full treatment lands with the Epic 2 nested routes
+- [x] [Review][Defer] No per-section `error.tsx` boundary — deferred, relevant once the pages fetch data (Epic 2)
 
 ## Dev Notes
 
@@ -244,14 +264,21 @@ $ curl -so/dev/null -w '%{http_code}' http://localhost:3111/classic   -> 200   (
 **New**
 - `src/components/empty-state.tsx`
 - `src/components/discipline-nav.tsx`
+- `src/components/section-shell.tsx` (review)
+- `src/lib/sections.ts` (review)
 - `src/app/classic/page.tsx`
 - `src/app/beach/page.tsx`
 - `src/app/archive/page.tsx`
+- `src/app/not-found.tsx` (review)
 
 **Modified**
 - `src/app/layout.tsx` — header (wordmark + `DisciplineNav`), `metadata` title template
-- `src/app/page.tsx` — Next starter → `redirect("/classic")`
+- `next.config.ts` — `redirects()` `/` → `/classic` `permanent` (review)
 - `AGENTS.md`
+
+**Deleted**
+- `src/app/page.tsx` — the `/` redirect moved to `next.config.ts` (review)
+- `public/next.svg`, `vercel.svg`, `window.svg`, `globe.svg`, `file.svg` — dead starter assets (review)
 
 ## Change Log
 
@@ -259,3 +286,4 @@ $ curl -so/dev/null -w '%{http_code}' http://localhost:3111/classic   -> 200   (
 | --- | --- |
 | 2026-09-03 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-03 | Implemented Tasks 1–10: `DisciplineNav` + wordmark in the root header, `/` → `/classic`, `/classic` `/beach` `/archive` pages with a minimal `EmptyState`, `metadata` title template. Starter `page.tsx` removed. `lint`/`typecheck`/`build` green; redirect + nav active-state + route classification verified. Status: in-progress → review. |
+| 2026-09-03 | `bmad-code-review` (4 layers). Applied 10 patches: header restructure (wordmark `hidden sm:block`, no `flex-wrap`) — measured at a narrow viewport, header content ≈315px so no `body` overflow at 360px; `usePathname() ?? ""` guard; explicit focus ring on nav + wordmark; `<nav aria-label>`; `aria-current` exact-vs-ancestor; `SECTIONS` + `isActiveSection` single-source in `src/lib/sections.ts`; `SectionShell` component; `EmptyState` → `<h2>` + `description: string`; `/` redirect moved to `next.config.ts` (`permanent` 308) + `page.tsx` deleted; `not-found.tsx` (UA); `satisfies`/typed page `metadata`; 5 dead `public/*.svg` removed. Browser-verified: `/` → `308` → `/classic`; client-side `<Link>` nav to `/beach` (no full reload, `aria-current` + styling follow); `/nonexistent` → UA 404. 5 deferred → `deferred-work.md`. Status: review → done. |

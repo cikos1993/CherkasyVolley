@@ -3,29 +3,28 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const ITEMS = [
-  { href: "/classic", label: "Класичний" },
-  { href: "/beach", label: "Пляжний" },
-  { href: "/archive", label: "Архів" },
-] as const;
+import { SECTIONS, isActiveSection } from "@/lib/sections";
+
+const FOCUS =
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
 export function DisciplineNav() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
 
   return (
-    <nav className="flex items-center gap-1">
-      {ITEMS.map(({ href, label }) => {
-        const active = pathname === href || pathname.startsWith(`${href}/`);
+    <nav aria-label="Розділи" className="flex items-center gap-1">
+      {SECTIONS.map(({ href, label }) => {
+        const active = isActiveSection(pathname, href);
         return (
           <Link
             key={href}
             href={href}
-            aria-current={active ? "page" : undefined}
-            className={
+            aria-current={pathname === href ? "page" : active ? "true" : undefined}
+            className={`rounded-sm px-2.5 py-2 text-[13px] transition-colors sm:py-1.5 ${FOCUS} ${
               active
-                ? "rounded-sm bg-muted px-2.5 py-1.5 text-[13px] font-semibold text-foreground"
-                : "rounded-sm px-2.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
-            }
+                ? "bg-muted font-semibold text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
           >
             {label}
           </Link>

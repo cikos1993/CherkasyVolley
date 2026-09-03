@@ -1,16 +1,18 @@
-import { EmptyState } from "@/components/empty-state";
+import type { Metadata } from "next";
 
-export const metadata = { title: "Класичний" };
+import { EmptyState } from "@/components/empty-state";
+import { SectionShell } from "@/components/section-shell";
+import { CLASSIC } from "@/lib/sections";
+
+export const metadata: Metadata = { title: CLASSIC.label };
 
 export default function ClassicPage() {
   return (
-    <main className="mx-auto w-full max-w-[1120px] px-4 py-8">
-      <h1 className="text-2xl font-bold tracking-tight">Класичний</h1>
-      <div className="mt-6">
-        <EmptyState title="Ще немає турнірів">
-          Активні турніри зʼявляться тут, коли їх створить адміністратор.
-        </EmptyState>
-      </div>
-    </main>
+    <SectionShell title={CLASSIC.label}>
+      <EmptyState
+        title="Ще немає турнірів"
+        description="Активні турніри зʼявляться тут, коли їх створить адміністратор."
+      />
+    </SectionShell>
   );
 }

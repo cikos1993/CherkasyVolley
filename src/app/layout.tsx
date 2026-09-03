@@ -17,9 +17,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="uk" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
-        <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-2">
-          <div className="flex min-w-0 items-center gap-4">
-            <Link href="/classic" className="font-semibold whitespace-nowrap">
+        <header className="flex items-center justify-between gap-3 border-b px-4 py-2">
+          <div className="flex items-center gap-3 sm:gap-5">
+            <Link
+              href="/classic"
+              className="hidden shrink-0 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:block"
+            >
               Волейбол Черкащини
             </Link>
             <DisciplineNav />

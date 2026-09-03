@@ -1,16 +1,18 @@
-import { EmptyState } from "@/components/empty-state";
+import type { Metadata } from "next";
 
-export const metadata = { title: "Пляжний" };
+import { EmptyState } from "@/components/empty-state";
+import { SectionShell } from "@/components/section-shell";
+import { BEACH } from "@/lib/sections";
+
+export const metadata: Metadata = { title: BEACH.label };
 
 export default function BeachPage() {
   return (
-    <main className="mx-auto w-full max-w-[1120px] px-4 py-8">
-      <h1 className="text-2xl font-bold tracking-tight">Пляжний</h1>
-      <div className="mt-6">
-        <EmptyState title="Незабаром">
-          У розділі «Пляжний» ще немає турнірів.
-        </EmptyState>
-      </div>
-    </main>
+    <SectionShell title={BEACH.label}>
+      <EmptyState
+        title="Незабаром"
+        description="У розділі «Пляжний» ще немає турнірів."
+      />
+    </SectionShell>
   );
 }

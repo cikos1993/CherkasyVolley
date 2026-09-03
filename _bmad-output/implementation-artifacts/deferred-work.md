@@ -8,6 +8,14 @@ Items surfaced during reviews that are real but not actionable in the story that
 - ~~**Neon migrations need a direct connection URL.**~~ **Resolved in Story 1.4.** `prisma7.config.ts` `datasource.url` = `DIRECT_URL ?? DATABASE_URL_UNPOOLED ?? DATABASE_URL`; `.env.example` documents `DIRECT_URL`. `migrate dev` applied clean.
 - ~~**`next.config.ts` is an empty placeholder** (no `serverExternalPackages`).~~ **Partly resolved in Story 1.4.** Added `serverExternalPackages: ["pg", "@prisma/adapter-pg"]`. Security headers / image config still deferred to a hardening pass.
 
+## Deferred from: code review of 1-8-public-shell-and-menu (2026-09-03)
+
+- **Discipline-nav touch targets stay below the 44px floor.** After the review the mobile links are ~36px (`py-2 sm:py-1.5` on 13px text); EXPERIENCE.md UX-DR13 wants ≥44px on `< 640px`. This is the same cross-cutting deferral tracked since Story 1.5 — a per-component bump would clash with `Button` (h-8), `Avatar` (size-8), tab chips, etc. Owner: the design-system / a11y pass, or Story 2.2.
+- **No formal `⋯` / `Sheet` collapse of the discipline nav on `< 640px`.** UX-DR3 / DESIGN.md say "пункти згортаються"; the three items now fit at 360px without a menu (the wordmark hides, spacing tightens), which satisfies AC 4's "лишається придатним до навігації". A real collapse (for when a fourth section or longer labels arrive) belongs with the design-system pass.
+- **No OpenGraph / `metadataBase` / web manifest.** The shell wires only `title` + `description`. A public platform wants a canonical base URL, an OG image, and a manifest — a small SEO story once the real content pages exist.
+- **`aria-current` ancestor semantics.** The nav sets `aria-current="page"` on exact match and `"true"` on an ancestor route, but there are no nested routes yet to exercise the `"true"` branch — verify it with the Epic 2 `/classic/[tournament]` pages.
+- **No per-section `error.tsx` boundary.** `/classic` `/beach` `/archive` fetch nothing today. When Epic 2 adds data fetching, each section needs a Ukrainian error boundary (and the `EmptyState` grows its documented five cases in Story 2.2).
+
 ## Deferred from: code review of 1-7-admin-management (2026-09-03)
 
 - **`promoteToAdmin` / `demoteFromAdmin` throw an unhandled Prisma `P2025`** if the target `user` row disappears between the `findUnique` read and the `update`. Harmless today (nothing deletes users), but when a delete-user path is added, wrap the write in `try/catch (P2025) → { outcome: "not_found" }`.

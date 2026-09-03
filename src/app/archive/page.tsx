@@ -1,16 +1,18 @@
-import { EmptyState } from "@/components/empty-state";
+import type { Metadata } from "next";
 
-export const metadata = { title: "Архів" };
+import { EmptyState } from "@/components/empty-state";
+import { SectionShell } from "@/components/section-shell";
+import { ARCHIVE } from "@/lib/sections";
+
+export const metadata: Metadata = { title: ARCHIVE.label };
 
 export default function ArchivePage() {
   return (
-    <main className="mx-auto w-full max-w-[1120px] px-4 py-8">
-      <h1 className="text-2xl font-bold tracking-tight">Архів</h1>
-      <div className="mt-6">
-        <EmptyState title="Архів порожній">
-          Завершені турніри зʼявляться тут за роками.
-        </EmptyState>
-      </div>
-    </main>
+    <SectionShell title={ARCHIVE.label}>
+      <EmptyState
+        title="Архів порожній"
+        description="Завершені турніри зʼявляться тут за роками."
+      />
+    </SectionShell>
   );
 }
