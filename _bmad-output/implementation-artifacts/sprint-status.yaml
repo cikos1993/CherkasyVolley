@@ -29,7 +29,7 @@ development_status:
   1-5-google-sign-in: done
   1-6-require-admin-access-control: done
   1-7-admin-management: done
-  1-8-public-shell-and-menu: backlog
+  1-8-public-shell-and-menu: ready-for-dev
   epic-1-retrospective: optional
 
   epic-2: backlog
