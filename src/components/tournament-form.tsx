@@ -1,10 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2Icon } from "lucide-react";
 
-import { createTournament } from "@/actions/tournaments";
+import { createTournament, updateTournament } from "@/actions/tournaments";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,43 +48,64 @@ function Field({
   name,
   label,
   error,
+  locked,
   children,
 }: {
   name: TournamentField;
   label: string;
   error?: string;
+  locked?: boolean;
   children: (props: {
     id: string;
     "aria-invalid": boolean;
     "aria-describedby"?: string;
+    disabled?: boolean;
   }) => ReactNode;
 }) {
   const errorId = `${name}-error`;
+  const lockedId = `${name}-locked`;
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={name}>{label}</Label>
       {children({
         id: name,
         "aria-invalid": Boolean(error),
-        "aria-describedby": error ? errorId : undefined,
+        "aria-describedby": error ? errorId : locked ? lockedId : undefined,
+        disabled: locked,
       })}
       {error ? (
         <p id={errorId} className="text-sm text-destructive">
           {error}
+        </p>
+      ) : locked ? (
+        <p id={lockedId} className="text-xs text-muted-foreground">
+          Змінити можна лише в стані «Чернетка».
         </p>
       ) : null}
     </div>
   );
 }
 
-export function TournamentForm() {
-  const [state, formAction, pending] = useActionState(createTournament, {});
+export function TournamentForm({
+  mode = "create",
+  tournamentId,
+  initial,
+  locked = [],
+}: {
+  mode?: "create" | "edit";
+  tournamentId?: string;
+  initial?: FormValues;
+  locked?: readonly TournamentField[];
+}) {
+  const router = useRouter();
+  const action = mode === "edit" ? updateTournament.bind(null, tournamentId!) : createTournament;
+  const [state, formAction, pending] = useActionState(action, {});
   const { fieldErrors } = state;
 
   // Controlled fields — React 19 resets an uncontrolled `<form action>` on
   // submit (and the base-ui Input ignores a changed `defaultValue`). Controlled
   // state is untouched by the reset, so a rejected submit keeps the user's input.
-  const [form, setForm] = useState<FormValues>(initialValues);
+  const [form, setForm] = useState<FormValues>(() => initial ?? initialValues());
 
   useEffect(() => {
     // Depend on `state` (a new object every submit), not `formError` alone —
@@ -91,6 +113,18 @@ export function TournamentForm() {
     // would not be a new dependency value and would silently skip the toast.
     if (state.formError) notify.error(state.formError);
   }, [state]);
+
+  // Edit-only success toast, keyed off the falling edge of `pending` rather
+  // than `state`'s identity — fires once a submit actually completes without
+  // an error, never on mount (`wasPending` starts `false`).
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (mode === "edit" && wasPending.current && !pending && !state.formError && !state.fieldErrors) {
+      notify.success("Зміни збережено");
+      router.refresh();
+    }
+    wasPending.current = pending;
+  }, [pending, state, mode, router]);
 
   const bind = (field: TournamentField) => ({
     value: form[field],
@@ -100,7 +134,7 @@ export function TournamentForm() {
 
   return (
     <form action={formAction} className="grid max-w-md gap-5">
-      <Field name="type" label="Тип турніру" error={fieldErrors?.type}>
+      <Field name="type" label="Тип турніру" error={fieldErrors?.type} locked={locked.includes("type")}>
         {(props) => (
           <select {...props} {...bind("type")} name="type" className={selectClassName}>
             {TOURNAMENT_TYPES.map((type) => (
@@ -112,17 +146,22 @@ export function TournamentForm() {
         )}
       </Field>
 
-      <Field name="name" label="Назва" error={fieldErrors?.name}>
+      <Field name="name" label="Назва" error={fieldErrors?.name} locked={locked.includes("name")}>
         {(props) => <Input {...props} {...bind("name")} name="name" maxLength={NAME_MAX} />}
       </Field>
 
-      <Field name="year" label="Рік" error={fieldErrors?.year}>
+      <Field name="year" label="Рік" error={fieldErrors?.year} locked={locked.includes("year")}>
         {(props) => (
           <Input {...props} {...bind("year")} name="year" type="number" min={YEAR_MIN} max={YEAR_MAX} />
         )}
       </Field>
 
-      <Field name="scoringPreset" label="Система очок" error={fieldErrors?.scoringPreset}>
+      <Field
+        name="scoringPreset"
+        label="Система очок"
+        error={fieldErrors?.scoringPreset}
+        locked={locked.includes("scoringPreset")}
+      >
         {(props) => (
           <select
             {...props}
@@ -139,7 +178,12 @@ export function TournamentForm() {
         )}
       </Field>
 
-      <Field name="teamCount" label="Кількість команд" error={fieldErrors?.teamCount}>
+      <Field
+        name="teamCount"
+        label="Кількість команд"
+        error={fieldErrors?.teamCount}
+        locked={locked.includes("teamCount")}
+      >
         {(props) => (
           <Input
             {...props}
@@ -152,7 +196,12 @@ export function TournamentForm() {
         )}
       </Field>
 
-      <Field name="rounds" label="Кількість кіл" error={fieldErrors?.rounds}>
+      <Field
+        name="rounds"
+        label="Кількість кіл"
+        error={fieldErrors?.rounds}
+        locked={locked.includes("rounds")}
+      >
         {(props) => (
           <Input
             {...props}
@@ -167,7 +216,7 @@ export function TournamentForm() {
 
       <Button type="submit" disabled={pending} aria-busy={pending} className="w-fit">
         {pending ? <Loader2Icon className="animate-spin" /> : null}
-        Створити турнір
+        {mode === "edit" ? "Зберегти зміни" : "Створити турнір"}
       </Button>
     </form>
   );
