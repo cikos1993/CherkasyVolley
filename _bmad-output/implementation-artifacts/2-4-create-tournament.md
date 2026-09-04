@@ -124,13 +124,13 @@ Translated from `epics.md` → Epic 2 → Story 2.4. The Ukrainian source is aut
   - [x] `CreateTournamentState = { fieldErrors?; formError?; values? }` (all keyed by `TournamentField`).
   - [x] `createTournament(_prev, formData)` — echoes the 6 raw field strings into `values` first; `requireAdmin()` in a narrowed try (`AdminRequiredError` → `formError`, else re-throw); `validateNewTournament({ discipline: "CLASSIC", …6 form values })` → `{ fieldErrors, values }` on failure; `createTournamentRecord` in a narrowed try (`isUniqueViolation` → `formError` "Турнір з такою назвою вже існує за цей рік.", else re-throw); `redirect(\`/admin/tournaments/${id}\`)` **after** the try (so `NEXT_REDIRECT` is never caught). `let id: string` definite-assignment holds (catch returns or throws).
   - [x] `P2002` via the `src/data` `isUniqueViolation` (Task 4) — no `Prisma` import in `src/actions`. `typecheck` + `lint` clean.
-- [ ] **Task 6 — `src/components/tournament-form.tsx` (NEW)** (AC: the form; UX-DR11)
-  - [ ] `"use client"`; `useActionState(createTournament, {})`; `<form action={formAction} className="…">`. Fields per the AC note, `Label` above each control, per-field error text + `aria-invalid` / `aria-describedby`.
-  - [ ] Every control's `defaultValue` / `defaultValue`-equivalent reads `state.values?.<field>` (with the `year` fallback to the current year, `scoringPreset` fallback `"CLASSIC"`, `rounds` fallback `"1"`). This is the React 19 form-reset workaround — required by UX-DR11.
-  - [ ] `useEffect` → `notify.error(state.formError)` when `state.formError` is set.
-  - [ ] Submit `Button` — brand `default` variant (primary), "Створити турнір", `disabled={pending}`, `aria-busy={pending}`, inline spinner while `pending`.
-  - [ ] Ukrainian type / preset labels — a local `const TYPE_LABELS: Record<TournamentType, string>` / `PRESET_LABELS` in the component (view layer owns display copy; the domain owns the values). Do not centralise in `src/lib` for two tiny maps unless a second consumer appears.
-  - [ ] `src/components/**` lint: no `@/auth`, no `@/data`, no Prisma. It imports `@/actions/tournaments` (the sanctioned `view → shell` edge), `@/domain/tournamentForm` (for the type list + `TournamentType` type — `view → domain` is allowed; `src/components/**` is only blocked from `@/auth`), `@/components/ui/*`, `@/lib/notify`, `lucide-react`, `react`.
+- [x] **Task 6 — `src/components/tournament-form.tsx` (NEW)** (AC: the form; UX-DR11)
+  - [x] `"use client"`; `const [state, formAction, pending] = useActionState(createTournament, {})`; `<form action={formAction} className="grid max-w-md gap-5">`. A `Field` render-prop wrapper renders the `Label` + control + error text and passes `id` / `aria-invalid` / `aria-describedby` to the control.
+  - [x] `type` / `scoringPreset` — native `<select name>` styled to match `Input` (`h-8 rounded-sm border-input`, focus ring, `aria-invalid` styling). `name` / `year` / `teamCount` / `rounds` — `<Input>` (`year` / `teamCount` / `rounds` `type="number"` with `min` / `max` from the domain bounds).
+  - [x] Every control's `defaultValue` reads `values?.<field>` with fallbacks: `type` → `TOURNAMENT_TYPES[0]`, `year` → current year, `scoringPreset` → `SCORING_PRESETS[0]`, `rounds` → `"1"`, `name` / `teamCount` → `""`. The React 19 form-reset workaround (UX-DR11).
+  - [x] `useEffect(() => { if (formError) notify.error(formError); }, [formError])`.
+  - [x] Submit `<Button type="submit" disabled={pending} aria-busy={pending}>` with inline `<Loader2Icon className="animate-spin" />` while pending. Brand `default` (primary) variant, "Створити турнір".
+  - [x] Local `TYPE_LABELS` / `PRESET_LABELS` maps (view owns display copy). Imports: `@/actions/tournaments`, `@/domain/tournamentForm`, `@/components/ui/{button,input,label}`, `@/lib/notify`, `lucide-react`, `react`. `typecheck` + `lint` clean.
 - [ ] **Task 7 — Pages** (AC: 3)
   - [ ] `src/app/admin/tournaments/new/page.tsx` (NEW) — Server Component; back-link to `/admin`, `<h1>Створити турнір</h1>`, `<TournamentForm />`; `metadata = { title: "Створити турнір" }`.
   - [ ] `src/app/admin/tournaments/[id]/page.tsx` (NEW, stub) — `const { id } = await params` (Next 16 async params); `const tournament = await getTournamentForAdmin(id)`; `if (!tournament) notFound()`; render name + type/year/preset + "Чернетка" + the "наповнення в наступних історіях" line + a back-link to `/admin`. `generateMetadata` returns the tournament name as title (or a static "Турнір").
@@ -320,6 +320,7 @@ claude-sonnet-5
 - **Task 3:** `Group` model (`tournamentId @unique` — one group per tournament in v1; `onDelete: Cascade`); `Tournament.group Group?` + `@@unique([discipline, type, year, name])`. Migration `20260904160000_tournament_group_and_natural_key` hand-written (non-interactive `migrate dev` block) + `migrate deploy`. `db-check.mts` + `db.group.count()`.
 - **Task 4:** `src/data/tournaments.ts` — `createTournamentRecord(input)` (Tournament + nested `group: { create: {} }`, `select: { id }`, no `state`) and `isUniqueViolation(error)` (P2002). First `data → domain` type import (`NewTournamentInput`) — lint-clean.
 - **Task 5:** `src/actions/tournaments.ts` — `createTournament(_prev, formData)` + `CreateTournamentState`. `requireAdmin` → `validateNewTournament` → `createTournamentRecord` → `redirect`. `formError` on `AdminRequiredError` / `P2002`; `fieldErrors` + echoed `values` on validation failure (UX-DR11). `transitionTournament` unchanged.
+- **Task 6:** `src/components/tournament-form.tsx` — `useActionState` form; native `<select>` for type/preset, `<Input>` for the rest; `defaultValue`-from-`state.values` (form-reset workaround); `notify.error` on `formError`; primary submit with pending spinner.
 
 ### File List
 
@@ -328,6 +329,7 @@ claude-sonnet-5
 - `src/components/ui/label.tsx`
 - `src/domain/tournamentForm.ts`
 - `src/domain/tournamentForm.test.ts`
+- `src/components/tournament-form.tsx`
 - `prisma/migrations/20260904160000_tournament_group_and_natural_key/migration.sql`
 
 **Modified**
@@ -347,3 +349,4 @@ claude-sonnet-5
 | 2026-09-04 | Task 3 — `Group` model + `Tournament` natural key `@@unique([discipline, type, year, name])`; migration `20260904160000_tournament_group_and_natural_key` (hand-written + `migrate deploy` — non-interactive `migrate dev` blocked by the constraint warning). `db-check.mts` + `groups`. `migrate status` / `diff` in sync. |
 | 2026-09-04 | Task 4 — `src/data/tournaments.ts`: `createTournamentRecord` (Tournament + Group, no `state`) + `isUniqueViolation`. |
 | 2026-09-04 | Task 5 — `src/actions/tournaments.ts`: `createTournament` Server Action (`useActionState` shape, `redirect` on success, `P2002` → duplicate message). |
+| 2026-09-04 | Task 6 — `src/components/tournament-form.tsx`: `useActionState` form with per-field errors, form-reset workaround, `notify.error`, pending spinner. |
