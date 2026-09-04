@@ -145,9 +145,9 @@ Translated from `epics.md` → Epic 2 → Story 2.4. The Ukrainian source is aut
   - [x] `src/components/README.md` — `tournament-form.tsx` section (form-reset workaround, `notify.error`); the header's "domain-free" claim reworded to name the two sanctioned upward edges (Server Actions + pure `@/domain` consts/types).
   - [x] `AGENTS.md` — Stack-status line for Story 2.4; a "Known pitfalls"-style note that `migrate dev` is non-interactive-blocked by warnings (with the hand-write + `migrate deploy` fallback); a `pnpm typecheck` note that a brand-new route needs a `next build` first to regenerate `.next/types`; the `data → domain` / `view → domain` open-item line updated.
   - [x] No `ARCHITECTURE-SPINE.md` / `EXPERIENCE.md` / `epics.md` / `SPEC.md` edit.
-- [ ] **Task 10 — `deferred-work.md` (UPDATE)**
-  - [ ] Mark **resolved**: 2.1 "`Tournament` has no natural-key uniqueness" (added `@@unique`), 2.1 "`discipline` + `type` combination is unconstrained" (the `allowedTournamentTypes` helper + the form hardcodes `CLASSIC`), 2.1 "`P2002` … has no `{ ok: false, code }` mapping" (partially — `createTournament` now catches `P2002`; 2.6 / 2.7 still owe theirs).
-  - [ ] Add a note under a **Story 2.4** heading: the `Group` model landed here as a structural anchor (`tournamentId @unique`, no other columns); **Story 3.2's migration must add only `GroupSlot` / `Match` / `SetScore` + the `Group.slots` / `Group.matches` relations**, not re-create `Group`. Also: `teamCount` lower bound is `4` (v1 4-team playoff) — revisit if group-only tournaments become a v1 need.
+- [x] **Task 10 — `deferred-work.md` (UPDATE)**
+  - [x] Marked **resolved**: 2.1 "natural-key uniqueness" (`@@unique` + `P2002` catch), 2.1 "`discipline` + `type` unconstrained" (`allowedTournamentTypes` + hardcoded `CLASSIC`). "`P2002` / `P2003` mapping" reworded to "partial — `isUniqueViolation` added; `P2003` + other stories still owe theirs".
+  - [x] New **"Story 2.4 implementation"** section: `Group` added in Epic 2 (Story 3.2 must extend, not re-create); `teamCount >= 4` rationale + relax path; no automated test for the create action; `data → domain` / `view → domain` now real edges.
 - [ ] **Task 11 — Verification gate** (AC: all)
   - [ ] `pnpm test` (the `tournamentForm` + `tournamentState` specs green) · `pnpm typecheck` exit 0 · `pnpm lint` exit 0 · `pnpm build` clean on Node 24.
   - [ ] `migrate status` up to date; `migrate diff` empty (Task 3).
@@ -346,6 +346,8 @@ claude-sonnet-5
 - `src/actions/tournaments.ts` — `createTournament`, `CreateTournamentState`
 - `src/app/admin/page.tsx` — "Створити турнір" link
 - `src/domain/README.md` · `src/data/README.md` · `src/actions/README.md` · `src/components/README.md` · `AGENTS.md`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - `package.json` / `pnpm-lock.yaml` — removed the stray `cn` dep (Task 1)
 
 ## Change Log
@@ -362,3 +364,4 @@ claude-sonnet-5
 | 2026-09-04 | Task 7 — `/admin/tournaments/new` (form) + `/admin/tournaments/[id]` (stub); `src/lib/tournament-labels.ts` extracted. Build regenerates `.next/types` for the new routes. |
 | 2026-09-04 | Task 8 — `/admin` dashboard links to "Створити турнір". |
 | 2026-09-04 | Task 9 — README + `AGENTS.md` updates (Stack status, `migrate dev` non-interactive pitfall, new-route `typecheck` caveat). |
+| 2026-09-04 | Task 10 — `deferred-work.md`: 2 items resolved (natural key, discipline+type), `P2002` mapping partial, new "Story 2.4" section (Group / teamCount / test gap). |
