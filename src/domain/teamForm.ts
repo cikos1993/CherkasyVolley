@@ -5,12 +5,17 @@
 
 export const TEAM_NAME_MAX = 120;
 
-export interface NewTeamInput {
-  name: string;
-}
-
-export type TeamField = keyof NewTeamInput;
+/** The one form field. Kept separate from `NewTeamInput` — `nameKey` is a
+ * derived value, never a form field, and must not appear in `FieldErrors`. */
+export type TeamField = "name";
 export type FieldErrors = Partial<Record<TeamField, string>>;
+
+export interface NewTeamInput {
+  /** Trimmed, whitespace-collapsed display value. */
+  name: string;
+  /** Case-folded dedup key, derived from `name`. */
+  nameKey: string;
+}
 
 export type NewTeamValidation =
   | { ok: true; value: NewTeamInput }
@@ -40,5 +45,5 @@ export function validateNewTeam(raw: RawTeamInput): NewTeamValidation {
 
   if (Object.keys(fieldErrors).length > 0) return { ok: false, fieldErrors };
 
-  return { ok: true, value: { name } };
+  return { ok: true, value: { name, nameKey: teamNameKey(name) } };
 }

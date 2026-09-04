@@ -27,9 +27,12 @@ describe("teamNameKey", () => {
 });
 
 describe("validateNewTeam — valid input", () => {
-  it("normalizes and returns the trimmed, whitespace-collapsed name", () => {
+  it("normalizes and returns the trimmed, whitespace-collapsed name plus its case-folded key", () => {
     const result = validateNewTeam({ name: "  Спартак   Черкаси  " });
-    expect(result).toEqual({ ok: true, value: { name: "Спартак Черкаси" } });
+    expect(result).toEqual({
+      ok: true,
+      value: { name: "Спартак Черкаси", nameKey: "спартак черкаси" },
+    });
   });
 
   it("accepts a name exactly at the max length", () => {
