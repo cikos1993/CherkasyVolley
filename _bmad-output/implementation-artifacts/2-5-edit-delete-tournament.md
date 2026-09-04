@@ -16,7 +16,7 @@ context:
 
 # Story 2.5: Edit and delete tournament
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -94,14 +94,14 @@ Translated from `epics.md` → Epic 2 → Story 2.5. The Ukrainian source is aut
 - [x] **Task 9 — `deferred-work.md` (UPDATE)**
   - [x] Mark **resolved**: 2.4-review "No admin listing page for tournaments" (Task 6); 2.4-review "`createTournament` does not `revalidatePath`" (Task 2 fix); 2.3-review "Prisma errors … escape the `try/catch`" — narrow the resolution note to "the new `updateTournament`/`deleteTournament` writers catch `P2025`; `setTournamentState` itself is untouched, still open for `transitionTournament`." Also updated the 2-1-review "no soft-delete" item and the "P2002/P2003 mapping" item.
   - [x] Add a **"Story 2.5 implementation"** section: the "no delete-state-restriction" decision (with the archival-protection follow-up flagged); no automated test for `updateTournament`/`deleteTournament` (same class of gap as `createTournament`/`transitionTournament`); the edit form's success-detection mechanism has no component test (same "no component-test toolchain" gap tracked since the 2-2 review); the locked-fields UI path has no real fixture to walk yet (no Epic 3 draw).
-- [ ] **Task 10 — Verification gate** (AC: all)
-  - [ ] `pnpm test` (both existing domain specs — no new ones, no `src/domain` changes) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean.
-  - [ ] Route table — `/admin/tournaments` (NEW, `ƒ`) added; `/admin/tournaments/[id]` and `/admin/tournaments/new` unchanged (`ƒ`); rest unchanged.
-  - [ ] Import-boundary greps unchanged (no new Prisma import site outside `src/data`; no new `src/domain` module).
-  - [ ] Extend `scripts/verify-tournament-create.mts` **or** add a small sibling script (self-cleaning, same style) that round-trips edit + delete against the real DB: create a throwaway tournament → `updateTournamentRecord` (name/year/type/scoringPreset change while `DRAFT`) → read back → `deleteTournamentRecord` → confirm the `Tournament`, its `Group`, and (after enrolling a throwaway `TournamentEntry`/`Player` if feasible within the script's existing scope) the cascade all disappear. This is the real AC-1/AC-3 verification, same rationale as the 2.4 script (no session-mock infra for the action layer).
-  - [ ] **Browser walkthrough** (signed-in admin session required — same residual gate as 2.4's create form): `/admin/tournaments` list renders; edit a `DRAFT` tournament's name/year/type/scoringPreset/teamCount/rounds → saved, toast, values persist after a manual refresh; edit a tournament (any test fixture at `DRAFT`, since no further transition exists to reach `GROUP_STAGE`+ without Epic 3's draw) to confirm `teamCount`/`rounds` render `disabled` with the caption **once one exists past `DRAFT`** — if no such fixture is reachable yet (the draw is Epic 3, not shipped), note this explicitly as **not walked** and rely on `updateTournament`'s server-side substitution (Task 2) as the enforcement, same as the 2.4 precedent of flagging untested-but-code-reviewed paths; delete a tournament via `ConfirmDialog` → cascade confirmed in DB → redirected to `/admin/tournaments`; duplicate-name edit → toast; non-admin → rejected.
-  - [ ] Capture real command output + walkthrough notes in the Dev Agent Record.
-- [ ] **Task 11 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
+- [x] **Task 10 — Verification gate** (AC: all)
+  - [x] `pnpm test` (both existing domain specs — no new ones, no `src/domain` changes) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean.
+  - [x] Route table — `/admin/tournaments` (NEW, `ƒ`) added; `/admin/tournaments/[id]` and `/admin/tournaments/new` unchanged (`ƒ`); rest unchanged.
+  - [x] Import-boundary greps unchanged (no new Prisma import site outside `src/data`; no new `src/domain` module).
+  - [x] Added `scripts/verify-tournament-edit-delete.mts` (self-cleaning sibling script, same style as `verify-tournament-create.mts`): create a throwaway tournament + team + entry + player → `updateTournamentRecord` (all 6 fields changed while `DRAFT`) → read back, assert every field + `discipline`/`state` untouched → `updateTournamentRecord`/`deleteTournamentRecord` against a nonexistent id → assert `isRecordNotFound` → `deleteTournamentRecord` → assert the tournament, its `Group`, its `TournamentEntry`, and its `Player` are all gone. 14/14 checks pass live; `verify-tournament-create.mts` re-run unchanged (13/13, no regression).
+  - [x] **Browser walkthrough — not run** (no automated Google OAuth in this environment, same residual gap as Story 2.4's create-form walkthrough and every prior action-layer story). Coverage instead: `typecheck` + `lint` + `build` (full route tree, including the new `/admin/tournaments` list, compiles and type-checks) + the DB round-trip script above (the real AC-1/AC-3 verification) + code review. The `teamCount`/`rounds`-locked-outside-`DRAFT` UI path has no real fixture to walk (no way to reach `GROUP_STAGE`+ before Epic 3's draw) — enforcement is server-side (`updateTournament` substitutes the DB values regardless of what the client sends), verified by reading the code, not a live non-`DRAFT` tournament. Recorded in `deferred-work.md` (Task 9).
+  - [x] Real command output + notes captured in the Dev Agent Record.
+- [x] **Task 11 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
 
 ## Dev Notes
 
@@ -221,14 +221,58 @@ No `project-context.md`. Binding docs: `epics.md` (Story 2.5 AC + Epic 2 intro),
 
 ### Agent Model Used
 
+claude-sonnet-5
+
 ### Debug Log References
+
+**Task 5 — `Field` prop plumbing.** Adding `disabled`/`locked` to the shared `Field` render-prop wrapper required widening the child-render callback's prop object (`disabled?: boolean` alongside the existing `id`/`aria-invalid`/`aria-describedby`); both `<select>` and `ui/input`'s `Input` accept a plain `disabled` pass-through with no further wiring — `ui/input.tsx` already ships `disabled:` Tailwind variants.
+
+**Task 3 — `.bind` on a Server Action from a Client Component.** `updateTournament.bind(null, tournamentId!)` typechecks and lints clean; this is the documented Next.js pattern for pre-supplying a Server Action argument from `<form action={fn}>` and works the same way when passed into `useActionState`.
+
+**Task 10 — script run.** `pnpm exec tsx scripts/verify-tournament-edit-delete.mts` — 14/14 checks pass against the live Neon DB (self-cleaning: throwaway tournament + team + entry + player, all removed by the end). Re-ran the existing `verify-tournament-create.mts` immediately after — 13/13, unchanged, confirming the new writers didn't regress the create path. `pnpm build` route table shows `/admin/tournaments` as a new `ƒ` route; everything else unchanged from Story 2.4's table.
 
 ### Completion Notes List
 
+- **Task 1:** `src/data/tournaments.ts` — `listTournamentsForAdmin`, `updateTournamentRecord` (2nd `Tournament` writer, omits `discipline`/`state`), `deleteTournamentRecord`, `isRecordNotFound` (P2025).
+- **Task 2:** `src/actions/tournaments.ts` — `updateTournament` (`useActionState` shape, substitutes DB `teamCount`/`rounds` outside `DRAFT`, `P2002`/`P2025` mapped to `formError`), `deleteTournament` (`ActionResult`, `P2025` → `NOT_FOUND`). `createTournament` gained one `revalidatePath("/admin/tournaments")` call before its `redirect`.
+- **Task 3:** `src/components/tournament-form.tsx` — `mode: "create" | "edit"`; edit mode binds `updateTournament` to `tournamentId`, seeds controlled state from `initial`, disables `locked` fields with a caption, and adds a second success-toast effect keyed on the falling edge of `pending`. Create path's existing `formError` effect and controlled-state mechanism untouched.
+- **Task 4:** `src/components/tournament-actions.tsx` (NEW) — `DeleteTournamentButton`, structurally identical to `RevokeAdminButton`.
+- **Task 5:** `src/app/admin/tournaments/[id]/page.tsx` — static `<dl>` replaced by the edit form (keyed on `updatedAt` for resync-on-save) + the delete button in its own bordered section; back-link now points to `/admin/tournaments`.
+- **Task 6:** `src/app/admin/tournaments/page.tsx` (NEW) — list of every tournament (admin read, drafts included), "Створити турнір" link, plain-paragraph empty state (not the viewer-voiced `NO_TOURNAMENTS` copy).
+- **Task 7:** `/admin` dashboard's "Створити турнір" link replaced with "Турніри" → `/admin/tournaments`.
+- **Task 8:** README updates in `src/{data,actions,components}` + `AGENTS.md` Stack-status (also corrected the now-stale "`[id]` (stub)" wording left over from Story 2.4).
+- **Task 9:** `deferred-work.md` — resolved 2 items from the 2.4 review, narrowed 1 from the 2.3 review, updated 2 from the 2.1 review, added a "Story 2.5 implementation" section with 4 carried items (no-delete-restriction risk, 2 untested-action gaps, 1 unwalked UI path).
+- **Task 10:** `pnpm test` 2/2 files (39/39, unchanged) · `pnpm typecheck` · `pnpm lint` · `pnpm build` (route table: `/admin/tournaments` new `ƒ`, rest unchanged) — all clean. New `scripts/verify-tournament-edit-delete.mts`: 14/14 live checks (edit round-trip on all 6 fields, `P2025` on both writers, full cascade delete including a throwaway `TournamentEntry`/`Player`). `verify-tournament-create.mts` re-run: 13/13, no regression. Browser walkthrough not run (no OAuth automation available) — see the note against the task itself and `deferred-work.md`.
+
 ### File List
+
+**New**
+- `src/components/tournament-actions.tsx`
+- `src/app/admin/tournaments/page.tsx`
+- `scripts/verify-tournament-edit-delete.mts`
+
+**Modified**
+- `src/data/tournaments.ts` — `listTournamentsForAdmin`, `updateTournamentRecord`, `deleteTournamentRecord`, `isRecordNotFound`
+- `src/actions/tournaments.ts` — `updateTournament`, `deleteTournament`; `createTournament` gains one `revalidatePath`
+- `src/components/tournament-form.tsx` — `mode="edit"` support
+- `src/app/admin/tournaments/[id]/page.tsx` — inline edit form + delete button
+- `src/app/admin/page.tsx` — dashboard link
+- `src/data/README.md` · `src/actions/README.md` · `src/components/README.md` · `AGENTS.md`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ## Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-04 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
+| 2026-09-04 | Task 1 — `src/data/tournaments.ts`: `listTournamentsForAdmin`, `updateTournamentRecord`, `deleteTournamentRecord`, `isRecordNotFound`. `bmad-dev-story`. |
+| 2026-09-04 | Task 2 — `src/actions/tournaments.ts`: `updateTournament` + `deleteTournament`; `createTournament` gains a `revalidatePath("/admin/tournaments")` call. |
+| 2026-09-04 | Task 3 — `tournament-form.tsx`: `mode="edit"` — locked-field rendering, bound `updateTournament`, success-toast effect on the `pending` falling edge. |
+| 2026-09-04 | Task 4 — `tournament-actions.tsx` (NEW): `DeleteTournamentButton`. |
+| 2026-09-04 | Task 5 — `/admin/tournaments/[id]`: static `<dl>` → edit form + delete button. |
+| 2026-09-04 | Task 6 — `/admin/tournaments` (NEW): admin tournament list. |
+| 2026-09-04 | Task 7 — `/admin` dashboard link → the tournament list. |
+| 2026-09-04 | Task 8 — README + `AGENTS.md` updates. |
+| 2026-09-04 | Task 9 — `deferred-work.md`: resolved/narrowed carried items, new "Story 2.5 implementation" section. |
+| 2026-09-04 | Task 10 — verification gate green (`test`/`typecheck`/`lint`/`build`); new `scripts/verify-tournament-edit-delete.mts` 14/14 live; `verify-tournament-create.mts` re-run 13/13 (no regression). Browser walkthrough not run (no OAuth automation), documented as a residual gap. |
