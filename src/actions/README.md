@@ -39,3 +39,8 @@ Actions are wired in their feature stories.
   `getTournamentForAdmin` → `checkTransition` (`src/domain/tournamentState`) →
   `setTournamentState`. The only path that changes `Tournament.state` (AD-8);
   an illegal edge or unmet precondition returns `{ ok: false, code }`.
+  `createTournament(_prev, formData)` — a `useActionState` action:
+  `requireAdmin()` → `validateNewTournament` (`src/domain/tournamentForm`) →
+  `createTournamentRecord` → `redirect` to the new tournament page. Returns
+  `CreateTournamentState` (`fieldErrors` + echoed `values`, or `formError`) — not
+  `ActionResult`; forms and `ActionResult` are different surfaces.

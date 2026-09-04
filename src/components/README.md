@@ -1,9 +1,13 @@
 # `src/components` — shared view primitives
 
-Presentational and interaction building blocks. Domain-free: no `@/data`,
-`@/domain`, `@/actions` (the one exception is `admin-role-controls.tsx`, which
-calls its Server Actions — the sanctioned `view → shell` edge), and no `@/auth`
-(use `@/lib/auth-client`). shadcn/base-nova primitives live in `ui/`.
+Presentational and interaction building blocks. No `@/data`, no `@/auth` (use
+`@/lib/auth-client`). Two sanctioned upward edges: a component may call its
+Server Actions (`@/actions` — `admin-role-controls.tsx`, `tournament-form.tsx`),
+and it may read pure constants / types from `@/domain` (`tournament-form.tsx`
+takes the enum value lists and the numeric bounds from `@/domain/tournamentForm`
+so the form and the server validator cannot drift). No business computation in
+the view — scores, standings and transitions are decided in `src/domain` /
+`src/actions`. shadcn/base-nova primitives live in `ui/`.
 
 ## `notify` (`@/lib/notify`)
 
@@ -84,3 +88,19 @@ small in-button spinner are functional low-motion affordances and stay.
 
 `alert()` / `confirm()` / `prompt()` are ESLint errors (`no-alert`). Use
 `ConfirmDialog` or a toast.
+
+## `tournament-form.tsx`
+
+The create-tournament form. `useActionState(createTournament, {})` over a
+`<form action={formAction}>`. Fields: `type` / `scoringPreset` are native
+`<select>` (2–4 static options — lighter than the base-ui popover and
+`FormData`-native); the rest are `ui/input`. The domain module supplies the
+option lists and the `min` / `max` bounds; `src/lib/tournament-labels` supplies
+the Ukrainian option text.
+
+**Form-reset workaround (UX-DR11):** React 19 clears an uncontrolled
+`<form action>` on submit. The action echoes every raw field string back in
+`state.values`, and each control's `defaultValue` reads from it — so a failed
+submit keeps the user's input. Per-field errors come back in `state.fieldErrors`
+(wired to the control via `aria-invalid` / `aria-describedby`); a whole-form
+error (`state.formError` — auth, duplicate name) fires `notify.error`.

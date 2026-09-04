@@ -15,7 +15,13 @@ schedule generation, playoff seeding and bracket advancement.
   live, the later ones are fail-closed predicates until match results are
   modelled. The Server Action `transitionTournament` is the only caller.
 
-The Vitest runner (`pnpm test`) was added alongside this first module.
+- `tournamentForm.ts` — rules for the "create tournament" form. `allowedTournamentTypes(discipline)`
+  (CLASSIC → the four types, BEACH → none), the numeric bounds (`YEAR_MIN/MAX`,
+  `TEAM_COUNT_MIN/MAX`, `ROUNDS_MIN/MAX`, `NAME_MAX`), and `validateNewTournament(raw)`
+  which coerces raw form values into a typed `NewTournamentInput` or a map of
+  per-field Ukrainian errors (every failing field reported, not just the first).
+
+The Vitest runner (`pnpm test`) was added alongside the first module.
 
 **May import:** other `src/domain` modules, the standard library, pure npm utilities.
 

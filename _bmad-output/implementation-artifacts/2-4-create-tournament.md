@@ -138,13 +138,13 @@ Translated from `epics.md` → Epic 2 → Story 2.4. The Ukrainian source is aut
   - [x] Both routes are `ƒ` under the existing `force-dynamic` `/admin` layout. `PageProps` needs `.next/types` — `pnpm typecheck` alone fails on a brand-new route until `next build` regenerates them; `pnpm build` passes and then `typecheck` does too. Route table: `/admin/tournaments/[id]` + `/admin/tournaments/new` added, rest unchanged.
 - [x] **Task 8 — `/admin` dashboard link** (AC: 3 — reachability)
   - [x] `src/app/admin/page.tsx` — replaced the "зʼявиться в наступних історіях" line with a `<nav>` of two links: "Створити турнір" (`/admin/tournaments/new`) + "Керування адмінами". `typecheck` + `lint` clean.
-- [ ] **Task 9 — Docs**
-  - [ ] `src/domain/README.md` — add `tournamentForm.ts` to `## Modules` (allowed types, numeric bounds, `validateNewTournament`).
-  - [ ] `src/data/README.md` — under `tournaments.ts`, add `createTournamentRecord` (sole `Tournament` + `Group` creator; `state` defaults `DRAFT`) and `isUniqueViolation` if placed there.
-  - [ ] `src/actions/README.md` — under `tournaments.ts`, add `createTournament` (form-state shape, `redirect` on success, `P2002` → duplicate message).
-  - [ ] `src/components/README.md` — add `tournament-form.tsx` (the `useActionState` + `defaultValue`-from-state form-reset workaround; `notify.error` on `formError`).
-  - [ ] `AGENTS.md` — "Stack status": one line — Story 2.4 (`createTournament` action + form; `Group` model added, natural key `@@unique([discipline, type, year, name])`, migration `<ts>_tournament_group_and_natural_key`; `src/domain/tournamentForm.ts`; `/admin/tournaments/new` + `[id]` stub). Note `Group`'s slots/matches are still Epic 3.
-  - [ ] No `ARCHITECTURE-SPINE.md` / `EXPERIENCE.md` / `epics.md` / `SPEC.md` edit — the ER diagram already shows `Tournament ||--|| Group`, and the flow is in EXPERIENCE.md KF-1.
+- [x] **Task 9 — Docs**
+  - [x] `src/domain/README.md` — `tournamentForm.ts` module entry.
+  - [x] `src/data/README.md` — `createTournamentRecord` (sole creator) + `isUniqueViolation` under `tournaments.ts`.
+  - [x] `src/actions/README.md` — `createTournament` (form-state shape, `redirect`, `P2002`).
+  - [x] `src/components/README.md` — `tournament-form.tsx` section (form-reset workaround, `notify.error`); the header's "domain-free" claim reworded to name the two sanctioned upward edges (Server Actions + pure `@/domain` consts/types).
+  - [x] `AGENTS.md` — Stack-status line for Story 2.4; a "Known pitfalls"-style note that `migrate dev` is non-interactive-blocked by warnings (with the hand-write + `migrate deploy` fallback); a `pnpm typecheck` note that a brand-new route needs a `next build` first to regenerate `.next/types`; the `data → domain` / `view → domain` open-item line updated.
+  - [x] No `ARCHITECTURE-SPINE.md` / `EXPERIENCE.md` / `epics.md` / `SPEC.md` edit.
 - [ ] **Task 10 — `deferred-work.md` (UPDATE)**
   - [ ] Mark **resolved**: 2.1 "`Tournament` has no natural-key uniqueness" (added `@@unique`), 2.1 "`discipline` + `type` combination is unconstrained" (the `allowedTournamentTypes` helper + the form hardcodes `CLASSIC`), 2.1 "`P2002` … has no `{ ok: false, code }` mapping" (partially — `createTournament` now catches `P2002`; 2.6 / 2.7 still owe theirs).
   - [ ] Add a note under a **Story 2.4** heading: the `Group` model landed here as a structural anchor (`tournamentId @unique`, no other columns); **Story 3.2's migration must add only `GroupSlot` / `Match` / `SetScore` + the `Group.slots` / `Group.matches` relations**, not re-create `Group`. Also: `teamCount` lower bound is `4` (v1 4-team playoff) — revisit if group-only tournaments become a v1 need.
@@ -324,6 +324,7 @@ claude-sonnet-5
 - **Task 6:** `src/components/tournament-form.tsx` — `useActionState` form; native `<select>` for type/preset, `<Input>` for the rest; `defaultValue`-from-`state.values` (form-reset workaround); `notify.error` on `formError`; primary submit with pending spinner.
 - **Task 7:** `src/app/admin/tournaments/new/page.tsx` (renders the form) + `src/app/admin/tournaments/[id]/page.tsx` (stub — name + details `<dl>` + state label; `notFound()` if missing). `src/lib/tournament-labels.ts` extracted (form + `[id]` page both consume it). Route table gains 2 `ƒ` routes.
 - **Task 8:** `src/app/admin/page.tsx` — dashboard now links to "Створити турнір" + "Керування адмінами".
+- **Task 9:** README updates in `src/{domain,data,actions,components}`; `AGENTS.md` — Stack-status line, the `migrate dev` non-interactive pitfall + fallback, the new-route `typecheck` caveat, the `data → domain` open-item update.
 
 ### File List
 
@@ -344,6 +345,7 @@ claude-sonnet-5
 - `src/data/tournaments.ts` — `createTournamentRecord`, `isUniqueViolation`
 - `src/actions/tournaments.ts` — `createTournament`, `CreateTournamentState`
 - `src/app/admin/page.tsx` — "Створити турнір" link
+- `src/domain/README.md` · `src/data/README.md` · `src/actions/README.md` · `src/components/README.md` · `AGENTS.md`
 - `package.json` / `pnpm-lock.yaml` — removed the stray `cn` dep (Task 1)
 
 ## Change Log
@@ -359,3 +361,4 @@ claude-sonnet-5
 | 2026-09-04 | Task 6 — `src/components/tournament-form.tsx`: `useActionState` form with per-field errors, form-reset workaround, `notify.error`, pending spinner. |
 | 2026-09-04 | Task 7 — `/admin/tournaments/new` (form) + `/admin/tournaments/[id]` (stub); `src/lib/tournament-labels.ts` extracted. Build regenerates `.next/types` for the new routes. |
 | 2026-09-04 | Task 8 — `/admin` dashboard links to "Створити турнір". |
+| 2026-09-04 | Task 9 — README + `AGENTS.md` updates (Stack status, `migrate dev` non-interactive pitfall, new-route `typecheck` caveat). |

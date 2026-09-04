@@ -15,10 +15,16 @@ goes through a named function exported from here — `getPublicTournaments`,
   "last_admin" }` and are called only from `grantAdmin` / `revokeAdmin` under
   `requireAdmin()`.
 - `tournaments.ts` — `getTournamentForAdmin(id)` (admin read, drafts included;
-  called only under `requireAdmin()`), `countTournamentEntries(tournamentId)`, and
+  called only under `requireAdmin()`), `countTournamentEntries(tournamentId)`,
   `setTournamentState(id, state)` — **the sole writer of `Tournament.state`**,
   called only from `transitionTournament` after the transition is validated in
-  `src/domain/tournamentState` (AD-8). No other function writes `state`.
+  `src/domain/tournamentState` (AD-8; no other function writes `state`) —
+  `createTournamentRecord(input)` — **the sole creator of a `Tournament`**;
+  inserts the tournament and its single `Group` in one statement, never sets
+  `state` (defaults `DRAFT`) — and `isUniqueViolation(error)` (Prisma `P2002`
+  check; the Prisma error typing stays in this layer). `getTournamentForAdmin` /
+  `createTournamentRecord` take the `NewTournamentInput` type from `src/domain`
+  (a sanctioned `data → domain` type import — see the open item below).
 
 The `Tournament`, `Team`, `TournamentEntry` and `Player` entities (schema landed in
 Story 2.1, migration `20260903174727_tournament_schema`) are owned here too; their
