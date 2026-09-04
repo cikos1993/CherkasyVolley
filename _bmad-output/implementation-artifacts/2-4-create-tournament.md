@@ -136,8 +136,8 @@ Translated from `epics.md` → Epic 2 → Story 2.4. The Ukrainian source is aut
   - [x] `src/app/admin/tournaments/[id]/page.tsx` — `PageProps<"/admin/tournaments/[id]">`, `const { id } = await params`, `getTournamentForAdmin(id)`, `notFound()` if missing. Renders name + a `<dl>` of type / year / preset / teamCount / rounds / state (via `STATE_LABELS` from `@/domain/tournamentState`) + the "наступні історії" line. `generateMetadata` → the tournament name.
   - [x] **New: `src/lib/tournament-labels.ts`** — `TOURNAMENT_TYPE_LABELS` / `SCORING_PRESET_LABELS` moved out of the form component (the `[id]` page is the second consumer the Task 6 note anticipated). Form refactored to import them.
   - [x] Both routes are `ƒ` under the existing `force-dynamic` `/admin` layout. `PageProps` needs `.next/types` — `pnpm typecheck` alone fails on a brand-new route until `next build` regenerates them; `pnpm build` passes and then `typecheck` does too. Route table: `/admin/tournaments/[id]` + `/admin/tournaments/new` added, rest unchanged.
-- [ ] **Task 8 — `/admin` dashboard link** (AC: 3 — reachability)
-  - [ ] `src/app/admin/page.tsx` (UPDATE) — add a `<Link href="/admin/tournaments/new">Створити турнір</Link>` (and/or a "Турніри" heading). Drop or update the "Керування турнірами зʼявиться в наступних історіях" copy.
+- [x] **Task 8 — `/admin` dashboard link** (AC: 3 — reachability)
+  - [x] `src/app/admin/page.tsx` — replaced the "зʼявиться в наступних історіях" line with a `<nav>` of two links: "Створити турнір" (`/admin/tournaments/new`) + "Керування адмінами". `typecheck` + `lint` clean.
 - [ ] **Task 9 — Docs**
   - [ ] `src/domain/README.md` — add `tournamentForm.ts` to `## Modules` (allowed types, numeric bounds, `validateNewTournament`).
   - [ ] `src/data/README.md` — under `tournaments.ts`, add `createTournamentRecord` (sole `Tournament` + `Group` creator; `state` defaults `DRAFT`) and `isUniqueViolation` if placed there.
@@ -323,6 +323,7 @@ claude-sonnet-5
 - **Task 5:** `src/actions/tournaments.ts` — `createTournament(_prev, formData)` + `CreateTournamentState`. `requireAdmin` → `validateNewTournament` → `createTournamentRecord` → `redirect`. `formError` on `AdminRequiredError` / `P2002`; `fieldErrors` + echoed `values` on validation failure (UX-DR11). `transitionTournament` unchanged.
 - **Task 6:** `src/components/tournament-form.tsx` — `useActionState` form; native `<select>` for type/preset, `<Input>` for the rest; `defaultValue`-from-`state.values` (form-reset workaround); `notify.error` on `formError`; primary submit with pending spinner.
 - **Task 7:** `src/app/admin/tournaments/new/page.tsx` (renders the form) + `src/app/admin/tournaments/[id]/page.tsx` (stub — name + details `<dl>` + state label; `notFound()` if missing). `src/lib/tournament-labels.ts` extracted (form + `[id]` page both consume it). Route table gains 2 `ƒ` routes.
+- **Task 8:** `src/app/admin/page.tsx` — dashboard now links to "Створити турнір" + "Керування адмінами".
 
 ### File List
 
@@ -342,6 +343,7 @@ claude-sonnet-5
 - `scripts/db-check.mts` — `db.group.count()`
 - `src/data/tournaments.ts` — `createTournamentRecord`, `isUniqueViolation`
 - `src/actions/tournaments.ts` — `createTournament`, `CreateTournamentState`
+- `src/app/admin/page.tsx` — "Створити турнір" link
 - `package.json` / `pnpm-lock.yaml` — removed the stray `cn` dep (Task 1)
 
 ## Change Log
@@ -356,3 +358,4 @@ claude-sonnet-5
 | 2026-09-04 | Task 5 — `src/actions/tournaments.ts`: `createTournament` Server Action (`useActionState` shape, `redirect` on success, `P2002` → duplicate message). |
 | 2026-09-04 | Task 6 — `src/components/tournament-form.tsx`: `useActionState` form with per-field errors, form-reset workaround, `notify.error`, pending spinner. |
 | 2026-09-04 | Task 7 — `/admin/tournaments/new` (form) + `/admin/tournaments/[id]` (stub); `src/lib/tournament-labels.ts` extracted. Build regenerates `.next/types` for the new routes. |
+| 2026-09-04 | Task 8 — `/admin` dashboard links to "Створити турнір". |
