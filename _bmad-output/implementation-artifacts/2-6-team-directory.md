@@ -95,10 +95,10 @@ Translated from `epics.md` → Epic 2 → Story 2.6. The Ukrainian source is aut
   - [x] `src/components/README.md` — `team-form.tsx` entry.
   - [x] `AGENTS.md` — Stack-status bullet for Story 2.6.
   - [x] No `ARCHITECTURE-SPINE.md` / `EXPERIENCE.md` / `epics.md` / `SPEC.md` edit.
-- [ ] **Task 10 — `deferred-work.md` (UPDATE)**
-  - [ ] Mark **resolved**: 2-1-review "`Team.name @unique` has no normalization" (this story's `nameKey`).
-  - [ ] Update the "P2002 / P2003 / P2025 mapping" item: note the `src/data/errors.ts` extraction (three consumers now: `tournaments.ts` via re-import, `teams.ts`); `P2003` (deleting an entered `Team`) still has no code path to hit it — there is no team-delete action in this story — so it stays open, unchanged.
-  - [ ] Add a **"Story 2.6 implementation"** section: no team edit/delete (future scope, FK `Restrict` implications noted); `createTeam` has no automated action-level test (same class of gap as every prior `useActionState` action); the success-detection/clear-on-submit mechanism in `team-form.tsx` has no component test (same "no component-test toolchain" gap).
+- [x] **Task 10 — `deferred-work.md` (UPDATE)**
+  - [x] Marked **resolved**: 2-1-review "`Team.name @unique` has no normalization".
+  - [x] Updated the "P2002 / P2003 / P2025 mapping" item: the `src/data/errors.ts` extraction, `Team.nameKey` now using `isUniqueViolation`; `P2003` stays open (no team-delete action exists).
+  - [x] Added a **"Story 2.6 implementation"** section: no team edit/delete; `createTeam` untested at the action layer; `team-form.tsx`'s success effect untested at the component layer.
 - [ ] **Task 11 — Verification gate** (AC: all)
   - [ ] `pnpm test` (existing 2 domain files + the new `teamForm.test.ts`) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean.
   - [ ] Route table — `/admin/teams` (NEW, `ƒ`) added; rest unchanged from Story 2.5's table.
