@@ -81,11 +81,11 @@ Translated from `epics.md` → Epic 2 → Story 2.6. The Ukrainian source is aut
   - [x] `<form action={formAction} className="flex items-end gap-3">` — `Label`+`Input` (`maxLength={TEAM_NAME_MAX}`, `aria-invalid`/`aria-describedby`) plus a submit `Button` ("Додати команду"), inline pending spinner (`Loader2Icon`), `disabled={pending}`.
   - [x] `useEffect` on `[state]`: `formError` → `notify.error`. A second effect, keyed off the falling edge of `pending` (`useRef`, never fires on mount): on a clean success, clears the field, `notify.success("Команду додано")`, `router.refresh()`.
   - [x] `typecheck` + `lint` clean.
-- [ ] **Task 7 — `src/app/admin/teams/page.tsx` (NEW)** (AC: 1, 2, 3)
-  - [ ] Server Component. Back-link to `/admin`, `<h1>Команди</h1>`, `<TeamForm />`, then the list from `listTeams()`.
-  - [ ] Empty (`length === 0`): a plain paragraph — `Ще немає команд.` (do **not** reuse `NO_TEAMS` from `@/lib/empty-states` — that copy, "Ще немає заявлених команд.", is for a tournament's *Teams tab* with zero entries, Story 2.9, a different context; same reasoning the `/admin/tournaments` list already applied to `NO_TOURNAMENTS`).
-  - [ ] Non-empty: a `<ul className="divide-y">` of plain rows (name only — no per-row link; there is no team detail/edit page in v1).
-  - [ ] `export const metadata = { title: "Команди" }`.
+- [x] **Task 7 — `src/app/admin/teams/page.tsx` (NEW)** (AC: 1, 2, 3)
+  - [x] Server Component. Back-link to `/admin`, `<h1>Команди</h1>`, `<TeamForm />`, then the list from `listTeams()`.
+  - [x] Empty (`length === 0`): a plain paragraph — `Ще немає команд.` (not the viewer-voiced `NO_TEAMS` empty-state copy).
+  - [x] Non-empty: a `<ul className="divide-y">` of plain rows (name only — no per-row link).
+  - [x] `export const metadata = { title: "Команди" }`. `typecheck`/`lint` clean.
 - [ ] **Task 8 — `/admin` dashboard link** (AC: reachability)
   - [ ] `src/app/admin/page.tsx` — add a "Команди" link (`/admin/teams`) to the existing `<nav>`, alongside "Турніри" and "Керування адмінами".
 - [ ] **Task 9 — Docs**
