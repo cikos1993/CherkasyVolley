@@ -10,6 +10,16 @@ describe("normalizeTeamName", () => {
   it("leaves an already-clean name untouched", () => {
     expect(normalizeTeamName("Дніпро-1")).toBe("Дніпро-1");
   });
+
+  it("strips invisible zero-width characters", () => {
+    expect(normalizeTeamName("Спартак \u200BЧеркаси")).toBe("Спартак Черкаси");
+    expect(normalizeTeamName("\uFEFFСпартак Черкаси")).toBe("Спартак Черкаси");
+  });
+
+  it("NFKC-normalizes so compatible Unicode forms collapse to the same string", () => {
+    // U+FF11 (fullwidth "1") NFKC-normalizes to U+0031 ("1").
+    expect(normalizeTeamName("Дніпро-１")).toBe(normalizeTeamName("Дніпро-1"));
+  });
 });
 
 describe("teamNameKey", () => {

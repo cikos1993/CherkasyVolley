@@ -24,8 +24,11 @@ const rawName = `  __verify_team__${stamp}   Спартак  `;
 const parsed = validateNewTeam({ name: rawName });
 if (!parsed.ok) throw new Error("expected validateNewTeam to succeed for a valid name");
 
-const { id } = await createTeamRecord(parsed.value);
+let id: string | null = null;
+let duplicateId: string | null = null;
 try {
+  ({ id } = await createTeamRecord(parsed.value));
+
   const row = await db.team.findUnique({ where: { id } });
   check("team row created", row !== null);
   check("name is trimmed and whitespace-collapsed", row?.name === parsed.value.name);
@@ -39,19 +42,23 @@ try {
     });
     if (!differentCasing.ok) throw new Error("expected the re-cased name to validate");
     const duplicate = await createTeamRecord(differentCasing.value);
-    // The constraint was supposed to reject this — if it did not, clean up
-    // the second row too so a regression here does not leak debris.
-    await db.team.delete({ where: { id: duplicate.id } });
+    // The constraint was supposed to reject this — record the id so the
+    // cleanup below removes it too, so a regression here does not leak
+    // debris even if the create above didn't throw.
+    duplicateId = duplicate.id;
   } catch (error) {
     duplicateRejected = isUniqueViolation(error, TEAM_NAME_KEY_INDEX);
   }
   check("case/whitespace-different duplicate rejected as P2002 via nameKey", duplicateRejected);
 } finally {
-  await db.team.delete({ where: { id } }).catch(() => undefined);
+  if (duplicateId) await db.team.delete({ where: { id: duplicateId } }).catch(() => undefined);
+  if (id) await db.team.delete({ where: { id } }).catch(() => undefined);
 }
 
-const stillThere = await db.team.findUnique({ where: { id } });
-check("throwaway team deleted", stillThere === null);
+if (id) {
+  const stillThere = await db.team.findUnique({ where: { id } });
+  check("throwaway team deleted", stillThere === null);
+}
 
 await db.$disconnect();
 process.exit(failed ? 1 : 0);

@@ -16,7 +16,7 @@ context:
 
 # Story 2.6: Team directory
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -41,7 +41,7 @@ Translated from `epics.md` → Epic 2 → Story 2.6. The Ukrainian source is aut
 ### Notes on AC interpretation
 
 - **Single page, no separate `/admin/teams/new` route.** The AC's phrasing — "on `/admin/teams` … I create a team … it appears in the list" — describes one page where creating and seeing the result happen together, unlike Story 2.4's tournament form (6 fields, its own AC step "мене перекидає на сторінку турніру"). A team is one field. **Decision: `/admin/teams` is a single Server Component page with an inline create form at the top and the list below it**, mirroring `/admin/people`'s single-page shape (list + inline actions) more than `/admin/tournaments`' list-plus-detail-route shape.
-- **`Team.name` normalization — resolved here, per the standing deferred item.** `deferred-work.md` (2-1 review) explicitly assigns this: *"`Team.name @unique` has no normalization … Story 2.6 (team directory) owns dedup — add a normalized `nameKey` (trim + case-fold) or a `citext` column, and handle the `P2002` on create."* **Decision: add `nameKey`.** The `team` table is empty (first story to write to it — no backfill risk). Schema change: `name` keeps its trimmed + whitespace-collapsed **display** value but drops its own `@unique`; a new `nameKey String @unique` (case-folded `name`) becomes the real dedup anchor. `src/domain/teamForm.ts` computes both from the same input — `createTeamRecord` never receives a caller-supplied `nameKey`.
+- **`Team.name` normalization — resolved here, per the standing deferred item.** `deferred-work.md` (2-1 review) explicitly assigns this: *"`Team.name @unique` has no normalization … Story 2.6 (team directory) owns dedup — add a normalized `nameKey` (trim + case-fold) or a `citext` column, and handle the `P2002` on create."* **Decision: add `nameKey`.** The `team` table is empty (first story to write to it — no backfill risk). Schema change: `name` keeps its trimmed + whitespace-collapsed **display** value but drops its own `@unique`; a new `nameKey String @unique` (case-folded `name`) becomes the real dedup anchor. `src/domain/teamForm.ts` computes both from the same input — `nameKey` is never independently supplied by the caller of `validateNewTeam`; it rides along on `NewTeamInput` (`{ name, nameKey }`) from there through to `createTeamRecord`, which only writes it, never re-derives it (see the Task 2/4 design refinement below).
 - **`isUniqueViolation` / `isRecordNotFound` move to a shared `src/data/errors.ts`.** They currently live in `src/data/tournaments.ts` (Story 2.4/2.5) but check nothing tournament-specific — both are generic Prisma-error-code predicates. `deferred-work.md`'s own P2002/P2003/P2025 item names the trigger: *"a shared `src/data/errors.ts` is a candidate once a third distinct error-code consumer appears"* — `src/data/teams.ts` is that third consumer. `tournaments.ts` keeps its own `TOURNAMENT_NATURAL_KEY_INDEX` constant (entity-specific) but imports the two predicates from the new shared module; no behavior change to Story 2.4/2.5 code, pure extraction.
 - **No team edit or delete in this story.** FR-8 / the epics AC only cover create-and-reuse. Editing a mistyped name or deleting an unused team is real future work but out of scope here — no AC asks for it, and `TournamentEntry.team` is `onDelete: Restrict`, so a delete story would need its own `P2003` handling (still an open `deferred-work.md` item, untouched by this story).
 - **`listTeams()` (not `listTeamsForAdmin`).** Unlike `Tournament`, `Team` has no `DRAFT`/privacy concept — every team is equally visible to any admin, and there is no separate "public" team read in v1 (teams only ever surface *through* a tournament's roster, which is Story 2.9). One read function, admin-gated only because it currently has one caller (`/admin/teams`, under `requireAdminPage()`); Story 2.7's team-picker and Story 2.9's public roster will call the same function later, from their own auth contexts.
@@ -64,7 +64,7 @@ Translated from `epics.md` → Epic 2 → Story 2.6. The Ukrainian source is aut
   - [x] `src/domain/teamForm.test.ts` — empty/whitespace-only input; trims + collapses internal whitespace; over-length rejected; `teamNameKey` case-folds and is stable under repeated whitespace collapse; message is a non-empty Ukrainian string. 9 tests.
   - [x] `pnpm test` → 3 files, 51/51. **Side effect discovered:** `scripts/verify-tournament-edit-delete.mts`'s raw `db.team.create` (Story 2.5) needed a `nameKey` value now that the column is `NOT NULL` — fixed (`teamName.toLowerCase()`), unrelated to this task's own logic but required for `typecheck` to pass after Task 1's migration.
 - [x] **Task 3 — `src/data/errors.ts` (NEW): extract the shared Prisma-error predicates** (AC: 1)
-  - [x] Moved `isUniqueViolation(error, indexName?)` and `isRecordNotFound(error)` from `src/data/tournaments.ts` verbatim (same doc comments, same `driverAdapterError.cause.constraint.index` shape check).
+  - [x] Moved `isUniqueViolation(error, indexName?)` and `isRecordNotFound(error)` from `src/data/tournaments.ts` — identical logic and the same `driverAdapterError.cause.constraint.index` shape check; the doc comment carried over with one wording trim (dropped the `group_tournamentId_key` example, since that constraint is no longer local to this file once the predicate is shared).
   - [x] `src/data/tournaments.ts` — the two functions removed (and the now-unused `Prisma` import); `src/actions/tournaments.ts` updated to `import { isRecordNotFound, isUniqueViolation } from "@/data/errors"`. `TOURNAMENT_NATURAL_KEY_INDEX` stays in `tournaments.ts`. Also updated the two `scripts/verify-tournament-*.mts` scripts, which imported the predicates directly from `../src/data/tournaments` — same move.
   - [x] `typecheck` + `lint` clean. `pnpm test` unaffected (51/51, no domain change). Both verify scripts re-run: 13/13 + 15/15, no regression.
 - [x] **Task 4 — `src/data/teams.ts` (NEW)** (AC: 1, 2, 3)
@@ -108,6 +108,28 @@ Translated from `epics.md` → Epic 2 → Story 2.6. The Ukrainian source is aut
   - [x] **Browser walkthrough — not run** (no automated Google OAuth in this environment, same residual gap carried since Story 2.4). Coverage instead: `typecheck`/`lint`/`build` (full route tree including `/admin/teams`) + the verify scripts (the real AC-1/AC-2 check) + code review.
   - [x] Real command output captured in the Dev Agent Record.
 - [x] **Task 12 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
+
+### Review Findings
+
+Implementation review 2026-09-04 (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor) over `git diff 0e485ae..HEAD`. Acceptance Auditor: all 3 ACs met, no architecture-invariant violations. Verification Gap: clean. 0 decision-needed, 7 patch, 2 defer, 6 dismissed.
+
+#### Patch
+
+- [x] [Review][Patch] `normalizeTeamName`/`teamNameKey` don't NFKC-normalize or strip zero-width characters — two visually identical team names can produce different `nameKey` values and both pass the unique constraint, defeating the exact dedup guarantee this story exists to deliver [src/domain/teamForm.ts]
+- [x] [Review][Patch] `TeamForm`'s clear-on-success effect can wipe in-progress typing — the `name` input isn't `disabled` while `pending`, so an admin who starts typing the next team's name before the previous submit resolves has it silently cleared [src/components/team-form.tsx]
+- [x] [Review][Patch] `listTeams()` has no `select`, fetching `nameKey`/`createdAt`/`updatedAt` on every `/admin/teams` load even though the page only renders `id`/`name` — inconsistent with `createTeamRecord`'s own `select: { id: true }` in the same file [src/data/teams.ts]
+- [x] [Review][Patch] `scripts/verify-team-create.mts`: the duplicate-cleanup delete sits inside the same `try` whose `catch` computes the check result, so a delete failure gets misattributed as a dedup failure and can leak the duplicate row; separately, the original team's `createTeamRecord` call is outside the `try`/`finally`, so a throw there skips `db.$disconnect()` [scripts/verify-team-create.mts]
+- [x] [Review][Patch] Story's "Notes on AC interpretation" says `createTeamRecord` "never receives a caller-supplied `nameKey`," contradicting the later "Task 2/4 — design refinement" note, which correctly describes `NewTeamInput` carrying both `name` and `nameKey` through to `createTeamRecord` [2-6-team-directory.md — Notes on AC interpretation]
+- [x] [Review][Patch] Task 3's "moved verbatim" claim for the `isUniqueViolation`/`isRecordNotFound` doc comment is inaccurate — the moved comment drops a parenthetical example (`e.g. group_tournamentId_key`) present in the original [2-6-team-directory.md — Task 3]
+
+#### Defer
+
+- [x] [Review][Defer] Duplicate-name rejection surfaces only as a transient toast (`formError`), never attached to `fieldErrors.name`/`aria-invalid` the way every other validation error on this form is [src/components/team-form.tsx] — deferred, matches `createTournament`'s identical, already-established pattern (Story 2.4); a fix belongs to a cross-cutting pass over both forms, not a one-off patch here
+- [x] [Review][Defer] `/admin/teams` has no pagination/search/filter and `listTeams()` is unbounded [src/app/admin/teams/page.tsx, src/data/teams.ts] — deferred, same class as the already-tracked `/admin/tournaments`/`/admin/people` unbounded-list items
+
+#### Dismissed as noise / by design / pre-existing (6)
+
+A forged POST could submit a `File` blob as `name`, coercing to `"[object File]"` — same class already dismissed in the Story 2.4 review (not exploitable, no crash, requires bypassing the real form) · empty-state copy bypasses `EmptyState`/`NO_TEAMS` — already explicitly justified in this story's own notes and matches the `/admin/tournaments` (Story 2.5) precedent · `src/actions/team` (spine, singular) vs. the shipped `teams.ts` (plural) — already explicitly acknowledged and decided in this story's own Dev Notes · "Team is `довідник`, should be seed-script-only per `AGENTS.md` Policy" — misapplies the bootstrap/reference-schema-data policy line to a product-spec-mandated admin-managed catalog (FR-8/CAP-4 explicitly define `/admin/teams`) · no index/collation tuning for `orderBy: name asc` — negligible at SPEC's stated ~2–5-admin/small-dataset scale · the "type-only `data → domain` edge" isn't lint-enforced — matches the codebase's existing convention-not-enforced pattern for several other invariants (e.g. AD-8's state-writer rule).
 
 ## Dev Notes
 
@@ -275,6 +297,13 @@ claude-sonnet-5
 - `_bmad-output/implementation-artifacts/deferred-work.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
+**Modified (review fix pass only)**
+- `src/domain/teamForm.ts` — `normalizeTeamName` now NFKC-normalizes and strips zero-width/BOM characters before dedup
+- `src/domain/teamForm.test.ts` — 2 new tests (zero-width stripping, NFKC collapse)
+- `src/components/team-form.tsx` — clear-on-success no longer wipes in-progress typing of a new name during a pending submit
+- `src/data/teams.ts` — `listTeams()` narrowed to `select: { id, name }`
+- `scripts/verify-team-create.mts` — duplicate-cleanup delete moved out of the check-computing `try`/`catch`, both teams cleaned up in one `finally`, `$disconnect()` moved to run after the final DB check
+
 ## Change Log
 
 | Date | Change |
@@ -291,3 +320,4 @@ claude-sonnet-5
 | 2026-09-04 | Task 9 — README + `AGENTS.md` updates; backfilled a Story 2.5 doc gap. |
 | 2026-09-04 | Task 10 — `deferred-work.md`: resolved the `Team.name` normalization item, updated P2002/P2003/P2025 mapping, new "Story 2.6 implementation" section. |
 | 2026-09-04 | Task 11 — verification gate green; new `scripts/verify-team-create.mts` (5/5). All three verify scripts re-run together, no regression. |
+| 2026-09-04 | `bmad-code-review` (4 layers) over `git diff 0e485ae..HEAD`. 0 decision-needed, 7 patch, 2 defer, 6 dismissed. Fixed: `normalizeTeamName` NFKC-normalizes + strips zero-width/BOM characters (2 new Vitest cases — closes the dedup gap Blind Hunter and Edge Case Hunter independently converged on); `TeamForm`'s clear-on-success no longer wipes an admin's in-progress typing of the next name; `listTeams()` narrowed to `select: { id, name }`; `verify-team-create.mts`'s duplicate-cleanup and `$disconnect()` ordering made robust to partial failures; two story-doc wording contradictions fixed (the `nameKey`-passthrough note, the "verbatim" comment-move claim). 2 items added to `deferred-work.md` (duplicate-name errors lack a persistent field indicator — matches `createTournament`'s existing pattern; `/admin/teams` has no pagination — matches the existing `/admin/tournaments`/`/admin/people` items). Gate re-run clean: `test` 53/53, `typecheck`, `lint`, `build`; all three verify scripts green (13/13, 15/15, 5/5). Status → done. |

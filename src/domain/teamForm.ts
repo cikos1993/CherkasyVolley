@@ -24,9 +24,25 @@ export type NewTeamValidation =
 type RawValue = FormDataEntryValue | null | undefined;
 export type RawTeamInput = Partial<Record<TeamField, RawValue>>;
 
-/** Trims and collapses internal whitespace runs to a single space. */
+// Zero-width space/non-joiner/joiner (U+200B-U+200D) and the BOM / zero-width
+// no-break space (U+FEFF) are invisible but distinguish otherwise-identical
+// strings — strip them before anything else so two copy-pasted variants of
+// the same name can't slip past the dedup check below.
+const INVISIBLE_CHARS = /[\u200B-\u200D\uFEFF]/g;
+
+/**
+ * Trims, collapses internal whitespace runs to a single space, strips
+ * invisible characters, and NFKC-normalizes so visually identical names
+ * (different Unicode compositions, e.g. precomposed vs. combining-diacritic
+ * forms) become byte-identical — the basis both `teamNameKey`'s dedup and the
+ * stored display value rely on.
+ */
 export function normalizeTeamName(raw: string): string {
-  return raw.trim().replace(/\s+/g, " ");
+  return raw
+    .normalize("NFKC")
+    .replace(INVISIBLE_CHARS, "")
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
 /** Case-folds an already-normalized name into its dedup key. */

@@ -15,6 +15,10 @@ export function TeamForm() {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(createTeam, {});
   const [name, setName] = useState("");
+  // What was actually submitted, captured when `pending` rises — the clear-
+  // on-success effect below only clears the field if the admin hasn't since
+  // started typing a different (presumably next) team name.
+  const submittedName = useRef<string | null>(null);
 
   useEffect(() => {
     if (state.formError) notify.error(state.formError);
@@ -26,13 +30,14 @@ export function TeamForm() {
   // clears the field (ready for the next team) instead of keeping the value.
   const wasPending = useRef(false);
   useEffect(() => {
+    if (!wasPending.current && pending) submittedName.current = name;
     if (wasPending.current && !pending && !state.formError && !state.fieldErrors) {
-      setName("");
+      setName((current) => (current === submittedName.current ? "" : current));
       notify.success("Команду додано");
       router.refresh();
     }
     wasPending.current = pending;
-  }, [pending, state, router]);
+  }, [pending, state, router, name]);
 
   const errorId = "team-name-error";
 

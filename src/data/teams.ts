@@ -7,7 +7,7 @@ import type { NewTeamInput } from "@/domain/teamForm";
  * context (or lack of one) decides who may call this.
  */
 export function listTeams() {
-  return db.team.findMany({ orderBy: { name: "asc" } });
+  return db.team.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
 }
 
 /** The only creator of a `Team`. `nameKey` is computed by the caller (the

@@ -2,6 +2,13 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from: code review of 2-6-team-directory (2026-09-04)
+
+_Implementation review (`bmad-code-review`, 4 layers) over `git diff 0e485ae..HEAD`. All 3 ACs met. 7 patches applied in the story, 2 items deferred, 6 dismissed._
+
+- **Duplicate-name rejection has no persistent, field-level indicator — only a transient toast.** Both `createTeam` (Story 2.6) and `createTournament` (Story 2.4) return a `P2002` collision as `formError` alone, never `fieldErrors.name` — unlike every other validation failure on the same forms, which stays visible under the field via `aria-invalid`/`aria-describedby` until fixed. Once the toast fades, there's no lasting sign of what was wrong. A fix belongs to a cross-cutting pass over both forms (return the duplicate as a field error, not just a form error), not a one-off patch to either story alone.
+- **`/admin/teams` has no pagination, search, or filter; `listTeams()` is an unbounded `findMany`.** Same class as the already-tracked `/admin/people` "unbounded, no pagination" item (1-7 review) and the `/admin/tournaments` item (2-5 review) — add a cap + filter once any of these lists gets long enough to matter.
+
 ## Deferred from / decided in: Story 2.6 implementation (2026-09-04)
 
 - **No team edit or delete.** FR-8 / the Story 2.6 AC only cover create-and-reuse. A mistyped team name has no in-app fix short of a direct DB edit, and an unused team can't be removed. Real future work — the natural next owner would be a small "team detail" surface, and delete needs its own `P2003` handling (see the item above).
