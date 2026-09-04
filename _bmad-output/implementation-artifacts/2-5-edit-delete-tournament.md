@@ -85,12 +85,12 @@ Translated from `epics.md` → Epic 2 → Story 2.5. The Ukrainian source is aut
   - [x] `export const metadata = { title: "Турніри" }`.
 - [x] **Task 7 — `src/app/admin/page.tsx` (UPDATE): dashboard link** (AC: reachability)
   - [x] Replace the "Створити турнір" link with a "Турніри" link to `/admin/tournaments` (the list is now the single entry point; the list page itself carries the "Створити турнір" link — Task 6).
-- [ ] **Task 8 — Docs**
-  - [ ] `src/data/README.md` — `tournaments.ts` entry: add `listTournamentsForAdmin`, `updateTournamentRecord` (second `Tournament` writer, never `state`), `deleteTournamentRecord`, `isRecordNotFound`.
-  - [ ] `src/actions/README.md` — `tournaments.ts` entry: add `updateTournament` (form-state shape, DRAFT-locked fields) and `deleteTournament` (`ActionResult`, `ConfirmDialog`-driven).
-  - [ ] `src/components/README.md` — extend the `tournament-form.tsx` section for `mode="edit"` / `locked` / the success-detection mechanism; add a `tournament-actions.tsx` (`DeleteTournamentButton`) section modeled on the existing `ConfirmDialog` usage example.
-  - [ ] `AGENTS.md` — Stack-status bullet for Story 2.5 (edit/delete tournament, admin list page, the `P2025` helper).
-  - [ ] No `ARCHITECTURE-SPINE.md` / `EXPERIENCE.md` / `epics.md` / `SPEC.md` edit — no new invariant, no new route class (extends the documented `/admin/tournaments/*` IA prefix).
+- [x] **Task 8 — Docs**
+  - [x] `src/data/README.md` — `tournaments.ts` entry: add `listTournamentsForAdmin`, `updateTournamentRecord` (second `Tournament` writer, never `state`), `deleteTournamentRecord`, `isRecordNotFound`.
+  - [x] `src/actions/README.md` — `tournaments.ts` entry: add `updateTournament` (form-state shape, DRAFT-locked fields) and `deleteTournament` (`ActionResult`, `ConfirmDialog`-driven).
+  - [x] `src/components/README.md` — extend the `tournament-form.tsx` section for `mode="edit"` / `locked` / the success-detection mechanism; add a `tournament-actions.tsx` (`DeleteTournamentButton`) section modeled on the existing `ConfirmDialog` usage example.
+  - [x] `AGENTS.md` — Stack-status bullet for Story 2.5 (edit/delete tournament, admin list page, the `P2025` helper).
+  - [x] No `ARCHITECTURE-SPINE.md` / `EXPERIENCE.md` / `epics.md` / `SPEC.md` edit — no new invariant, no new route class (extends the documented `/admin/tournaments/*` IA prefix).
 - [ ] **Task 9 — `deferred-work.md` (UPDATE)**
   - [ ] Mark **resolved**: 2.4-review "No admin listing page for tournaments" (Task 6); 2.4-review "`createTournament` does not `revalidatePath`" (Task 2 fix); 2.3-review "Prisma errors … escape the `try/catch`" — narrow the resolution note to "the new `updateTournament`/`deleteTournament` writers catch `P2025`; `setTournamentState` itself is untouched, still open for `transitionTournament`."
   - [ ] Add a **"Story 2.5 implementation"** section: the "no delete-state-restriction" decision (with the archival-protection follow-up flagged); no automated test for `updateTournament`/`deleteTournament` (same class of gap as `createTournament`/`transitionTournament`); the edit form's success-detection mechanism has no component test (same "no component-test toolchain" gap tracked since the 2-2 review).

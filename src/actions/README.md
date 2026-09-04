@@ -46,3 +46,16 @@ Actions are wired in their feature stories.
   forms and `ActionResult` are different surfaces. The form keeps the user's
   input on a rejected submit via controlled state on its side, not by echoing
   values back through this type — see `src/components/README.md`.
+  `updateTournament(tournamentId, _prev, formData)` — same `CreateTournamentState`
+  shape, bound to a tournament id via `.bind(null, tournamentId)` in the form.
+  `requireAdmin()` → `getTournamentForAdmin` (not found → `formError`) →
+  `validateNewTournament`, substituting the tournament's **current**
+  `teamCount`/`rounds` whenever `state !== "DRAFT"` (the fields the form
+  disables outside `DRAFT` are re-enforced here, not just hidden client-side) →
+  `updateTournamentRecord` (`P2002` → duplicate `formError`, `P2025` → not-found
+  `formError`) → `revalidatePath` (`/admin/tournaments`, the tournament page,
+  `/classic`) → `{}` on success (no redirect — edits stay on the same page,
+  per EXPERIENCE.md's synchronous-edit pattern). `deleteTournament(tournamentId)`
+  — `ActionResult<undefined>`, the `admin-roles.ts` shape: `requireAdmin()` →
+  `deleteTournamentRecord` (cascades) → `revalidatePath` → `{ ok: true }`;
+  `P2025` → `{ ok: false, code: "NOT_FOUND" }`.

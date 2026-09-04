@@ -15,18 +15,24 @@ goes through a named function exported from here — `getPublicTournaments`,
   "last_admin" }` and are called only from `grantAdmin` / `revokeAdmin` under
   `requireAdmin()`.
 - `tournaments.ts` — `getTournamentForAdmin(id)` (admin read, drafts included;
-  called only under `requireAdmin()`), `countTournamentEntries(tournamentId)`,
+  called only under `requireAdmin()`), `listTournamentsForAdmin()` (admin read,
+  every tournament, for `/admin/tournaments`), `countTournamentEntries(tournamentId)`,
   `setTournamentState(id, state)` — **the sole writer of `Tournament.state`**,
   called only from `transitionTournament` after the transition is validated in
   `src/domain/tournamentState` (AD-8; no other function writes `state`) —
   `createTournamentRecord(input)` — **the sole creator of a `Tournament`**;
   inserts the tournament and its single `Group` in one statement, never sets
-  `state` (defaults `DRAFT`) — and `isUniqueViolation(error, fields?)` (Prisma
-  `P2002` check, optionally narrowed to a specific constraint by its target
-  columns; the Prisma error typing stays in this layer). `createTournamentRecord`
-  takes the `NewTournamentInput` type from `src/domain` (a sanctioned
-  `data → domain` type import — see the open item below); `getTournamentForAdmin`
-  takes only an `id`.
+  `state` (defaults `DRAFT`) — `updateTournamentRecord(id, input)` — the second
+  `Tournament` writer (`type`/`name`/`year`/`scoringPreset`/`teamCount`/`rounds`;
+  never `discipline` or `state`) — `deleteTournamentRecord(id)` (relies on the
+  schema's cascade FKs to remove the `Group`, `TournamentEntry` rows and their
+  `Player` rosters) — `isUniqueViolation(error, fields?)` (Prisma `P2002` check,
+  optionally narrowed to a specific constraint by its target columns) and
+  `isRecordNotFound(error)` (Prisma `P2025` — the row was deleted concurrently);
+  both keep the Prisma error typing in this layer. `createTournamentRecord` /
+  `updateTournamentRecord` take the `NewTournamentInput` type from `src/domain`
+  (a sanctioned `data → domain` type import — see the open item below);
+  `getTournamentForAdmin` / `deleteTournamentRecord` take only an `id`.
 
 The `Tournament`, `Team`, `TournamentEntry` and `Player` entities (schema landed in
 Story 2.1, migration `20260903174727_tournament_schema`) are owned here too; their

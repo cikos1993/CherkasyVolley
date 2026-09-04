@@ -2,8 +2,9 @@
 
 Presentational and interaction building blocks. No `@/data`, no `@/auth` (use
 `@/lib/auth-client`). Two sanctioned upward edges: a component may call its
-Server Actions (`@/actions` — `admin-role-controls.tsx`, `tournament-form.tsx`),
-and it may read pure constants / types from `@/domain` (`tournament-form.tsx`
+Server Actions (`@/actions` — `admin-role-controls.tsx`, `tournament-form.tsx`,
+`tournament-actions.tsx`), and it may read pure constants / types from
+`@/domain` (`tournament-form.tsx`
 takes the enum value lists and the numeric bounds from `@/domain/tournamentForm`
 so the form and the server validator cannot drift). No business computation in
 the view — scores, standings and transitions are decided in `src/domain` /
@@ -91,21 +92,42 @@ small in-button spinner are functional low-motion affordances and stay.
 
 ## `tournament-form.tsx`
 
-The create-tournament form. `useActionState(createTournament, {})` over a
-`<form action={formAction}>`. Fields: `type` / `scoringPreset` are native
-`<select>` (2–4 static options — lighter than the base-ui popover and
-`FormData`-native); the rest are `ui/input`. The domain module supplies the
-option lists and the `min` / `max` bounds; `src/lib/tournament-labels` supplies
-the Ukrainian option text.
+The create/edit tournament form (`mode: "create" | "edit"`, default `"create"`).
+`useActionState(action, {})` over a `<form action={formAction}>`, where `action`
+is `createTournament` in create mode or `updateTournament.bind(null, tournamentId)`
+in edit mode. Fields: `type` / `scoringPreset` are native `<select>` (2–4 static
+options — lighter than the base-ui popover and `FormData`-native); the rest are
+`ui/input`. The domain module supplies the option lists and the `min` / `max`
+bounds; `src/lib/tournament-labels` supplies the Ukrainian option text.
 
 **Form-reset workaround (UX-DR11):** React 19 clears an uncontrolled
 `<form action>` on submit. The planned fix — the action echoing values back and
 each control reading `defaultValue` from them — does not work here: `@base-ui/react`'s
 `Input` rejects a `defaultValue` that changes after mount (logs an error and
 ignores it). The form is **fully controlled** instead (a local `useState` with
-`value` / `onChange` on every field); React never clears controlled state, so a
+`value` / `onChange` on every field, seeded from the `initial` prop in edit mode
+or `initialValues()` in create mode); React never clears controlled state, so a
 rejected submit keeps the user's input with no echo needed. Per-field errors
 come back in `state.fieldErrors` (wired to the control via `aria-invalid` /
 `aria-describedby`); a whole-form error (`state.formError` — auth, duplicate
 name) fires `notify.error`, keyed on the whole `state` object so two identical
 error strings in a row both toast.
+
+**Edit mode** additionally takes `tournamentId`, `initial` (a `FormValues`
+seed), and `locked` (a `TournamentField[]` — the fields to render `disabled`,
+with a "Змінити можна лише в стані «Чернетка»." caption; `[id]/page.tsx` passes
+`["teamCount", "rounds"]` outside `DRAFT`). There is no `redirect` on success
+(edits stay on the same page), so success is detected by tracking the falling
+edge of `pending` (a `useRef`, not `state`'s identity) in a **second** effect
+kept separate from the `formError` one: on a clean completion it fires
+`notify.success` and `router.refresh()`. The caller (`[id]/page.tsx`) also keys
+the component on `tournament.updatedAt.getTime()` so a successful save (which
+bumps `updatedAt` and revalidates the page) remounts the form with the
+server-canonical — e.g. trimmed — values instead of leaving stale local state.
+
+## `tournament-actions.tsx`
+
+`DeleteTournamentButton({ tournamentId })` — a `ConfirmDialog` wrapping
+`deleteTournament`, same shape as `RevokeAdminButton` (`admin-role-controls.tsx`):
+a thrown/rejected call or `{ ok: false }` toasts the error and returns `false`
+(dialog stays open); success toasts and `router.push("/admin/tournaments")`.
