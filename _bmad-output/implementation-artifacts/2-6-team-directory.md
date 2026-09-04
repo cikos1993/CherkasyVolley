@@ -16,7 +16,7 @@ context:
 
 # Story 2.6: Team directory
 
-Status: ready-for-dev
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -49,12 +49,12 @@ Translated from `epics.md` → Epic 2 → Story 2.6. The Ukrainian source is aut
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Prisma: `Team.nameKey` migration** (AC: 1, 2, 3)
-  - [ ] `prisma/schema.prisma` — `Team.name` drops `@unique`; add `nameKey String @unique` with doc comments (display value vs. normalized dedup key, computed in `src/domain/teamForm.ts`). `entries`/timestamps/`@@map` unchanged.
-  - [ ] `pnpm prisma generate` — confirm `Team.nameKey` compiles into the generated client.
-  - [ ] User confirmed. Expect `pnpm prisma migrate dev` to be **non-interactive-blocked** by the drop-unique / add-unique warnings (the established Story 1.5/2.1/2.4 pitfall — `AGENTS.md` "Known pitfalls"). Fallback: pre-flight `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` → hand-write `prisma/migrations/<ts>_team_name_key/migration.sql` verbatim (expected shape: `ALTER TABLE "team" DROP CONSTRAINT "team_name_key"`, `ALTER TABLE "team" ADD COLUMN "nameKey" TEXT NOT NULL`, `CREATE UNIQUE INDEX "team_nameKey_key" ON "team"("nameKey")` — no `DROP`/data loss beyond the redundant old unique index; table is empty so the `NOT NULL` add is safe) → `pnpm prisma migrate deploy` (non-interactive).
-  - [ ] `pnpm prisma migrate status` → up to date; `migrate diff --exit-code` → no difference.
-  - [ ] `scripts/db-check.mts` — no change needed (already `count()`s every table generically; confirm it still runs clean).
+- [x] **Task 1 — Prisma: `Team.nameKey` migration** (AC: 1, 2, 3)
+  - [x] `prisma/schema.prisma` — `Team.name` drops `@unique`; add `nameKey String @unique` with doc comments (display value vs. normalized dedup key, computed in `src/domain/teamForm.ts`). `entries`/timestamps/`@@map` unchanged.
+  - [x] `pnpm prisma generate` — confirms `Team.nameKey` compiles into the generated client.
+  - [x] User confirmed. `pnpm prisma migrate dev` **non-interactive-blocked** exactly as predicted (constraint-change warning). Fallback used: pre-flight `migrate diff --script` → hand-wrote `prisma/migrations/20260904200627_team_name_key/migration.sql` verbatim (`DROP INDEX "team_name_key"`, `ALTER TABLE "team" ADD COLUMN "nameKey" TEXT NOT NULL`, `CREATE UNIQUE INDEX "team_nameKey_key" ON "team"("nameKey")`) → `pnpm prisma migrate deploy` (non-interactive) — applied clean.
+  - [x] `pnpm prisma migrate status` → "Database schema is up to date!"; `migrate diff --exit-code` → "No difference detected."
+  - [x] `scripts/db-check.mts` → `teams: 0`, all tables still 0/expected — no code change needed.
 - [ ] **Task 2 — `src/domain/teamForm.ts` (NEW) + Vitest spec** (AC: 1, 2)
   - [ ] Pure module. `TEAM_NAME_MAX = 120` (matches `tournamentForm.ts`'s `NAME_MAX` — no reason for a different bound).
   - [ ] `normalizeTeamName(raw: string): string` — trim + collapse internal whitespace runs to one space (`raw.trim().replace(/\s+/g, " ")`). This is the **display** value stored in `name`.

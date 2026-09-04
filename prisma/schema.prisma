@@ -147,11 +147,15 @@ model Group {
 }
 
 /// A reusable club identity (glossary "Команда"). One row is entered into many
-/// tournaments via `TournamentEntry`. `name` is the identity — see Story 2.6 for
-/// the (currently case/whitespace-sensitive) uniqueness.
+/// tournaments via `TournamentEntry`.
 model Team {
   id        String            @id @default(cuid())
-  name      String            @unique
+  /// Display value, trimmed + whitespace-collapsed. Not itself unique —
+  /// `nameKey` is the dedup anchor (Story 2.6).
+  name      String
+  /// Normalized dedup key: case-folded `name`. Computed in
+  /// `src/domain/teamForm.ts`, never hand-edited.
+  nameKey   String            @unique
   createdAt DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt DateTime          @default(now()) @updatedAt @db.Timestamptz(3)
   entries   TournamentEntry[]
