@@ -17,7 +17,7 @@ context:
 
 # Story 2.7: Enroll and remove a team from a tournament
 
-Status: ready-for-dev
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -51,12 +51,12 @@ Translated from `epics.md` → Epic 2 → Story 2.7. The Ukrainian source is aut
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — `src/domain/teamEnrollment.ts` (NEW) + Vitest spec** (AC: 1, 2, 3)
-  - [ ] Pure module. Import `type { TournamentState } from "@/domain/tournamentState"` (domain→domain sibling import, the existing precedent — no local re-declaration this time, since a canonical one already exists next door).
-  - [ ] `checkCanEnroll(state: TournamentState, currentEntryCount: number, teamCount: number): { ok: true } | { ok: false; message: string }` — `state !== "DRAFT"` → `"Заявити команду можна лише у стані «Чернетка»."`; else `currentEntryCount >= teamCount` → `` `Уже заявлено максимальну кількість команд (${teamCount}).` ``; else `{ ok: true }`.
-  - [ ] `checkCanRemoveEntry(state: TournamentState): { ok: true } | { ok: false; message: string }` — `state !== "DRAFT"` → `"Зняти заявку можна лише у стані «Чернетка»."`; else `{ ok: true }`.
-  - [ ] `src/domain/teamEnrollment.test.ts` — every state × the DRAFT/non-DRAFT split for both functions; the capacity boundary (`currentEntryCount` at `teamCount - 1` passes, at `teamCount` fails, one past also fails); message language (Ukrainian, matches the existing per-story convention of asserting `/[а-яіїєґ]/i`).
-  - [ ] `pnpm test` green (new file only).
+- [x] **Task 1 — `src/domain/teamEnrollment.ts` (NEW) + Vitest spec** (AC: 1, 2, 3)
+  - [x] Pure module. Imports `type { TournamentState } from "@/domain/tournamentState"` (domain→domain sibling import).
+  - [x] `checkCanEnroll(state, currentEntryCount, teamCount)` — DRAFT + under-capacity gate, state checked before capacity.
+  - [x] `checkCanRemoveEntry(state)` — DRAFT-only gate.
+  - [x] `src/domain/teamEnrollment.test.ts` — 6 tests: DRAFT + under-capacity passes; every non-DRAFT state rejected; at/over capacity rejected; state takes priority over capacity in the message; Ukrainian message assertion.
+  - [x] `pnpm test` → 4 files, 59/59.
 - [ ] **Task 2 — `src/data/entries.ts` (NEW): reads, writers, relocated `countTournamentEntries`** (AC: 1, 2, 3)
   - [ ] `listEntriesForTournament(tournamentId: string)` — `db.tournamentEntry.findMany({ where: { tournamentId }, orderBy: { team: { name: "asc" } }, select: { id: true, teamId: true, team: { select: { id: true, name: true } } } })`. Admin read (no draft/privacy split needed — entries are only ever read from the already-admin-gated `[id]` page in this story; a public read is Story 2.9's decision).
   - [ ] `countTournamentEntries(tournamentId: string)` — **moved verbatim from `src/data/tournaments.ts`** (`db.tournamentEntry.count({ where: { tournamentId } })`).
