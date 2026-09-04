@@ -83,8 +83,8 @@ Translated from `epics.md` → Epic 2 → Story 2.5. The Ukrainian source is aut
   - [x] Empty (`length === 0`): a plain paragraph, same weight as `/admin/people`'s "Ще ніхто не входив." — `Ще немає турнірів.` (do **not** reuse `NO_TOURNAMENTS` from `@/lib/empty-states` — that copy ("Активні турніри зʼявляться тут, коли їх створить адміністратор.") is viewer-voiced, for the public `/classic` empty state (Story 2.9); an admin looking at their own empty list needs the create-CTA, not that sentence).
   - [x] Non-empty: a `<ul>` of rows (name, type label, year, state label), each row a `<Link href={\`/admin/tournaments/${t.id}\`}>`, same `divide-y` list shell as `/admin/people`.
   - [x] `export const metadata = { title: "Турніри" }`.
-- [ ] **Task 7 — `src/app/admin/page.tsx` (UPDATE): dashboard link** (AC: reachability)
-  - [ ] Replace the "Створити турнір" link with a "Турніри" link to `/admin/tournaments` (the list is now the single entry point; the list page itself carries the "Створити турнір" link — Task 6).
+- [x] **Task 7 — `src/app/admin/page.tsx` (UPDATE): dashboard link** (AC: reachability)
+  - [x] Replace the "Створити турнір" link with a "Турніри" link to `/admin/tournaments` (the list is now the single entry point; the list page itself carries the "Створити турнір" link — Task 6).
 - [ ] **Task 8 — Docs**
   - [ ] `src/data/README.md` — `tournaments.ts` entry: add `listTournamentsForAdmin`, `updateTournamentRecord` (second `Tournament` writer, never `state`), `deleteTournamentRecord`, `isRecordNotFound`.
   - [ ] `src/actions/README.md` — `tournaments.ts` entry: add `updateTournament` (form-state shape, DRAFT-locked fields) and `deleteTournament` (`ActionResult`, `ConfirmDialog`-driven).
