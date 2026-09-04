@@ -102,12 +102,12 @@ Translated from `epics.md` → Epic 2 → Story 2.4. The Ukrainian source is aut
   - [x] `pnpm dlx shadcn@latest add input label select` — created the 3 files but (a) added a bogus `"cn": "^0.2.4"` npm dependency and (b) generated `import { cn } from "cn"` in all three. Removed the dep, fixed the imports to `@/lib/utils`.
   - [x] Kept `input.tsx` (radius corrected `rounded-lg` → `rounded-sm` per DESIGN.md Shapes) and `label.tsx`. **Deleted `select.tsx`** — the base-ui `Select` is a portal/positioner/scroll-arrow popover, overkill for 2–4 static options and awkward inside a `<form action>` (needs hidden-input wiring); using a styled native `<select name>` in the form instead (sanctioned by the AC note: "a native `<select>` is a sanctioned simplification for 2–4 static options"). Zero-JS, `FormData`-native, `color-scheme: light` pins its rendering.
   - [x] `pnpm lint` + `pnpm typecheck` clean.
-- [ ] **Task 2 — `src/domain/tournamentForm.ts` (NEW) + Vitest spec** (AC: 1, 2; deferred `allowedTypes` helper)
-  - [ ] Pure module — no `next`, no `@/generated/prisma`, no `react`, no other `src/` layer (the `src/domain/**` lint block). Re-declare the unions locally (`Discipline`, `TournamentType`, `ScoringPreset` — identical to the Prisma enums; the same pattern `tournamentState.ts` uses; a `//` comment noting they must track `prisma/schema.prisma`).
-  - [ ] Export: `TOURNAMENT_TYPES`, `SCORING_PRESETS` (readonly arrays), `allowedTournamentTypes(discipline)`, the numeric bounds (`YEAR_MIN/MAX`, `TEAM_COUNT_MIN/MAX`, `ROUNDS_MIN/MAX`, `NAME_MAX`), `NewTournamentInput` type, `FieldErrors` type, `validateNewTournament(raw: Record<string, FormDataEntryValue | null>): { ok: true; value: NewTournamentInput } | { ok: false; fieldErrors: FieldErrors }`.
-  - [ ] `validateNewTournament` — trim `name`; `Number()`-coerce `year` / `teamCount` / `rounds` and reject non-integers / out-of-range / `NaN`; reject unknown `type` / `scoringPreset`; Ukrainian messages ("Вкажіть назву турніру.", "Рік має бути від 2000 до 2100.", "Кількість команд — від 4 до 64.", …). Collect **all** failing fields (not fail-fast) so the form shows every error at once.
-  - [ ] `src/domain/tournamentForm.test.ts` — `import { describe, expect, it } from "vitest"`. Cover: `allowedTournamentTypes("CLASSIC")` = all 4, `("BEACH")` = `[]`; a fully-valid input → `{ ok: true, value }` with coerced numbers; each bound violation (year 1999 / 2101 / "abc", teamCount 3 / 65, rounds 0 / 11, empty/whitespace name, 121-char name, unknown type, unknown preset) → `{ ok: false }` with the right field key; multiple simultaneous errors all reported.
-  - [ ] `pnpm test` — green (the runner + the `tournamentState` spec from 2.3 still pass).
+- [x] **Task 2 — `src/domain/tournamentForm.ts` (NEW) + Vitest spec** (AC: 1, 2; deferred `allowedTypes` helper)
+  - [x] Pure module — local `Discipline` / `TournamentType` / `ScoringPreset` unions with a "must track `schema.prisma`" note. No forbidden imports.
+  - [x] Exports: `TOURNAMENT_TYPES`, `SCORING_PRESETS` (`as const satisfies …`), `allowedTournamentTypes`, all numeric bounds, `NewTournamentInput`, `TournamentField`, `FieldErrors`, `RawTournamentInput`, `validateNewTournament`.
+  - [x] `validateNewTournament(raw)` — trims `name`; `toInteger` helper rejects non-integers / floats / `NaN` / missing; range-checks `year` / `teamCount` / `rounds`; rejects unknown `discipline` / `type` (via `allowedTournamentTypes`) / `scoringPreset`; Ukrainian per-field messages; collects **all** failing fields.
+  - [x] `src/domain/tournamentForm.test.ts` — 14 tests: helper both disciplines; valid input (trim + coercion); every type × preset; bound edges; every bound/format violation → right field key; BEACH → no valid type; all-fields-fail case lists all 6 keys; messages are Cyrillic.
+  - [x] `pnpm test` → 2 files, 39 tests pass (25 `tournamentState` + 14 `tournamentForm`). `typecheck` + `lint` clean.
 - [ ] **Task 3 — Prisma: `Group` model + `Tournament` natural key + migration** (AC: 1)
   - [ ] `prisma/schema.prisma` — add the `Group` model (shape above); add `group Group?` to `Tournament`; add `@@unique([discipline, type, year, name])` to `Tournament` (keep the existing `@@index([discipline, state, year])`).
   - [ ] `pnpm prisma generate` — new types compile (`Group` in `@/generated/prisma/client`).
@@ -315,12 +315,15 @@ claude-sonnet-5
 ### Completion Notes List
 
 - **Task 1:** `src/components/ui/input.tsx` (rounded-sm), `src/components/ui/label.tsx` — the two shadcn form primitives, `cn` imports corrected. No `select.tsx` — the form uses a styled native `<select>` (AC-sanctioned; simpler + `FormData`-native inside `<form action>`). Bogus `cn@0.2.4` dependency removed.
+- **Task 2:** `src/domain/tournamentForm.ts` — `allowedTournamentTypes(discipline)` (CLASSIC → 4 types, BEACH → none), numeric bounds (`YEAR` 2000–2100, `TEAM_COUNT` 4–64, `ROUNDS` 1–10, `NAME_MAX` 120), `validateNewTournament(raw)` returning `{ ok, value }` or `{ ok, fieldErrors }` with all failing fields collected. `toInteger` rejects floats / non-numerics. 14-test spec.
 
 ### File List
 
 **New**
 - `src/components/ui/input.tsx`
 - `src/components/ui/label.tsx`
+- `src/domain/tournamentForm.ts`
+- `src/domain/tournamentForm.test.ts`
 
 ## Change Log
 
@@ -328,3 +331,4 @@ claude-sonnet-5
 | --- | --- |
 | 2026-09-04 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-04 | Task 1 — shadcn `input` / `label` primitives (`cn` import + radius fixed; bogus `cn` npm dep removed); native `<select>` chosen over the base-ui popover. `bmad-dev-story`. |
+| 2026-09-04 | Task 2 — `src/domain/tournamentForm.ts` (`allowedTournamentTypes`, bounds, `validateNewTournament`) + 14-test spec. `pnpm test` 39/39. |
