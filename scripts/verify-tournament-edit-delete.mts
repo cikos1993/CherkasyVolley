@@ -37,7 +37,8 @@ const { id } = await createTournamentRecord(original);
 let teamId: string | null = null;
 
 try {
-  const team = await db.team.create({ data: { name: `__verify_edit_team__${stamp}` } });
+  const teamName = `__verify_edit_team__${stamp}`;
+  const team = await db.team.create({ data: { name: teamName, nameKey: teamName.toLowerCase() } });
   teamId = team.id;
   const entry = await db.tournamentEntry.create({
     data: { tournamentId: id, teamId: team.id },
