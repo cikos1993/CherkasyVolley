@@ -17,23 +17,10 @@ import {
   TOURNAMENT_TYPES,
   YEAR_MAX,
   YEAR_MIN,
-  type ScoringPreset,
   type TournamentField,
-  type TournamentType,
 } from "@/domain/tournamentForm";
 import { notify } from "@/lib/notify";
-
-const TYPE_LABELS: Record<TournamentType, string> = {
-  CHAMPIONSHIP: "Чемпіонат",
-  VETERAN: "Ветеранський чемпіонат",
-  WOMEN: "Жіночий чемпіонат",
-  YOUTH: "Юнаки і дівчата",
-};
-
-const PRESET_LABELS: Record<ScoringPreset, string> = {
-  CLASSIC: "Класичний",
-  CUSTOM: "Кастомний",
-};
+import { SCORING_PRESET_LABELS, TOURNAMENT_TYPE_LABELS } from "@/lib/tournament-labels";
 
 const selectClassName =
   "h-8 w-full rounded-sm border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
@@ -87,7 +74,7 @@ export function TournamentForm() {
           >
             {TOURNAMENT_TYPES.map((type) => (
               <option key={type} value={type}>
-                {TYPE_LABELS[type]}
+                {TOURNAMENT_TYPE_LABELS[type]}
               </option>
             ))}
           </select>
@@ -123,7 +110,7 @@ export function TournamentForm() {
           >
             {SCORING_PRESETS.map((preset) => (
               <option key={preset} value={preset}>
-                {PRESET_LABELS[preset]}
+                {SCORING_PRESET_LABELS[preset]}
               </option>
             ))}
           </select>
