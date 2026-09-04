@@ -119,12 +119,11 @@ Translated from `epics.md` → Epic 2 → Story 2.4. The Ukrainian source is aut
   - [x] `createTournamentRecord(input)` → `db.tournament.create({ data: { …7 fields…, group: { create: {} } }, select: { id: true } })` — Tournament + Group in one atomic insert. No `state` (defaults `DRAFT`). The domain unions are assignable to the Prisma enum fields (structurally identical — enforced at this call site).
   - [x] `isUniqueViolation(error)` — `error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"` (`Prisma` re-exported from `@/generated/prisma/client`; Prisma coupling stays in `src/data`).
   - [x] Doc comments added. `typecheck` + `lint` clean.
-- [ ] **Task 5 — `src/actions/tournaments.ts` (UPDATE): `createTournament`** (AC: 3, 4)
-  - [ ] `"use server"` (already at the top of the file). Add imports: `redirect` from `next/navigation`, `validateNewTournament` + `type NewTournamentInput` from `@/domain/tournamentForm`, `createTournamentRecord` from `@/data/tournaments`, `AdminRequiredError` from `@/auth/requireAdmin` (for the narrowed catch). Keep the existing `transitionTournament` untouched.
-  - [ ] `export type CreateTournamentState = { fieldErrors?: Partial<Record<keyof NewTournamentInput, string>>; formError?: string; values?: Partial<Record<keyof NewTournamentInput, string>> }`.
-  - [ ] `export async function createTournament(_prev: CreateTournamentState, formData: FormData): Promise<CreateTournamentState>` — body per the AC note (requireAdmin → validate → `{ fieldErrors, values }` on invalid → `createTournamentRecord` → `redirect` outside the try → narrowed `catch` for `P2002` / `AdminRequiredError`, re-throw the rest).
-  - [ ] `P2002` detection: check `error` shape — `error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"`. **But `Prisma` cannot be imported here** (`src/actions` may not import the Prisma client). Options: (a) a small `src/data` helper `isUniqueViolation(error): boolean` that does the check (it may import `Prisma`); (b) duck-type `error && typeof error === "object" && "code" in error && error.code === "P2002"`. **Prefer (a)** — a named `src/data` export keeps the Prisma coupling in the one layer that owns it. Add `isUniqueViolation` to `src/data/tournaments.ts` (or a new `src/data/errors.ts`).
-  - [ ] Build `values` from the raw `formData` strings (`String(formData.get("name") ?? "")`, …) so the form repopulates.
+- [x] **Task 5 — `src/actions/tournaments.ts` (UPDATE): `createTournament`** (AC: 3, 4)
+  - [x] Added `redirect` (`next/navigation`), `AdminRequiredError`, `createTournamentRecord` / `isUniqueViolation`, `validateNewTournament` / `TournamentField`. `transitionTournament` untouched.
+  - [x] `CreateTournamentState = { fieldErrors?; formError?; values? }` (all keyed by `TournamentField`).
+  - [x] `createTournament(_prev, formData)` — echoes the 6 raw field strings into `values` first; `requireAdmin()` in a narrowed try (`AdminRequiredError` → `formError`, else re-throw); `validateNewTournament({ discipline: "CLASSIC", …6 form values })` → `{ fieldErrors, values }` on failure; `createTournamentRecord` in a narrowed try (`isUniqueViolation` → `formError` "Турнір з такою назвою вже існує за цей рік.", else re-throw); `redirect(\`/admin/tournaments/${id}\`)` **after** the try (so `NEXT_REDIRECT` is never caught). `let id: string` definite-assignment holds (catch returns or throws).
+  - [x] `P2002` via the `src/data` `isUniqueViolation` (Task 4) — no `Prisma` import in `src/actions`. `typecheck` + `lint` clean.
 - [ ] **Task 6 — `src/components/tournament-form.tsx` (NEW)** (AC: the form; UX-DR11)
   - [ ] `"use client"`; `useActionState(createTournament, {})`; `<form action={formAction} className="…">`. Fields per the AC note, `Label` above each control, per-field error text + `aria-invalid` / `aria-describedby`.
   - [ ] Every control's `defaultValue` / `defaultValue`-equivalent reads `state.values?.<field>` (with the `year` fallback to the current year, `scoringPreset` fallback `"CLASSIC"`, `rounds` fallback `"1"`). This is the React 19 form-reset workaround — required by UX-DR11.
@@ -320,6 +319,7 @@ claude-sonnet-5
 - **Task 2:** `src/domain/tournamentForm.ts` — `allowedTournamentTypes(discipline)` (CLASSIC → 4 types, BEACH → none), numeric bounds (`YEAR` 2000–2100, `TEAM_COUNT` 4–64, `ROUNDS` 1–10, `NAME_MAX` 120), `validateNewTournament(raw)` returning `{ ok, value }` or `{ ok, fieldErrors }` with all failing fields collected. `toInteger` rejects floats / non-numerics. 14-test spec.
 - **Task 3:** `Group` model (`tournamentId @unique` — one group per tournament in v1; `onDelete: Cascade`); `Tournament.group Group?` + `@@unique([discipline, type, year, name])`. Migration `20260904160000_tournament_group_and_natural_key` hand-written (non-interactive `migrate dev` block) + `migrate deploy`. `db-check.mts` + `db.group.count()`.
 - **Task 4:** `src/data/tournaments.ts` — `createTournamentRecord(input)` (Tournament + nested `group: { create: {} }`, `select: { id }`, no `state`) and `isUniqueViolation(error)` (P2002). First `data → domain` type import (`NewTournamentInput`) — lint-clean.
+- **Task 5:** `src/actions/tournaments.ts` — `createTournament(_prev, formData)` + `CreateTournamentState`. `requireAdmin` → `validateNewTournament` → `createTournamentRecord` → `redirect`. `formError` on `AdminRequiredError` / `P2002`; `fieldErrors` + echoed `values` on validation failure (UX-DR11). `transitionTournament` unchanged.
 
 ### File List
 
@@ -334,6 +334,7 @@ claude-sonnet-5
 - `prisma/schema.prisma` — `Group` model, `Tournament.group` relation, `@@unique` natural key
 - `scripts/db-check.mts` — `db.group.count()`
 - `src/data/tournaments.ts` — `createTournamentRecord`, `isUniqueViolation`
+- `src/actions/tournaments.ts` — `createTournament`, `CreateTournamentState`
 - `package.json` / `pnpm-lock.yaml` — removed the stray `cn` dep (Task 1)
 
 ## Change Log
@@ -345,3 +346,4 @@ claude-sonnet-5
 | 2026-09-04 | Task 2 — `src/domain/tournamentForm.ts` (`allowedTournamentTypes`, bounds, `validateNewTournament`) + 14-test spec. `pnpm test` 39/39. |
 | 2026-09-04 | Task 3 — `Group` model + `Tournament` natural key `@@unique([discipline, type, year, name])`; migration `20260904160000_tournament_group_and_natural_key` (hand-written + `migrate deploy` — non-interactive `migrate dev` blocked by the constraint warning). `db-check.mts` + `groups`. `migrate status` / `diff` in sync. |
 | 2026-09-04 | Task 4 — `src/data/tournaments.ts`: `createTournamentRecord` (Tournament + Group, no `state`) + `isUniqueViolation`. |
+| 2026-09-04 | Task 5 — `src/actions/tournaments.ts`: `createTournament` Server Action (`useActionState` shape, `redirect` on success, `P2002` → duplicate message). |
