@@ -127,10 +127,10 @@ Translated from `epics.md` → Epic 2 → Story 2.4. The Ukrainian source is aut
 - [x] **Task 6 — `src/components/tournament-form.tsx` (NEW)** (AC: the form; UX-DR11)
   - [x] `"use client"`; `const [state, formAction, pending] = useActionState(createTournament, {})`; `<form action={formAction} className="grid max-w-md gap-5">`. A `Field` render-prop wrapper renders the `Label` + control + error text and passes `id` / `aria-invalid` / `aria-describedby` to the control.
   - [x] `type` / `scoringPreset` — native `<select name>` styled to match `Input` (`h-8 rounded-sm border-input`, focus ring, `aria-invalid` styling). `name` / `year` / `teamCount` / `rounds` — `<Input>` (`year` / `teamCount` / `rounds` `type="number"` with `min` / `max` from the domain bounds).
-  - [x] Every control's `defaultValue` reads `values?.<field>` with fallbacks: `type` → `TOURNAMENT_TYPES[0]`, `year` → current year, `scoringPreset` → `SCORING_PRESETS[0]`, `rounds` → `"1"`, `name` / `teamCount` → `""`. The React 19 form-reset workaround (UX-DR11).
+  - [x] **UX-DR11 — implemented via controlled state, not `defaultValue`.** The story's original plan (`defaultValue` from `state.values`) does not survive contact with base-ui: `@base-ui/react`'s `Input` throws *"changing the default value state of an uncontrolled FieldControl after being initialized"* and ignores the changed `defaultValue` (confirmed in the Task 11 walkthrough). Switched to fully controlled fields — a `useState<FormValues>` seeded from `INITIAL` (current year, `rounds` "1", first type/preset), each control gets `value` + `onChange`. React never clears controlled state, so a rejected submit keeps every field as the user left it — no `defaultValue`, no effect-driven re-seed (which the new `react-hooks/set-state-in-effect` lint rule also forbids). `CreateTournamentState.values` (the echo-back) was removed from the action — controlled state makes it dead weight.
   - [x] `useEffect(() => { if (formError) notify.error(formError); }, [formError])`.
   - [x] Submit `<Button type="submit" disabled={pending} aria-busy={pending}>` with inline `<Loader2Icon className="animate-spin" />` while pending. Brand `default` (primary) variant, "Створити турнір".
-  - [x] Local `TYPE_LABELS` / `PRESET_LABELS` maps (view owns display copy). Imports: `@/actions/tournaments`, `@/domain/tournamentForm`, `@/components/ui/{button,input,label}`, `@/lib/notify`, `lucide-react`, `react`. `typecheck` + `lint` clean.
+  - [x] Labels via `src/lib/tournament-labels.ts` (Task 7). Imports: `@/actions/tournaments`, `@/domain/tournamentForm`, `@/components/ui/{button,input,label}`, `@/lib/notify`, `@/lib/tournament-labels`, `lucide-react`, `react`. `typecheck` + `lint` clean.
 - [x] **Task 7 — Pages** (AC: 3)
   - [x] `src/app/admin/tournaments/new/page.tsx` — Server Component; back-link, `<h1>Створити турнір</h1>`, `<TournamentForm />`, `metadata`.
   - [x] `src/app/admin/tournaments/[id]/page.tsx` — `PageProps<"/admin/tournaments/[id]">`, `const { id } = await params`, `getTournamentForAdmin(id)`, `notFound()` if missing. Renders name + a `<dl>` of type / year / preset / teamCount / rounds / state (via `STATE_LABELS` from `@/domain/tournamentState`) + the "наступні історії" line. `generateMetadata` → the tournament name.
@@ -148,19 +148,19 @@ Translated from `epics.md` → Epic 2 → Story 2.4. The Ukrainian source is aut
 - [x] **Task 10 — `deferred-work.md` (UPDATE)**
   - [x] Marked **resolved**: 2.1 "natural-key uniqueness" (`@@unique` + `P2002` catch), 2.1 "`discipline` + `type` unconstrained" (`allowedTournamentTypes` + hardcoded `CLASSIC`). "`P2002` / `P2003` mapping" reworded to "partial — `isUniqueViolation` added; `P2003` + other stories still owe theirs".
   - [x] New **"Story 2.4 implementation"** section: `Group` added in Epic 2 (Story 3.2 must extend, not re-create); `teamCount >= 4` rationale + relax path; no automated test for the create action; `data → domain` / `view → domain` now real edges.
-- [ ] **Task 11 — Verification gate** (AC: all)
-  - [ ] `pnpm test` (the `tournamentForm` + `tournamentState` specs green) · `pnpm typecheck` exit 0 · `pnpm lint` exit 0 · `pnpm build` clean on Node 24.
-  - [ ] `migrate status` up to date; `migrate diff` empty (Task 3).
-  - [ ] Build route table — **new**: `/admin/tournaments/new` and `/admin/tournaments/[id]` both `ƒ` (dynamic, under the `force-dynamic` `/admin` layout). Everything else unchanged from Story 2.3.
-  - [ ] Import-boundary greps: `grep -rn "@prisma/client\|generated/prisma" src/` → only `src/data/**` + `src/generated/**` (the new `src/data/tournaments.ts` Prisma use is fine; `src/domain/tournamentForm.ts` and the form component must not appear). `grep -rn "\"next\"\|next/" src/domain/` → nothing.
-  - [ ] **Browser walkthrough** (`pnpm dev` on a spare port + Chrome tools, signed in as the seed admin — or `curl` for the non-interactive parts, the Story 1.8 / 2.2 rig):
-    - `/admin/tournaments/new` renders the form (all 6 fields, labels above, primary "Створити турнір").
-    - Submit **valid** → row created in `DRAFT` with one `Group` (confirm via `db-check` / a quick `prisma studio` or a `select` in `scripts`), redirect lands on `/admin/tournaments/<id>` showing the name + "Чернетка".
-    - Submit **invalid** (empty name, year 1999, teamCount 3) → stays on the form, every bad field shows its message, **the valid fields keep their values** (the UX-DR11 check — verify `year`/`type` survive after fixing `name`).
-    - Submit a **duplicate** (same type + year + name) → `notify.error` toast "Турнір з такою назвою вже існує за цей рік.", form keeps input, no second row.
-    - Non-admin / signed-out hitting `/admin/tournaments/new` → redirected by the layout (`/sign-in` or `/?error=admin-required`) — the Story 1.6 behaviour, unchanged.
-    - The `createTournament` action rejects a forged non-admin POST on the server (not just the hidden UI) — `requireAdmin()` first line.
-  - [ ] Capture every command's real output + the walkthrough notes in the Dev Agent Record — verifiable, not asserted (Stories 1.1–2.3 pattern).
+- [x] **Task 11 — Verification gate** (AC: all)
+  - [x] `pnpm test` → 2 files / 39 tests · `pnpm typecheck` exit 0 · `pnpm lint` exit 0 · `pnpm build` clean on Node 24.
+  - [x] `migrate status` "up to date"; `migrate diff --exit-code` "No difference detected".
+  - [x] Build route table — `/admin/tournaments/new` + `/admin/tournaments/[id]` both `ƒ`; `/_not-found` `○`, `/admin` `ƒ`, `/admin/people` `ƒ`, `/api/auth/[...all]` `ƒ`, `/archive` `○`, `/beach` `○`, `/classic` `○`, `/sign-in` `○` — unchanged.
+  - [x] Import-boundary greps: Prisma imports only `src/data/{client,tournaments}.ts` + `src/generated/**`; `src/domain/**` free of `next` / `react`; `@/auth` not imported by `src/components/**`.
+  - [x] **`scripts/verify-tournament-create.mts` (NEW, committed, self-cleaning)** — creates a throwaway tournament via `createTournamentRecord`, asserts `state === "DRAFT"` (AC 1), the scoring preset stored (AC 2), exactly one `Group` row, a second identical create rejected as `P2002` (natural key + `isUniqueViolation`), then deletes it (cascades the group) and confirms no orphan. 8/8 checks pass — this is the real AC-1/AC-2 verification (the create *action* has no session-mock test — deferred, same gap as `transitionTournament`).
+  - [x] **Browser walkthrough** (`pnpm dev :3219` + Chrome tools; the form was mounted on a throwaway `src/app/scratch-tf` page since `/admin/**` needs a signed-in admin, then deleted):
+    - Form renders: 6 fields, labels above, native `<select>`s with the four type options / two preset options (correct `value`s), `Рік` prefilled `2026`, `Кількість кіл` default `1`, one primary "Створити турнір".
+    - Submit without a session → **`notify.error` destructive toast "Потрібні права адміністратора."** (the `AdminRequiredError → formError` path).
+    - **Form keeps its input after the rejected submit** — verified `Назва` ("Тест керований"), `Рік` (2026), `Кількість команд` (8) all survive. Controlled state; no base-ui `defaultValue` warning in the console (the `defaultValue`-from-state plan had one — see Task 6).
+    - `/admin/tournaments/new` signed-out (`curl` / browser) → `307 → /sign-in?from=/admin` (the `requireAdminPage()` gate, Story 1.6, unchanged). `/sign-in` → 200.
+    - `createTournament` calls `await requireAdmin()` first — a forged non-admin POST is rejected server-side.
+  - [x] **Not walked (no admin session — automated OAuth is out):** the signed-in happy path (valid submit → DB row → redirect → `[id]` page), the per-field validation errors rendered in the form, the duplicate-name toast from a real submit. The `verify-tournament-create.mts` script + the 14 domain-validation Vitest cases + `typecheck` cover the substance; a manual signed-in pass is the residual gate (recorded in `deferred-work.md`).
 - [ ] **Task 12 — Commit(s)** — per the standing instruction, **commit after each completed task and `git push origin main`** (memory: "commit after each task"). Suggested grouping if committing per-task is impractical mid-migration: (1) shadcn primitives + domain helper + spec; (2) schema + migration (after the user confirms `migrate dev`); (3) data + action; (4) form + pages + dashboard link; (5) docs + deferred-work. Each commit message references its task; trailers `Co-Authored-By` / `Claude-Session`. Push after each. `build` gates every commit — do not push a red build. The final push deploys to Vercel prod; the migration reaches prod via `migrate deploy` in `build` (already applied locally → no-op).
 
 ## Dev Notes
@@ -314,6 +314,12 @@ claude-sonnet-5
 
 **Task 3 — migration.** `pnpm prisma migrate dev` is **blocked in the non-interactive PowerShell tool** when the schema change produces a warning (here: "a unique constraint … will be added") — the warning needs an interactive confirmation, and `--create-only` does not skip it. Fallback (already the documented Story 1.5 / 2.1 path): pre-flight `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` → hand-write `migration.sql` verbatim into a `<ts>_name/` dir → `prisma migrate deploy` (non-interactive). `migration.sql` = `CREATE TABLE "group"` + `CREATE UNIQUE INDEX "group_tournamentId_key"` + `CREATE UNIQUE INDEX "tournament_discipline_type_year_name_key"` + the cascade FK. `migrate status` up to date, `migrate diff` empty.
 
+**Task 6/11 — form-reset workaround.** The story planned `defaultValue={state.values?.x}` for UX-DR11. `@base-ui/react`'s `Input` rejects a changing `defaultValue` (console error: *"changing the default value state of an uncontrolled FieldControl after being initialized"*) and does not apply it. Switched the form to **fully controlled** (`useState<FormValues>` + `value`/`onChange` on every control). React never clears controlled state, so a rejected submit keeps the user's input with no `defaultValue` and no `setState`-in-effect (which `react-hooks/set-state-in-effect` also flags). Removed the now-unused `values` echo from `CreateTournamentState`. Verified in the walkthrough — inputs preserved, console clean.
+
+**Task 7 — new routes vs `tsc`.** `pnpm typecheck` alone fails on `PageProps<"/admin/tournaments/[id]">` for a brand-new route until `next build` (or `next dev`) regenerates `.next/types`. Run `pnpm build` first; `typecheck` is green after.
+
+**Task 11 — dev-mode screenshot timeouts.** After a Server Action submit the dev server's Neon round-trip suspends the renderer for ~10–30 s; `Page.captureScreenshot` times out during that window. Not a freeze — a separate `screenshot` call after the wait succeeds.
+
 ### Completion Notes List
 
 - **Task 1:** `src/components/ui/input.tsx` (rounded-sm), `src/components/ui/label.tsx` — the two shadcn form primitives, `cn` imports corrected. No `select.tsx` — the form uses a styled native `<select>` (AC-sanctioned; simpler + `FormData`-native inside `<form action>`). Bogus `cn@0.2.4` dependency removed.
@@ -325,6 +331,8 @@ claude-sonnet-5
 - **Task 7:** `src/app/admin/tournaments/new/page.tsx` (renders the form) + `src/app/admin/tournaments/[id]/page.tsx` (stub — name + details `<dl>` + state label; `notFound()` if missing). `src/lib/tournament-labels.ts` extracted (form + `[id]` page both consume it). Route table gains 2 `ƒ` routes.
 - **Task 8:** `src/app/admin/page.tsx` — dashboard now links to "Створити турнір" + "Керування адмінами".
 - **Task 9:** README updates in `src/{domain,data,actions,components}`; `AGENTS.md` — Stack-status line, the `migrate dev` non-interactive pitfall + fallback, the new-route `typecheck` caveat, the `data → domain` open-item update.
+- **Task 10:** `deferred-work.md`: 2 items resolved (natural key, discipline+type), `P2002` mapping partial, new "Story 2.4" section (`Group` in Epic 2 / `teamCount >= 4` / create action untested).
+- **Task 11:** `pnpm test` 39/39 · `typecheck` · `lint` · `build` clean; route table +2 `ƒ`; `migrate status` / `diff` in sync; import-boundary greps clean. `scripts/verify-tournament-create.mts` (self-cleaning) 8/8: create → `DRAFT` + one `Group` + preset stored + duplicate `P2002` + cascade delete. Browser walkthrough (throwaway scratch page): form renders; submit-without-session → `notify.error` toast; **controlled fields keep input on a rejected submit** (console clean); `/admin/**` gate redirects signed-out. Signed-in happy path + rendered field-errors not walked (no automated OAuth) — covered by the script + domain tests; manual pass is the residual gate.
 
 ### File List
 
@@ -332,6 +340,7 @@ claude-sonnet-5
 - `src/components/ui/input.tsx`
 - `src/components/ui/label.tsx`
 - `src/domain/tournamentForm.ts`
+- `scripts/verify-tournament-create.mts`
 - `src/domain/tournamentForm.test.ts`
 - `src/components/tournament-form.tsx`
 - `src/lib/tournament-labels.ts`
@@ -365,3 +374,4 @@ claude-sonnet-5
 | 2026-09-04 | Task 8 — `/admin` dashboard links to "Створити турнір". |
 | 2026-09-04 | Task 9 — README + `AGENTS.md` updates (Stack status, `migrate dev` non-interactive pitfall, new-route `typecheck` caveat). |
 | 2026-09-04 | Task 10 — `deferred-work.md`: 2 items resolved (natural key, discipline+type), `P2002` mapping partial, new "Story 2.4" section (Group / teamCount / test gap). |
+| 2026-09-04 | Task 11 — verification gate green; `scripts/verify-tournament-create.mts` (8/8, self-cleaning). Form switched to controlled state (base-ui `Input` rejects a changing `defaultValue`); `CreateTournamentState.values` removed. Browser walkthrough on a throwaway scratch page. |

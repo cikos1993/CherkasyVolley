@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Loader2Icon } from "lucide-react";
 
 import { createTournament } from "@/actions/tournaments";
@@ -25,6 +25,18 @@ import { SCORING_PRESET_LABELS, TOURNAMENT_TYPE_LABELS } from "@/lib/tournament-
 const selectClassName =
   "h-8 w-full rounded-sm border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
 
+type FormValues = Record<TournamentField, string>;
+
+const INITIAL: FormValues = {
+  discipline: "CLASSIC",
+  type: TOURNAMENT_TYPES[0],
+  name: "",
+  year: String(new Date().getFullYear()),
+  scoringPreset: SCORING_PRESETS[0],
+  teamCount: "",
+  rounds: "1",
+};
+
 function Field({
   name,
   label,
@@ -34,7 +46,11 @@ function Field({
   name: TournamentField;
   label: string;
   error?: string;
-  children: (props: { id: string; "aria-invalid": boolean; "aria-describedby"?: string }) => ReactNode;
+  children: (props: {
+    id: string;
+    "aria-invalid": boolean;
+    "aria-describedby"?: string;
+  }) => ReactNode;
 }) {
   const errorId = `${name}-error`;
   return (
@@ -56,22 +72,28 @@ function Field({
 
 export function TournamentForm() {
   const [state, formAction, pending] = useActionState(createTournament, {});
-  const { fieldErrors, values, formError } = state;
+  const { fieldErrors, formError } = state;
+
+  // Controlled fields — React 19 resets an uncontrolled `<form action>` on
+  // submit (and the base-ui Input ignores a changed `defaultValue`). Controlled
+  // state is untouched by the reset, so a rejected submit keeps the user's input.
+  const [form, setForm] = useState<FormValues>(INITIAL);
 
   useEffect(() => {
     if (formError) notify.error(formError);
   }, [formError]);
 
+  const bind = (field: TournamentField) => ({
+    value: form[field],
+    onChange: (event: { target: { value: string } }) =>
+      setForm((current) => ({ ...current, [field]: event.target.value })),
+  });
+
   return (
     <form action={formAction} className="grid max-w-md gap-5">
       <Field name="type" label="Тип турніру" error={fieldErrors?.type}>
         {(props) => (
-          <select
-            {...props}
-            name="type"
-            className={selectClassName}
-            defaultValue={values?.type ?? TOURNAMENT_TYPES[0]}
-          >
+          <select {...props} {...bind("type")} name="type" className={selectClassName}>
             {TOURNAMENT_TYPES.map((type) => (
               <option key={type} value={type}>
                 {TOURNAMENT_TYPE_LABELS[type]}
@@ -82,21 +104,12 @@ export function TournamentForm() {
       </Field>
 
       <Field name="name" label="Назва" error={fieldErrors?.name}>
-        {(props) => (
-          <Input {...props} name="name" defaultValue={values?.name ?? ""} maxLength={120} />
-        )}
+        {(props) => <Input {...props} {...bind("name")} name="name" maxLength={120} />}
       </Field>
 
       <Field name="year" label="Рік" error={fieldErrors?.year}>
         {(props) => (
-          <Input
-            {...props}
-            name="year"
-            type="number"
-            min={YEAR_MIN}
-            max={YEAR_MAX}
-            defaultValue={values?.year ?? String(new Date().getFullYear())}
-          />
+          <Input {...props} {...bind("year")} name="year" type="number" min={YEAR_MIN} max={YEAR_MAX} />
         )}
       </Field>
 
@@ -104,9 +117,9 @@ export function TournamentForm() {
         {(props) => (
           <select
             {...props}
+            {...bind("scoringPreset")}
             name="scoringPreset"
             className={selectClassName}
-            defaultValue={values?.scoringPreset ?? SCORING_PRESETS[0]}
           >
             {SCORING_PRESETS.map((preset) => (
               <option key={preset} value={preset}>
@@ -121,11 +134,11 @@ export function TournamentForm() {
         {(props) => (
           <Input
             {...props}
+            {...bind("teamCount")}
             name="teamCount"
             type="number"
             min={TEAM_COUNT_MIN}
             max={TEAM_COUNT_MAX}
-            defaultValue={values?.teamCount ?? ""}
           />
         )}
       </Field>
@@ -134,11 +147,11 @@ export function TournamentForm() {
         {(props) => (
           <Input
             {...props}
+            {...bind("rounds")}
             name="rounds"
             type="number"
             min={ROUNDS_MIN}
             max={ROUNDS_MAX}
-            defaultValue={values?.rounds ?? "1"}
           />
         )}
       </Field>

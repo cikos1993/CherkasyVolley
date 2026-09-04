@@ -32,6 +32,7 @@ shadcn/ui + Tailwind, хостинг Vercel. Планування живе в `_
 - Seed: `pnpm seed` (`prisma db seed` → `tsx prisma/seed.mts`) — ідемпотентний upsert першого адміна по `SEED_ADMIN_EMAIL` (у нижньому регістрі). Повторний запуск дублів не створює.
 - `pnpm typecheck` (`tsc --noEmit`) — офлайн-перевірка типів (`next build` тепер потребує БД). Після додавання **нового маршруту** `tsc` падає на `PageProps<"/new/route">` / `LayoutProps<…>`, доки `next build` (або `next dev`) не перегенерує `.next/types` — спочатку `pnpm build`, потім `typecheck` зелений.
 - `pnpm exec tsx scripts/verify-admin-roles.mts` — регрес-перевірка шару ролей (`src/data/users.ts`): гілки `not_found` / `last_admin` / ідемпотентність. Не руйнівна (адмінів не знімає).
+- `pnpm exec tsx scripts/verify-tournament-create.mts` — регрес-перевірка створення турніру (`src/data/tournaments.ts`): `state = DRAFT`, рівно одна `Group`, збережений пресет, дубль → `P2002`. Само-прибиральний (створює й видаляє тимчасовий турнір; лишає БД як була).
 
 ## Conventions that differ from defaults
 

@@ -60,27 +60,20 @@ export async function transitionTournament(
   }
 }
 
-/** Fields the form submits and the action echoes back so an invalid submit keeps its input. */
-const FORM_FIELDS = ["type", "name", "year", "scoringPreset", "teamCount", "rounds"] as const;
-
 export type CreateTournamentState = {
   fieldErrors?: Partial<Record<TournamentField, string>>;
   formError?: string;
-  values?: Partial<Record<TournamentField, string>>;
 };
 
 export async function createTournament(
   _prev: CreateTournamentState,
   formData: FormData,
 ): Promise<CreateTournamentState> {
-  const values: Partial<Record<TournamentField, string>> = {};
-  for (const field of FORM_FIELDS) values[field] = String(formData.get(field) ?? "");
-
   try {
     await requireAdmin();
   } catch (error) {
     if (error instanceof AdminRequiredError) {
-      return { formError: "Потрібні права адміністратора.", values };
+      return { formError: "Потрібні права адміністратора." };
     }
     throw error;
   }
@@ -94,14 +87,14 @@ export async function createTournament(
     teamCount: formData.get("teamCount"),
     rounds: formData.get("rounds"),
   });
-  if (!parsed.ok) return { fieldErrors: parsed.fieldErrors, values };
+  if (!parsed.ok) return { fieldErrors: parsed.fieldErrors };
 
   let id: string;
   try {
     ({ id } = await createTournamentRecord(parsed.value));
   } catch (error) {
     if (isUniqueViolation(error)) {
-      return { formError: "Турнір з такою назвою вже існує за цей рік.", values };
+      return { formError: "Турнір з такою назвою вже існує за цей рік." };
     }
     throw error;
   }
