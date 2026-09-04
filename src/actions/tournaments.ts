@@ -8,10 +8,13 @@ import { AdminRequiredError, requireAdmin } from "@/auth/requireAdmin";
 import {
   countTournamentEntries,
   createTournamentRecord,
+  deleteTournamentRecord,
   getTournamentForAdmin,
+  isRecordNotFound,
   isUniqueViolation,
   setTournamentState,
   TOURNAMENT_NATURAL_KEY_INDEX,
+  updateTournamentRecord,
 } from "@/data/tournaments";
 import {
   checkTransition,
@@ -100,5 +103,88 @@ export async function createTournament(
     throw error;
   }
 
+  revalidatePath("/admin/tournaments");
   redirect(`/admin/tournaments/${id}`);
+}
+
+/**
+ * Edits an existing tournament. `type` / `name` / `year` / `scoringPreset` are
+ * editable in any state; `teamCount` / `rounds` are substituted from the
+ * tournament's current DB values whenever `state !== "DRAFT"` — the fields the
+ * form disables outside `DRAFT` are re-enforced here regardless of what a
+ * forged request submits.
+ */
+export async function updateTournament(
+  tournamentId: string,
+  _prev: CreateTournamentState,
+  formData: FormData,
+): Promise<CreateTournamentState> {
+  try {
+    await requireAdmin();
+  } catch (error) {
+    if (error instanceof AdminRequiredError) {
+      return { formError: "Потрібні права адміністратора." };
+    }
+    throw error;
+  }
+
+  const tournament = await getTournamentForAdmin(tournamentId);
+  if (!tournament) {
+    return { formError: "Турнір не знайдено." };
+  }
+
+  const draft = tournament.state === "DRAFT";
+  const parsed = validateNewTournament({
+    discipline: "CLASSIC",
+    type: formData.get("type"),
+    name: formData.get("name"),
+    year: formData.get("year"),
+    scoringPreset: formData.get("scoringPreset"),
+    teamCount: draft ? formData.get("teamCount") : String(tournament.teamCount),
+    rounds: draft ? formData.get("rounds") : String(tournament.rounds),
+  });
+  if (!parsed.ok) return { fieldErrors: parsed.fieldErrors };
+
+  try {
+    await updateTournamentRecord(tournamentId, parsed.value);
+  } catch (error) {
+    if (isUniqueViolation(error, TOURNAMENT_NATURAL_KEY_INDEX)) {
+      return { formError: "Турнір з такою назвою вже існує за цей рік." };
+    }
+    if (isRecordNotFound(error)) {
+      return { formError: "Турнір не знайдено." };
+    }
+    throw error;
+  }
+
+  revalidatePath("/admin/tournaments");
+  revalidatePath(`/admin/tournaments/${tournamentId}`);
+  revalidatePath("/classic");
+
+  return {};
+}
+
+/**
+ * Deletes a tournament. Cascades remove its group, entries, and rosters
+ * (schema-level `onDelete: Cascade` — see `src/data/tournaments.ts`).
+ */
+export async function deleteTournament(
+  tournamentId: string,
+): Promise<ActionResult<undefined>> {
+  try {
+    await requireAdmin();
+    await deleteTournamentRecord(tournamentId);
+  } catch (error) {
+    if (isRecordNotFound(error)) {
+      return { ok: false, code: "NOT_FOUND", message: "Турнір не знайдено." };
+    }
+    return toActionError(error);
+  }
+
+  revalidatePath("/admin/tournaments");
+  revalidatePath(`/admin/tournaments/${tournamentId}`);
+  revalidatePath("/classic");
+  revalidatePath("/archive");
+
+  return { ok: true, data: undefined };
 }
