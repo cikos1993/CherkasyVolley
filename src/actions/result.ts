@@ -1,6 +1,11 @@
 import { AdminRequiredError } from "@/auth/requireAdmin";
 
-export type ActionErrorCode = "FORBIDDEN" | "LAST_ADMIN" | "NOT_FOUND";
+export type ActionErrorCode =
+  | "FORBIDDEN"
+  | "LAST_ADMIN"
+  | "NOT_FOUND"
+  | "INVALID_TRANSITION"
+  | "PRECONDITION_FAILED";
 
 export type ActionError = { ok: false; code: ActionErrorCode; message: string };
 

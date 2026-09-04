@@ -14,6 +14,11 @@ goes through a named function exported from here — `getPublicTournaments`,
   refuses to clear the last admin). Both return `{ outcome: "ok" | "not_found" |
   "last_admin" }` and are called only from `grantAdmin` / `revokeAdmin` under
   `requireAdmin()`.
+- `tournaments.ts` — `getTournamentForAdmin(id)` (admin read, drafts included;
+  called only under `requireAdmin()`), `countTournamentEntries(tournamentId)`, and
+  `setTournamentState(id, state)` — **the sole writer of `Tournament.state`**,
+  called only from `transitionTournament` after the transition is validated in
+  `src/domain/tournamentState` (AD-8). No other function writes `state`.
 
 The `Tournament`, `Team`, `TournamentEntry` and `Player` entities (schema landed in
 Story 2.1, migration `20260903174727_tournament_schema`) are owned here too; their

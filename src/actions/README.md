@@ -35,3 +35,7 @@ Actions are wired in their feature stories.
 - `admin-roles.ts` — `grantAdmin(userId)` / `revokeAdmin(userId)`. First line
   `await requireAdmin()`; `revokeAdmin` refuses to clear the last admin
   (`code: "LAST_ADMIN"`), enforced in a `src/data` transaction, not the UI.
+- `tournaments.ts` — `transitionTournament(id, targetState)`: `requireAdmin()` →
+  `getTournamentForAdmin` → `checkTransition` (`src/domain/tournamentState`) →
+  `setTournamentState`. The only path that changes `Tournament.state` (AD-8);
+  an illegal edge or unmet precondition returns `{ ok: false, code }`.
