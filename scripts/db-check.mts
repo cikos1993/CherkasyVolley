@@ -6,13 +6,14 @@ config({ path: [".env.local", ".env"] });
 const { db } = await import("../src/data/client");
 const { Discipline } = await import("../src/generated/prisma/enums");
 
-const [users, sessions, accounts, verifications, tournaments, teams, entries, players] =
+const [users, sessions, accounts, verifications, tournaments, groups, teams, entries, players] =
   await Promise.all([
     db.user.count(),
     db.session.count(),
     db.account.count(),
     db.verification.count(),
     db.tournament.count(),
+    db.group.count(),
     db.team.count(),
     db.tournamentEntry.count(),
     db.player.count(),
@@ -30,6 +31,7 @@ console.log({
   accounts,
   verifications,
   tournaments,
+  groups,
   teams,
   entries,
   players,

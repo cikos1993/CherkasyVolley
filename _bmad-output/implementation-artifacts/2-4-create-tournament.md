@@ -108,12 +108,12 @@ Translated from `epics.md` → Epic 2 → Story 2.4. The Ukrainian source is aut
   - [x] `validateNewTournament(raw)` — trims `name`; `toInteger` helper rejects non-integers / floats / `NaN` / missing; range-checks `year` / `teamCount` / `rounds`; rejects unknown `discipline` / `type` (via `allowedTournamentTypes`) / `scoringPreset`; Ukrainian per-field messages; collects **all** failing fields.
   - [x] `src/domain/tournamentForm.test.ts` — 14 tests: helper both disciplines; valid input (trim + coercion); every type × preset; bound edges; every bound/format violation → right field key; BEACH → no valid type; all-fields-fail case lists all 6 keys; messages are Cyrillic.
   - [x] `pnpm test` → 2 files, 39 tests pass (25 `tournamentState` + 14 `tournamentForm`). `typecheck` + `lint` clean.
-- [ ] **Task 3 — Prisma: `Group` model + `Tournament` natural key + migration** (AC: 1)
-  - [ ] `prisma/schema.prisma` — add the `Group` model (shape above); add `group Group?` to `Tournament`; add `@@unique([discipline, type, year, name])` to `Tournament` (keep the existing `@@index([discipline, state, year])`).
-  - [ ] `pnpm prisma generate` — new types compile (`Group` in `@/generated/prisma/client`).
-  - [ ] **HALT and confirm with the user**, then `pnpm prisma migrate dev --name tournament_group_and_natural_key` (direct URL via `prisma7.config.ts`; the Neon role has `CREATEDB` for the shadow DB — Story 1.4/2.1). Additive only — inspect the generated `migration.sql`: it must be `CREATE TABLE "group"` + `CREATE UNIQUE INDEX` (group `tournamentId`) + `CREATE UNIQUE INDEX` (the natural key) + the FK. **No `DROP`, no `ALTER` on existing tables' data.** If `migrate dev` proposes anything destructive, STOP and hand-write the additive migration, then `pnpm prisma migrate deploy` (the Story 1.5/2.1 fallback).
-  - [ ] `pnpm prisma migrate status` → "up to date"; `pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` → "No difference detected." Commit `migration.sql` (never hand-edit after apply).
-  - [ ] Extend `scripts/db-check.mts` with a `db.group.count()` (returns `0`).
+- [x] **Task 3 — Prisma: `Group` model + `Tournament` natural key + migration** (AC: 1)
+  - [x] `prisma/schema.prisma` — `Group` model added; `Tournament.group Group?` + `@@unique([discipline, type, year, name])` added; `@@index([discipline, state, year])` kept.
+  - [x] `pnpm prisma generate` — `Group` type compiles.
+  - [x] User confirmed. `pnpm prisma migrate dev` **refuses non-interactive mode** here — the "unique constraint … will be added" warning forces an interactive prompt (even with `--create-only`). Used the documented fallback: hand-wrote `prisma/migrations/20260904160000_tournament_group_and_natural_key/migration.sql` from the pre-flight `migrate diff --script` output (verbatim — `CREATE TABLE "group"` + 2 `CREATE UNIQUE INDEX` + FK, no `DROP`/`ALTER`), then `pnpm prisma migrate deploy` (non-interactive) applied it to Neon.
+  - [x] `pnpm prisma migrate status` → "Database schema is up to date!"; `migrate diff --exit-code` → "No difference detected."
+  - [x] `scripts/db-check.mts` — `db.group.count()` added; `pnpm exec tsx scripts/db-check.mts` → `groups: 0`, all tables still 0.
 - [ ] **Task 4 — `src/data/tournaments.ts` (UPDATE): `createTournamentRecord`** (AC: 1, 2, 4)
   - [ ] `import type { NewTournamentInput } from "@/domain/tournamentForm"` — the `data → domain` type import is allowed (lint does not block it; `src/README.md` sanctions `data → domain` for read-time computation, and a type import is inert). Alternatively keep the input type local to `src/data` — dev's call; prefer the shared domain type to avoid a third declaration.
   - [ ] `export function createTournamentRecord(input: NewTournamentInput): Promise<{ id: string }>` — `db.tournament.create({ data: { discipline: input.discipline, type: input.type, name: input.name, year: input.year, scoringPreset: input.scoringPreset, teamCount: input.teamCount, rounds: input.rounds, group: { create: {} } }, select: { id: true } })`. The nested `group: { create: {} }` makes the `Tournament` + `Group` insert one atomic statement. **No `state`** — it defaults to `DRAFT`.
@@ -312,10 +312,13 @@ claude-sonnet-5
 
 **Task 1 — shadcn primitives.** `pnpm dlx shadcn@latest add input label select` created 3 files but polluted `package.json` with `"cn": "^0.2.4"` (a real, unrelated npm package) and wrote `import { cn } from "cn"` in each. Fix: removed the dep + `pnpm install` (lockfile back to clean), rewrote the imports to `@/lib/utils`. `input.tsx` radius `rounded-lg` → `rounded-sm` (DESIGN.md Shapes: inputs 7px). `select.tsx` deleted — native `<select>` in the form instead. `typecheck` + `lint` clean.
 
+**Task 3 — migration.** `pnpm prisma migrate dev` is **blocked in the non-interactive PowerShell tool** when the schema change produces a warning (here: "a unique constraint … will be added") — the warning needs an interactive confirmation, and `--create-only` does not skip it. Fallback (already the documented Story 1.5 / 2.1 path): pre-flight `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` → hand-write `migration.sql` verbatim into a `<ts>_name/` dir → `prisma migrate deploy` (non-interactive). `migration.sql` = `CREATE TABLE "group"` + `CREATE UNIQUE INDEX "group_tournamentId_key"` + `CREATE UNIQUE INDEX "tournament_discipline_type_year_name_key"` + the cascade FK. `migrate status` up to date, `migrate diff` empty.
+
 ### Completion Notes List
 
 - **Task 1:** `src/components/ui/input.tsx` (rounded-sm), `src/components/ui/label.tsx` — the two shadcn form primitives, `cn` imports corrected. No `select.tsx` — the form uses a styled native `<select>` (AC-sanctioned; simpler + `FormData`-native inside `<form action>`). Bogus `cn@0.2.4` dependency removed.
 - **Task 2:** `src/domain/tournamentForm.ts` — `allowedTournamentTypes(discipline)` (CLASSIC → 4 types, BEACH → none), numeric bounds (`YEAR` 2000–2100, `TEAM_COUNT` 4–64, `ROUNDS` 1–10, `NAME_MAX` 120), `validateNewTournament(raw)` returning `{ ok, value }` or `{ ok, fieldErrors }` with all failing fields collected. `toInteger` rejects floats / non-numerics. 14-test spec.
+- **Task 3:** `Group` model (`tournamentId @unique` — one group per tournament in v1; `onDelete: Cascade`); `Tournament.group Group?` + `@@unique([discipline, type, year, name])`. Migration `20260904160000_tournament_group_and_natural_key` hand-written (non-interactive `migrate dev` block) + `migrate deploy`. `db-check.mts` + `db.group.count()`.
 
 ### File List
 
@@ -324,6 +327,12 @@ claude-sonnet-5
 - `src/components/ui/label.tsx`
 - `src/domain/tournamentForm.ts`
 - `src/domain/tournamentForm.test.ts`
+- `prisma/migrations/20260904160000_tournament_group_and_natural_key/migration.sql`
+
+**Modified**
+- `prisma/schema.prisma` — `Group` model, `Tournament.group` relation, `@@unique` natural key
+- `scripts/db-check.mts` — `db.group.count()`
+- `package.json` / `pnpm-lock.yaml` — removed the stray `cn` dep (Task 1)
 
 ## Change Log
 
@@ -332,3 +341,4 @@ claude-sonnet-5
 | 2026-09-04 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-04 | Task 1 — shadcn `input` / `label` primitives (`cn` import + radius fixed; bogus `cn` npm dep removed); native `<select>` chosen over the base-ui popover. `bmad-dev-story`. |
 | 2026-09-04 | Task 2 — `src/domain/tournamentForm.ts` (`allowedTournamentTypes`, bounds, `validateNewTournament`) + 14-test spec. `pnpm test` 39/39. |
+| 2026-09-04 | Task 3 — `Group` model + `Tournament` natural key `@@unique([discipline, type, year, name])`; migration `20260904160000_tournament_group_and_natural_key` (hand-written + `migrate deploy` — non-interactive `migrate dev` blocked by the constraint warning). `db-check.mts` + `groups`. `migrate status` / `diff` in sync. |

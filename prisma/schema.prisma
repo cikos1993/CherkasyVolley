@@ -127,9 +127,23 @@ model Tournament {
   createdAt     DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime          @default(now()) @updatedAt @db.Timestamptz(3)
   entries       TournamentEntry[]
+  group         Group?
 
+  @@unique([discipline, type, year, name])
   @@index([discipline, state, year])
   @@map("tournament")
+}
+
+/// The single group of a v1 tournament (Tournament 1—1 Group). Structural anchor
+/// only — its slots and matches arrive in Epic 3. Planned size is Tournament.teamCount.
+model Group {
+  id           String     @id @default(cuid())
+  tournamentId String     @unique
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime   @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@map("group")
 }
 
 /// A reusable club identity (glossary "Команда"). One row is entered into many
