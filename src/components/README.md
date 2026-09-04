@@ -37,30 +37,38 @@ Gate for destructive or irreversible actions. Wraps `ui/dialog`.
 />
 ```
 
-- `onConfirm` resolves → the dialog closes.
-- `onConfirm` throws → the dialog stays open, the error is `console.error`d, and
-  **no toast is shown**. The caller owns user-facing messaging: call
-  `notify.error(...)` inside `onConfirm` before re-throwing on the failure paths.
+- `onConfirm` resolves (returns anything but `false`) → the dialog closes.
+- `onConfirm` returns `false` → the dialog stays open, nothing is logged. Use it
+  for a handled failure the caller has already surfaced: `notify.error(res.message);
+  return false;`.
+- `onConfirm` throws → the dialog stays open and the error is `console.error`d —
+  for an *unexpected* exception, not a normal `{ ok: false }` outcome.
 - The whole dialog (both buttons, Esc, backdrop, close X) is locked while
   `onConfirm` is in flight; a long-running action must impose its own timeout.
+- On a `destructive` dialog, initial focus is on Cancel.
 - `description` is required — every confirmation states what will happen.
 
 ## `EmptyState` (`@/components/empty-state`) + `@/lib/empty-states`
 
-Dashed-border block: `title`, `description`, optional `action` (an admin CTA),
+Dashed-border block: `description`, optional `title` (omit it for a plain
+one-liner, matching the calmest empty states), optional `action` (an admin CTA),
 optional `headingLevel` (`2` default, `3` for nested sections so heading order
-stays correct). Canonical copy lives in `@/lib/empty-states` — `description`
-carries the authoritative sentence from the UX Voice guide; spread it:
-`<EmptyState {...NO_TOURNAMENTS} />`.
+stays correct — only applies when there is a `title`). Canonical copy lives in
+`@/lib/empty-states` — `description` carries the authoritative sentence from the
+UX Voice guide; spread it: `<EmptyState {...NO_TOURNAMENTS} />`.
 
 ## `Skeleton` / `TableSkeleton` / `CardSkeleton`
 
 `ui/skeleton` is the primitive; `skeletons.tsx` has the table / card shapes.
-Loading states use these — **never a full-page spinner**. Each composite renders
-a `role="status"` wrapper; wrap the swap so a screen reader hears it:
+Loading states use these — **never a full-page spinner**. Each composite is a
+`role="status" aria-busy` region with an `aria-label` (default "Завантаження").
+For it to be announced, keep the region mounted and swap what's *inside* it, so
+the change from skeleton to content is a content change on a live region:
 
 ```tsx
-{pending ? <TableSkeleton rows={6} columns={5} /> : <StandingsTable … />}
+<div role="status" aria-busy={pending}>
+  {pending ? <TableSkeleton rows={6} columns={5} /> : <StandingsTable … />}
+</div>
 ```
 
 Counts are clamped (0–50). The consumer owns any `overflow-x-auto` scroll
@@ -68,8 +76,9 @@ container around a `TableSkeleton`.
 
 ## Motion
 
-`animate-pulse` and `animate-spin` are switched off under
-`prefers-reduced-motion` (see `app/globals.css`).
+Under `prefers-reduced-motion` the dialog's scale/fade transition and the
+backdrop blur are dropped (see `app/globals.css`). The Skeleton pulse and the
+small in-button spinner are functional low-motion affordances and stay.
 
 ## No native dialogs
 

@@ -1,6 +1,6 @@
 // Canonical empty-state copy. `description` holds the authoritative sentence
-// from the UX Voice guide; `title` is a short label above it. One source so the
-// wording cannot drift between screens.
+// from the UX Voice guide; `title` (optional) is a short label above it. One
+// source so the wording cannot drift between screens.
 
 export const BEACH_SOON = {
   title: "Незабаром",
@@ -13,7 +13,6 @@ export const NO_TOURNAMENTS = {
 } as const;
 
 export const NO_TEAMS = {
-  title: "Ще немає заявлених команд",
   description: "Ще немає заявлених команд.",
 } as const;
 
@@ -21,7 +20,6 @@ export const NO_TEAMS = {
 // inline row, not this box — see the Voice guide. This const is for other
 // contexts (e.g. an empty schedule tab).
 export const NO_RESULTS = {
-  title: "Результатів поки немає",
   description:
     "Результатів поки немає — таблиця зʼявиться після першого зіграного матчу.",
 } as const;

@@ -13,14 +13,15 @@ export function TableSkeleton({
   columns?: number;
   label?: string;
 }) {
+  const cells = () =>
+    range(columns).map((c) => <Skeleton key={c} className="h-4 flex-1" />);
   return (
-    <div role="status" aria-label={label} className="w-full">
+    <div role="status" aria-busy aria-label={label} className="w-full">
       <div aria-hidden className="flex flex-col gap-2">
-        {range(rows + 1).map((r) => (
+        <div className="flex gap-2">{cells()}</div>
+        {range(rows).map((r) => (
           <div key={r} className="flex gap-2">
-            {range(columns).map((c) => (
-              <Skeleton key={c} className="h-4 flex-1" />
-            ))}
+            {cells()}
           </div>
         ))}
       </div>
@@ -36,7 +37,7 @@ export function CardSkeleton({
   label?: string;
 }) {
   return (
-    <div role="status" aria-label={label} className="flex flex-col gap-3">
+    <div role="status" aria-busy aria-label={label} className="flex flex-col gap-3">
       {range(count).map((i) => (
         <div key={i} aria-hidden className="rounded-md border p-4">
           <Skeleton className="h-4 w-1/3" />

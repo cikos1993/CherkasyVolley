@@ -6,8 +6,10 @@ import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon
 // Light theme only — v1 has no dark mode or ThemeProvider (see globals.css).
 // Do not re-add next-themes here.
 const Toaster = ({ ...props }: ToasterProps) => {
+  // `{...props}` first: this Toaster is a fixed singleton, its own config wins.
   return (
     <Sonner
+      {...props}
       theme="light"
       className="toaster group"
       icons={{
@@ -33,7 +35,6 @@ const Toaster = ({ ...props }: ToasterProps) => {
             "!bg-success !text-success-foreground !border-success",
         },
       }}
-      {...props}
     />
   )
 }

@@ -25,7 +25,13 @@ export function GrantAdminButton({ userId }: { userId: string }) {
   }
 
   return (
-    <Button size="sm" variant="outline" onClick={grant} disabled={pending}>
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={grant}
+      disabled={pending}
+      aria-busy={pending}
+    >
       {pending ? <Loader2Icon className="animate-spin" /> : null}
       Надати доступ
     </Button>
@@ -57,7 +63,7 @@ export function RevokeAdminButton({
     );
   }
 
-  async function revoke() {
+  async function revoke(): Promise<boolean | void> {
     const res = await revokeAdmin(userId).catch((): null => {
       notify.error("Не вдалося зняти доступ. Спробуйте ще раз.");
       return null;
@@ -65,10 +71,15 @@ export function RevokeAdminButton({
     if (res === null) throw new Error("revoke request failed");
     if (!res.ok) {
       notify.error(res.message);
-      throw new Error(res.code);
+      return false;
     }
     notify.success("Доступ знято");
-    if (isSelf) router.push("/");
+    if (isSelf) {
+      // The current route is now forbidden to this user — leave it, don't refresh
+      // it (a refresh would redirect through the admin-required flash toast).
+      router.replace("/");
+      return;
+    }
     router.refresh();
   }
 

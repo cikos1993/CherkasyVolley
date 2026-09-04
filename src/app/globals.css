@@ -111,11 +111,15 @@
   }
 }
 
-/* Honour the OS "reduce motion" setting for the shared loading primitives
-   (Skeleton pulse, in-button spinners). Unlayered so it wins over the utilities. */
+/* Honour the OS "reduce motion" setting: drop the dialog's scale/fade transition
+   and the backdrop blur. The Skeleton pulse (opacity) and the small in-button
+   spinner are functional, low-motion affordances and stay. Unlayered so it wins
+   over the utilities. */
 @media (prefers-reduced-motion: reduce) {
-  .animate-pulse,
-  .animate-spin {
+  [data-slot="dialog-content"],
+  [data-slot="dialog-overlay"] {
     animation: none;
+    transition: none;
+    backdrop-filter: none;
   }
 }
