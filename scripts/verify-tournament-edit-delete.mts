@@ -9,12 +9,10 @@ config({ path: [".env.local", ".env"] });
 // database as it found it.
 
 const { db } = await import("../src/data/client");
-const {
-  createTournamentRecord,
-  updateTournamentRecord,
-  deleteTournamentRecord,
-  isRecordNotFound,
-} = await import("../src/data/tournaments");
+const { createTournamentRecord, updateTournamentRecord, deleteTournamentRecord } = await import(
+  "../src/data/tournaments"
+);
+const { isRecordNotFound } = await import("../src/data/errors");
 
 const stamp = Date.now();
 const original = {

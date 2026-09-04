@@ -8,9 +8,10 @@ config({ path: [".env.local", ".env"] });
 // group). Leaves the database as it found it.
 
 const { db } = await import("../src/data/client");
-const { createTournamentRecord, isUniqueViolation, TOURNAMENT_NATURAL_KEY_INDEX } = await import(
+const { createTournamentRecord, TOURNAMENT_NATURAL_KEY_INDEX } = await import(
   "../src/data/tournaments"
 );
+const { isUniqueViolation } = await import("../src/data/errors");
 
 const name = `__verify__${Date.now()}`;
 const input = {
