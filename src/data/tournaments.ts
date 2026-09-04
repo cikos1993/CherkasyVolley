@@ -47,6 +47,43 @@ export function createTournamentRecord(input: NewTournamentInput): Promise<{ id:
   });
 }
 
+/** Admin read of every tournament (drafts included), for the `/admin/tournaments` list. */
+export function listTournamentsForAdmin() {
+  return db.tournament.findMany({
+    orderBy: [{ year: "desc" }, { name: "asc" }],
+    select: { id: true, name: true, type: true, year: true, state: true, discipline: true },
+  });
+}
+
+/**
+ * The second (and, alongside `createTournamentRecord`, only) writer of
+ * `Tournament`. Never writes `discipline` (fixed at creation, AD-9) or `state`
+ * (AD-8 — `setTournamentState` stays the sole writer of that column).
+ */
+export function updateTournamentRecord(id: string, input: NewTournamentInput) {
+  return db.tournament.update({
+    where: { id },
+    data: {
+      type: input.type,
+      name: input.name,
+      year: input.year,
+      scoringPreset: input.scoringPreset,
+      teamCount: input.teamCount,
+      rounds: input.rounds,
+    },
+    select: { id: true },
+  });
+}
+
+/**
+ * Deletes a `Tournament`. Cascades (schema-level `onDelete: Cascade`) remove
+ * its `Group`, `TournamentEntry` rows, and their `Player` rosters in the same
+ * statement.
+ */
+export function deleteTournamentRecord(id: string) {
+  return db.tournament.delete({ where: { id } });
+}
+
 /** The Postgres index backing `Tournament`'s `@@unique([discipline, type, year, name])`. */
 export const TOURNAMENT_NATURAL_KEY_INDEX = "tournament_discipline_type_year_name_key";
 
@@ -76,4 +113,12 @@ export function isUniqueViolation(error: unknown, indexName?: string): boolean {
   if (Array.isArray(target) && target.includes(indexName)) return true;
   if (typeof target === "string" && target === indexName) return true;
   return meta?.driverAdapterError?.cause?.constraint?.index === indexName;
+}
+
+/**
+ * True when a write failed because the target row no longer exists (Prisma
+ * P2025) — a concurrent delete between the read and the write.
+ */
+export function isRecordNotFound(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025";
 }

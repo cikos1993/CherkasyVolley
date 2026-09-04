@@ -16,7 +16,7 @@ context:
 
 # Story 2.5: Edit and delete tournament
 
-Status: ready-for-dev
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -52,12 +52,12 @@ Translated from `epics.md` → Epic 2 → Story 2.5. The Ukrainian source is aut
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — `src/data/tournaments.ts` (UPDATE): reads, editor, deleter, error helper** (AC: 1, 2, 3)
-  - [ ] `listTournamentsForAdmin()` — `db.tournament.findMany({ orderBy: [{ year: "desc" }, { name: "asc" }], select: { id, name, type, year, state, discipline } })`. Admin read (drafts included), called only under `requireAdminPage()` (the `/admin` layout already gates every route under it).
-  - [ ] `updateTournamentRecord(id, input: NewTournamentInput)` — `db.tournament.update({ where: { id }, data: { type, name, year, scoringPreset, teamCount, rounds } })` (omit `discipline` from `data` — never changes post-create, same invariant as create). Second writer of `Tournament` after `createTournamentRecord`; still never touches `state` (AD-8 — `setTournamentState` stays the sole writer of that one column).
-  - [ ] `deleteTournamentRecord(id)` — `db.tournament.delete({ where: { id } })`. Relies on the existing cascade FKs (Story 2.1/2.4 schema) — no new Prisma work.
-  - [ ] `isRecordNotFound(error): boolean` — `error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025"`, same style as `isUniqueViolation`.
-  - [ ] Doc comments matching the file's existing style (see `getTournamentForAdmin` / `setTournamentState`). `typecheck` + `lint` clean.
+- [x] **Task 1 — `src/data/tournaments.ts` (UPDATE): reads, editor, deleter, error helper** (AC: 1, 2, 3)
+  - [x] `listTournamentsForAdmin()` — `db.tournament.findMany({ orderBy: [{ year: "desc" }, { name: "asc" }], select: { id, name, type, year, state, discipline } })`. Admin read (drafts included), called only under `requireAdminPage()` (the `/admin` layout already gates every route under it).
+  - [x] `updateTournamentRecord(id, input: NewTournamentInput)` — `db.tournament.update({ where: { id }, data: { type, name, year, scoringPreset, teamCount, rounds } })` (omit `discipline` from `data` — never changes post-create, same invariant as create). Second writer of `Tournament` after `createTournamentRecord`; still never touches `state` (AD-8 — `setTournamentState` stays the sole writer of that one column).
+  - [x] `deleteTournamentRecord(id)` — `db.tournament.delete({ where: { id } })`. Relies on the existing cascade FKs (Story 2.1/2.4 schema) — no new Prisma work.
+  - [x] `isRecordNotFound(error): boolean` — `error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025"`, same style as `isUniqueViolation`.
+  - [x] Doc comments matching the file's existing style (see `getTournamentForAdmin` / `setTournamentState`). `typecheck` + `lint` clean.
 - [ ] **Task 2 — `src/actions/tournaments.ts` (UPDATE): `updateTournament` + `deleteTournament`** (AC: 1, 2, 3)
   - [ ] `updateTournament(tournamentId: string, _prev: CreateTournamentState, formData: FormData): Promise<CreateTournamentState>` (bound via `.bind(null, tournamentId)` in the form). Body: `requireAdmin()` (narrowed try → `AdminRequiredError` → `formError`, else re-throw — same as `createTournament`) → `getTournamentForAdmin(tournamentId)`; `null` → `{ formError: "Турнір не знайдено." }` → build the raw payload (`discipline: "CLASSIC"`, `type`/`name`/`year`/`scoringPreset` from `formData`, `teamCount`/`rounds` from `formData` **only if `tournament.state === "DRAFT"`**, else `String(tournament.teamCount)` / `String(tournament.rounds)`) → `validateNewTournament(raw)` → `!ok` → `{ fieldErrors }` → `updateTournamentRecord(tournamentId, parsed.value)` in a narrowed try: `isUniqueViolation(error, TOURNAMENT_NATURAL_KEY_INDEX)` → `{ formError: "Турнір з такою назвою вже існує за цей рік." }`; `isRecordNotFound(error)` → `{ formError: "Турнір не знайдено." }`; else re-throw → on success, `revalidatePath("/admin/tournaments")`, `revalidatePath(\`/admin/tournaments/${tournamentId}\`)`, `revalidatePath("/classic")` (matches `transitionTournament`'s existing convention of revalidating the public discipline path on every tournament write, even before that page consumes tournament data) → `return {}`.
   - [ ] `deleteTournament(tournamentId: string): Promise<ActionResult<undefined>>`. Body: `try { await requireAdmin(); await deleteTournamentRecord(tournamentId); } catch (error) { if (isRecordNotFound(error)) return { ok: false, code: "NOT_FOUND", message: "Турнір не знайдено." }; return toActionError(error); }` then `revalidatePath("/admin/tournaments")`, `revalidatePath(\`/admin/tournaments/${tournamentId}\`)` (now 404 — cheap to invalidate, avoids a stale cached page on back-navigation), `revalidatePath("/classic")`, `revalidatePath("/archive")`, `return { ok: true, data: undefined }`. (`/classic` unconditionally, not discipline-gated like `transitionTournament` — v1 has no `BEACH` create path, so fetching `discipline` first to branch would be dead code; same simplification `createTournament` already makes.)
