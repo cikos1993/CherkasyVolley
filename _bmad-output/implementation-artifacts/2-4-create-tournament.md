@@ -98,10 +98,10 @@ Translated from `epics.md` → Epic 2 → Story 2.4. The Ukrainian source is aut
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — shadcn form primitives** (AC: the form)
-  - [ ] `pnpm dlx shadcn@latest add input label select` (PowerShell tool — `pnpm` is not on the Bash PATH; AGENTS.md). base-nova preset, `components.json` already configured. Confirm the files land in `src/components/ui/` and import `@/lib/utils` `cn`.
-  - [ ] If the registry is unreachable: hand-write `src/components/ui/input.tsx` (`<input>` + base-nova classes, `rounded-sm` per DESIGN.md), `src/components/ui/label.tsx` (`<label>` + `text-sm font-medium`), `src/components/ui/select.tsx` (a styled native `<select>` wrapper — accessible, zero-JS). Note which route was taken in the Dev Agent Record.
-  - [ ] `pnpm lint` + `pnpm typecheck` clean with the new files (they are `src/components/ui/**` — no boundary concerns).
+- [x] **Task 1 — shadcn form primitives** (AC: the form)
+  - [x] `pnpm dlx shadcn@latest add input label select` — created the 3 files but (a) added a bogus `"cn": "^0.2.4"` npm dependency and (b) generated `import { cn } from "cn"` in all three. Removed the dep, fixed the imports to `@/lib/utils`.
+  - [x] Kept `input.tsx` (radius corrected `rounded-lg` → `rounded-sm` per DESIGN.md Shapes) and `label.tsx`. **Deleted `select.tsx`** — the base-ui `Select` is a portal/positioner/scroll-arrow popover, overkill for 2–4 static options and awkward inside a `<form action>` (needs hidden-input wiring); using a styled native `<select name>` in the form instead (sanctioned by the AC note: "a native `<select>` is a sanctioned simplification for 2–4 static options"). Zero-JS, `FormData`-native, `color-scheme: light` pins its rendering.
+  - [x] `pnpm lint` + `pnpm typecheck` clean.
 - [ ] **Task 2 — `src/domain/tournamentForm.ts` (NEW) + Vitest spec** (AC: 1, 2; deferred `allowedTypes` helper)
   - [ ] Pure module — no `next`, no `@/generated/prisma`, no `react`, no other `src/` layer (the `src/domain/**` lint block). Re-declare the unions locally (`Discipline`, `TournamentType`, `ScoringPreset` — identical to the Prisma enums; the same pattern `tournamentState.ts` uses; a `//` comment noting they must track `prisma/schema.prisma`).
   - [ ] Export: `TOURNAMENT_TYPES`, `SCORING_PRESETS` (readonly arrays), `allowedTournamentTypes(discipline)`, the numeric bounds (`YEAR_MIN/MAX`, `TEAM_COUNT_MIN/MAX`, `ROUNDS_MIN/MAX`, `NAME_MAX`), `NewTournamentInput` type, `FieldErrors` type, `validateNewTournament(raw: Record<string, FormDataEntryValue | null>): { ok: true; value: NewTournamentInput } | { ok: false; fieldErrors: FieldErrors }`.
@@ -310,12 +310,21 @@ claude-sonnet-5
 
 ### Debug Log References
 
+**Task 1 — shadcn primitives.** `pnpm dlx shadcn@latest add input label select` created 3 files but polluted `package.json` with `"cn": "^0.2.4"` (a real, unrelated npm package) and wrote `import { cn } from "cn"` in each. Fix: removed the dep + `pnpm install` (lockfile back to clean), rewrote the imports to `@/lib/utils`. `input.tsx` radius `rounded-lg` → `rounded-sm` (DESIGN.md Shapes: inputs 7px). `select.tsx` deleted — native `<select>` in the form instead. `typecheck` + `lint` clean.
+
 ### Completion Notes List
 
+- **Task 1:** `src/components/ui/input.tsx` (rounded-sm), `src/components/ui/label.tsx` — the two shadcn form primitives, `cn` imports corrected. No `select.tsx` — the form uses a styled native `<select>` (AC-sanctioned; simpler + `FormData`-native inside `<form action>`). Bogus `cn@0.2.4` dependency removed.
+
 ### File List
+
+**New**
+- `src/components/ui/input.tsx`
+- `src/components/ui/label.tsx`
 
 ## Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-04 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
+| 2026-09-04 | Task 1 — shadcn `input` / `label` primitives (`cn` import + radius fixed; bogus `cn` npm dep removed); native `<select>` chosen over the base-ui popover. `bmad-dev-story`. |
