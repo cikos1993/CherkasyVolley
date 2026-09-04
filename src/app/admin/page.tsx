@@ -10,6 +10,9 @@ export default function AdminPage() {
         <Link href="/admin/tournaments" className="underline underline-offset-4">
           Турніри
         </Link>
+        <Link href="/admin/teams" className="underline underline-offset-4">
+          Команди
+        </Link>
         <Link href="/admin/people" className="underline underline-offset-4">
           Керування адмінами
         </Link>

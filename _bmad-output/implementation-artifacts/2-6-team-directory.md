@@ -86,8 +86,8 @@ Translated from `epics.md` → Epic 2 → Story 2.6. The Ukrainian source is aut
   - [x] Empty (`length === 0`): a plain paragraph — `Ще немає команд.` (not the viewer-voiced `NO_TEAMS` empty-state copy).
   - [x] Non-empty: a `<ul className="divide-y">` of plain rows (name only — no per-row link).
   - [x] `export const metadata = { title: "Команди" }`. `typecheck`/`lint` clean.
-- [ ] **Task 8 — `/admin` dashboard link** (AC: reachability)
-  - [ ] `src/app/admin/page.tsx` — add a "Команди" link (`/admin/teams`) to the existing `<nav>`, alongside "Турніри" and "Керування адмінами".
+- [x] **Task 8 — `/admin` dashboard link** (AC: reachability)
+  - [x] `src/app/admin/page.tsx` — added "Команди" link (`/admin/teams`) between "Турніри" and "Керування адмінами".
 - [ ] **Task 9 — Docs**
   - [ ] `src/domain/README.md` — `teamForm.ts` entry (`normalizeTeamName`, `teamNameKey`, `validateNewTeam`).
   - [ ] `src/data/README.md` — new `errors.ts` module entry (the extracted predicates, now shared); `teams.ts` entry (`listTeams`, `createTeamRecord`, `TEAM_NAME_KEY_INDEX`); update the `tournaments.ts` entry to say `isUniqueViolation`/`isRecordNotFound` now live in `errors.ts`.
