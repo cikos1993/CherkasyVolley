@@ -17,7 +17,7 @@ context:
 
 # Story 2.4: Create tournament
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -161,7 +161,7 @@ Translated from `epics.md` → Epic 2 → Story 2.4. The Ukrainian source is aut
     - `/admin/tournaments/new` signed-out (`curl` / browser) → `307 → /sign-in?from=/admin` (the `requireAdminPage()` gate, Story 1.6, unchanged). `/sign-in` → 200.
     - `createTournament` calls `await requireAdmin()` first — a forged non-admin POST is rejected server-side.
   - [x] **Not walked (no admin session — automated OAuth is out):** the signed-in happy path (valid submit → DB row → redirect → `[id]` page), the per-field validation errors rendered in the form, the duplicate-name toast from a real submit. The `verify-tournament-create.mts` script + the 14 domain-validation Vitest cases + `typecheck` cover the substance; a manual signed-in pass is the residual gate (recorded in `deferred-work.md`).
-- [ ] **Task 12 — Commit(s)** — per the standing instruction, **commit after each completed task and `git push origin main`** (memory: "commit after each task"). Suggested grouping if committing per-task is impractical mid-migration: (1) shadcn primitives + domain helper + spec; (2) schema + migration (after the user confirms `migrate dev`); (3) data + action; (4) form + pages + dashboard link; (5) docs + deferred-work. Each commit message references its task; trailers `Co-Authored-By` / `Claude-Session`. Push after each. `build` gates every commit — do not push a red build. The final push deploys to Vercel prod; the migration reaches prod via `migrate deploy` in `build` (already applied locally → no-op).
+- [x] **Task 12 — Commit(s)** — one commit + `git push origin main` per completed task (11 commits, `2f99fbb` → `fc51494`). `build` gated each. Migration reached prod via `migrate deploy` in the deploy `build` (already applied locally → no-op).
 
 ## Dev Notes
 
@@ -357,7 +357,8 @@ claude-sonnet-5
 - `src/domain/README.md` · `src/data/README.md` · `src/actions/README.md` · `src/components/README.md` · `AGENTS.md`
 - `_bmad-output/implementation-artifacts/deferred-work.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
-- `package.json` / `pnpm-lock.yaml` — removed the stray `cn` dep (Task 1)
+
+_(`package.json` / `pnpm-lock.yaml` were transiently touched — `shadcn add` added a stray `cn` dep, then removed — net zero vs the baseline.)_
 
 ## Change Log
 
