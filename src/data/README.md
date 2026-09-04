@@ -21,10 +21,12 @@ goes through a named function exported from here — `getPublicTournaments`,
   `src/domain/tournamentState` (AD-8; no other function writes `state`) —
   `createTournamentRecord(input)` — **the sole creator of a `Tournament`**;
   inserts the tournament and its single `Group` in one statement, never sets
-  `state` (defaults `DRAFT`) — and `isUniqueViolation(error)` (Prisma `P2002`
-  check; the Prisma error typing stays in this layer). `getTournamentForAdmin` /
-  `createTournamentRecord` take the `NewTournamentInput` type from `src/domain`
-  (a sanctioned `data → domain` type import — see the open item below).
+  `state` (defaults `DRAFT`) — and `isUniqueViolation(error, fields?)` (Prisma
+  `P2002` check, optionally narrowed to a specific constraint by its target
+  columns; the Prisma error typing stays in this layer). `createTournamentRecord`
+  takes the `NewTournamentInput` type from `src/domain` (a sanctioned
+  `data → domain` type import — see the open item below); `getTournamentForAdmin`
+  takes only an `id`.
 
 The `Tournament`, `Team`, `TournamentEntry` and `Player` entities (schema landed in
 Story 2.1, migration `20260903174727_tournament_schema`) are owned here too; their

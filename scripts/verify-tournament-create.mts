@@ -8,7 +8,9 @@ config({ path: [".env.local", ".env"] });
 // group). Leaves the database as it found it.
 
 const { db } = await import("../src/data/client");
-const { createTournamentRecord, isUniqueViolation } = await import("../src/data/tournaments");
+const { createTournamentRecord, isUniqueViolation, TOURNAMENT_NATURAL_KEY_INDEX } = await import(
+  "../src/data/tournaments"
+);
 
 const name = `__verify__${Date.now()}`;
 const input = {
@@ -36,6 +38,11 @@ try {
   check("tournament row created", row !== null);
   check("state defaults to DRAFT", row?.state === "DRAFT");
   check("scoring preset stored", row?.scoringPreset === "CLASSIC");
+  check("name stored", row?.name === input.name);
+  check("year stored", row?.year === input.year);
+  check("type stored", row?.type === input.type);
+  check("teamCount stored", row?.teamCount === input.teamCount);
+  check("rounds stored", row?.rounds === input.rounds);
   check("exactly one Group row", row?.group != null);
 
   const groupCount = await db.group.count({ where: { tournamentId: id } });
@@ -49,7 +56,7 @@ try {
     // regression here does not itself leave debris behind.
     await db.tournament.delete({ where: { id: duplicate.id } });
   } catch (error) {
-    duplicateRejected = isUniqueViolation(error);
+    duplicateRejected = isUniqueViolation(error, TOURNAMENT_NATURAL_KEY_INDEX);
   }
   check("duplicate (discipline+type+year+name) rejected as P2002", duplicateRejected);
 } finally {

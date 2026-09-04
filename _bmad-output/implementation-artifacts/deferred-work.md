@@ -19,6 +19,14 @@ _Story 2.3 landed `src/domain/tournamentState.ts`, the `transitionTournament` Se
 - **`src/data → src/domain` and `src/components → src/domain` are now real edges** (type + const imports only, no logic). AD-3 as written forbids `data → domain`; the reconciliation (spine edit vs. accept) is still owed — folded into the existing Epic 3 `getStandings()` open item.
 - **`Tournament.name` is only trimmed, not normalized, against the new exact-string `@@unique([discipline, type, year, name])`.** "Кубок Черкащини" and "кубок  черкащини" (same discipline/type/year) both pass validation and insert as two distinct tournaments, even though the duplicate-name error implies they'd collide. Same shape as the existing "`Team.name @unique` has no normalization" item (2-1 review, owned by Story 2.6) — add a normalized comparison (case-fold + collapse whitespace) if this surfaces in practice, likely alongside whatever Story 2.6 lands for `Team`.
 
+## Deferred from: code review of 2-4-create-tournament (2026-09-04)
+
+_Implementation review (`bmad-code-review`, 4 layers), run after the `/code-review` fix pass. All 4 ACs met. 5 patches applied in the story, 3 items deferred, 12 dismissed._
+
+- **No admin listing page for tournaments.** After creating one and visiting its detail page, an admin has no in-app way to find it again except that one redirect URL. Story 2.5 ("edit/delete tournament") is the natural owner — it needs a way to pick a tournament to edit, which implies a list.
+- **`createTournament` does not call `revalidatePath`, unlike its sibling `transitionTournament` in the same file.** No cached page currently depends on tournament data (no admin list exists yet), so this is inert today — revisit once one does.
+- **`TournamentForm`'s field-error rendering has no component test** (no assertion that a given `fieldErrors` key renders under the correct field with the right `aria-describedby`). Same class as the existing "no component-test toolchain" gap (jsdom / testing-library not installed, tracked since the 2-2 review) — fold in when that toolchain lands.
+
 ## Deferred from: code review of 2-3-tournament-state-machine (2026-09-04)
 
 _Implementation review (`bmad-code-review`, 4 layers). All 3 ACs met. 5 patches applied in the story, 7 items deferred, 8 dismissed._

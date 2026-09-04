@@ -11,6 +11,7 @@ import {
   getTournamentForAdmin,
   isUniqueViolation,
   setTournamentState,
+  TOURNAMENT_NATURAL_KEY_INDEX,
 } from "@/data/tournaments";
 import {
   checkTransition,
@@ -93,7 +94,7 @@ export async function createTournament(
   try {
     ({ id } = await createTournamentRecord(parsed.value));
   } catch (error) {
-    if (isUniqueViolation(error)) {
+    if (isUniqueViolation(error, TOURNAMENT_NATURAL_KEY_INDEX)) {
       return { formError: "Турнір з такою назвою вже існує за цей рік." };
     }
     throw error;
