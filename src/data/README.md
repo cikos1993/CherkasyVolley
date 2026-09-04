@@ -7,6 +7,13 @@ goes through a named function exported from here — `getPublicTournaments`,
 
 ## Modules
 
+- `errors.ts` — `isUniqueViolation(error, indexName?)` (Prisma `P2002`, optionally
+  narrowed to one constraint by its Postgres index name) and `isRecordNotFound(error)`
+  (Prisma `P2025`). Generic predicates, not entity-specific — originally lived in
+  `tournaments.ts` (Story 2.4/2.5), extracted here once `teams.ts` became a third
+  consumer (Story 2.6). Every entity-specific index-name constant
+  (`TOURNAMENT_NATURAL_KEY_INDEX`, `TEAM_NAME_KEY_INDEX`) stays in its own entity
+  module, not here.
 - `users.ts` — `listAuthenticatedUsers()` (users with ≥1 `account` row, i.e. who
   have completed Google sign-in at least once; `session` rows expire, so account
   presence is the durable signal), `countAdmins()`, and the sole writers of
@@ -26,13 +33,19 @@ goes through a named function exported from here — `getPublicTournaments`,
   `Tournament` writer (`type`/`name`/`year`/`scoringPreset`/`teamCount`/`rounds`;
   never `discipline` or `state`) — `deleteTournamentRecord(id)` (relies on the
   schema's cascade FKs to remove the `Group`, `TournamentEntry` rows and their
-  `Player` rosters) — `isUniqueViolation(error, fields?)` (Prisma `P2002` check,
-  optionally narrowed to a specific constraint by its target columns) and
-  `isRecordNotFound(error)` (Prisma `P2025` — the row was deleted concurrently);
-  both keep the Prisma error typing in this layer. `createTournamentRecord` /
+  `Player` rosters) — and `TOURNAMENT_NATURAL_KEY_INDEX` (the Postgres index name
+  the `@@unique([discipline, type, year, name])` constraint compiles to, used
+  with `errors.ts`'s `isUniqueViolation`). `createTournamentRecord` /
   `updateTournamentRecord` take the `NewTournamentInput` type from `src/domain`
   (a sanctioned `data → domain` type import — see the open item below);
   `getTournamentForAdmin` / `deleteTournamentRecord` take only an `id`.
+- `teams.ts` — `listTeams()` (every team, ordered by name — no draft/privacy
+  concept, unlike `Tournament`) and `createTeamRecord(input)` — **the sole
+  creator of a `Team`**; writes `input.name` and `input.nameKey` as given (both
+  computed together by `validateNewTeam` in `src/domain/teamForm`, a type-only
+  `data → domain` import — `createTeamRecord` never re-derives `nameKey` itself).
+  `TEAM_NAME_KEY_INDEX` is the Postgres index name backing `nameKey @unique`,
+  used with `errors.ts`'s `isUniqueViolation`.
 
 The `Tournament`, `Team`, `TournamentEntry` and `Player` entities (schema landed in
 Story 2.1, migration `20260903174727_tournament_schema`) are owned here too; their

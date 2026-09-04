@@ -113,6 +113,16 @@ come back in `state.fieldErrors` (wired to the control via `aria-invalid` /
 name) fires `notify.error`, keyed on the whole `state` object so two identical
 error strings in a row both toast.
 
+## `team-form.tsx`
+
+The add-team form — one controlled field (`name`), the same UX-DR11 rationale
+as `tournament-form.tsx` but simpler (a single `useState<string>`, not a
+`FormValues` record). No redirect on success; instead a second effect, keyed
+off the falling edge of `pending` (a `useRef`, never fires on mount — the same
+technique as `tournament-form.tsx`'s edit-mode success effect), clears the
+field, fires `notify.success`, and calls `router.refresh()` so the list below
+picks up the newly revalidated data.
+
 **Edit mode** additionally takes `tournamentId`, `initial` (a `FormValues`
 seed), and `locked` (a `TournamentField[]` — the fields to render `disabled`,
 with a "Змінити можна лише в стані «Чернетка»." caption; `[id]/page.tsx` passes

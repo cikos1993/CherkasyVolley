@@ -15,11 +15,21 @@ schedule generation, playoff seeding and bracket advancement.
   live, the later ones are fail-closed predicates until match results are
   modelled. The Server Action `transitionTournament` is the only caller.
 
-- `tournamentForm.ts` — rules for the "create tournament" form. `allowedTournamentTypes(discipline)`
+- `tournamentForm.ts` — rules for the create/edit tournament form. `allowedTournamentTypes(discipline)`
   (CLASSIC → the four types, BEACH → none), the numeric bounds (`YEAR_MIN/MAX`,
-  `TEAM_COUNT_MIN/MAX`, `ROUNDS_MIN/MAX`, `NAME_MAX`), and `validateNewTournament(raw)`
+  `TEAM_COUNT_MIN/MAX`, `ROUNDS_MIN/MAX`, `NAME_MAX`), `validateNewTournament(raw)`
   which coerces raw form values into a typed `NewTournamentInput` or a map of
-  per-field Ukrainian errors (every failing field reported, not just the first).
+  per-field Ukrainian errors (every failing field reported, not just the first),
+  and `resolveGroupStageFields(state, submitted, current)` — the pure half of
+  the edit-time rule that `teamCount`/`rounds` are only editable while `DRAFT`
+  (Story 2.5): outside `DRAFT` it discards `submitted` and returns `current`
+  unchanged, regardless of what a request sends.
+
+- `teamForm.ts` — rules for the "add team" form. `normalizeTeamName(raw)` (trim
+  + collapse internal whitespace — the display value), `teamNameKey(name)`
+  (case-folds an already-normalized name into the dedup key), and
+  `validateNewTeam(raw)` which returns a typed `NewTeamInput` (`name` +
+  `nameKey`, both derived together) or a per-field error.
 
 The Vitest runner (`pnpm test`) was added alongside the first module.
 

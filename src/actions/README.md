@@ -59,3 +59,10 @@ Actions are wired in their feature stories.
   — `ActionResult<undefined>`, the `admin-roles.ts` shape: `requireAdmin()` →
   `deleteTournamentRecord` (cascades) → `revalidatePath` → `{ ok: true }`;
   `P2025` → `{ ok: false, code: "NOT_FOUND" }`.
+- `teams.ts` — `createTeam(_prev, formData)`: `requireAdmin()` →
+  `validateNewTeam` (`src/domain/teamForm`) → `createTeamRecord` →
+  `revalidatePath("/admin/teams")` → `{}` (no redirect — the form stays on
+  `/admin/teams`, the AC's "appears in the list"). Returns `TeamFormState`
+  (`fieldErrors` / `formError`), the same shape family as `CreateTournamentState`.
+  `P2002` (via `@/data/errors`'s `isUniqueViolation`) → "Команда з такою назвою
+  вже існує.".

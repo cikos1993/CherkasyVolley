@@ -88,13 +88,13 @@ Translated from `epics.md` → Epic 2 → Story 2.6. The Ukrainian source is aut
   - [x] `export const metadata = { title: "Команди" }`. `typecheck`/`lint` clean.
 - [x] **Task 8 — `/admin` dashboard link** (AC: reachability)
   - [x] `src/app/admin/page.tsx` — added "Команди" link (`/admin/teams`) between "Турніри" and "Керування адмінами".
-- [ ] **Task 9 — Docs**
-  - [ ] `src/domain/README.md` — `teamForm.ts` entry (`normalizeTeamName`, `teamNameKey`, `validateNewTeam`).
-  - [ ] `src/data/README.md` — new `errors.ts` module entry (the extracted predicates, now shared); `teams.ts` entry (`listTeams`, `createTeamRecord`, `TEAM_NAME_KEY_INDEX`); update the `tournaments.ts` entry to say `isUniqueViolation`/`isRecordNotFound` now live in `errors.ts`.
-  - [ ] `src/actions/README.md` — `teams.ts` entry (`createTeam`, `TeamFormState` — form-state shape, no redirect, revalidates `/admin/teams`).
-  - [ ] `src/components/README.md` — `team-form.tsx` entry (single controlled field, clear-on-success + `router.refresh()`, modeled on `tournament-form.tsx`'s edit-mode success effect).
-  - [ ] `AGENTS.md` — Stack-status bullet for Story 2.6 (`Team.nameKey`, the `src/data/errors.ts` extraction, `/admin/teams`).
-  - [ ] No `ARCHITECTURE-SPINE.md` / `EXPERIENCE.md` / `epics.md` / `SPEC.md` edit — `/admin/teams` is already in the documented IA; `src/actions/team` (spine) vs. the shipped `src/actions/teams.ts` (plural, matching `tournaments.ts`/`users.ts`) is a pre-existing naming-convention gap the spine itself doesn't reconcile — not new to this story, not worth a spine edit for a filename.
+- [x] **Task 9 — Docs**
+  - [x] `src/domain/README.md` — `teamForm.ts` entry; also filled a gap left by Story 2.5 (`resolveGroupStageFields` was never added to the `tournamentForm.ts` entry there).
+  - [x] `src/data/README.md` — new `errors.ts` module entry; `teams.ts` entry; `tournaments.ts` entry updated (predicates removed, `TOURNAMENT_NATURAL_KEY_INDEX` note kept).
+  - [x] `src/actions/README.md` — `teams.ts` entry.
+  - [x] `src/components/README.md` — `team-form.tsx` entry.
+  - [x] `AGENTS.md` — Stack-status bullet for Story 2.6.
+  - [x] No `ARCHITECTURE-SPINE.md` / `EXPERIENCE.md` / `epics.md` / `SPEC.md` edit.
 - [ ] **Task 10 — `deferred-work.md` (UPDATE)**
   - [ ] Mark **resolved**: 2-1-review "`Team.name @unique` has no normalization" (this story's `nameKey`).
   - [ ] Update the "P2002 / P2003 / P2025 mapping" item: note the `src/data/errors.ts` extraction (three consumers now: `tournaments.ts` via re-import, `teams.ts`); `P2003` (deleting an entered `Team`) still has no code path to hit it — there is no team-delete action in this story — so it stays open, unchanged.
