@@ -7,6 +7,9 @@
  * in `prisma/schema.prisma`.
  */
 
+/** Must stay identical to the `TournamentState` enum in `src/domain/tournamentState.ts`. */
+type TournamentState = "DRAFT" | "GROUP_STAGE" | "PLAYOFF" | "COMPLETED";
+
 export type Discipline = "CLASSIC" | "BEACH";
 export type TournamentType = "CHAMPIONSHIP" | "VETERAN" | "WOMEN" | "YOUTH";
 export type ScoringPreset = "CLASSIC" | "CUSTOM";
@@ -67,6 +70,22 @@ function toInteger(raw: RawValue): number | null {
 
 function inRange(n: number | null, min: number, max: number): n is number {
   return n !== null && n >= min && n <= max;
+}
+
+/**
+ * Group-stage sizing (`teamCount` / `rounds`) is editable only while the
+ * tournament is `DRAFT` (Story 2.5 AC 2). Outside `DRAFT`, discard whatever
+ * was submitted and keep the tournament's current values — this is the
+ * server-side half of the lock the edit form also renders as disabled
+ * inputs, and is independent of what a request actually submits.
+ */
+export function resolveGroupStageFields(
+  state: TournamentState,
+  submitted: { teamCount: RawValue; rounds: RawValue },
+  current: { teamCount: number; rounds: number },
+): { teamCount: RawValue; rounds: RawValue } {
+  if (state === "DRAFT") return submitted;
+  return { teamCount: String(current.teamCount), rounds: String(current.rounds) };
 }
 
 export function validateNewTournament(raw: RawTournamentInput): NewTournamentValidation {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   allowedTournamentTypes,
+  resolveGroupStageFields,
   TOURNAMENT_TYPES,
   validateNewTournament,
   type RawTournamentInput,
@@ -139,5 +140,29 @@ describe("validateNewTournament — field errors", () => {
     for (const message of Object.values(result.fieldErrors)) {
       expect(message).toMatch(/[а-яіїєґ]/i);
     }
+  });
+});
+
+describe("resolveGroupStageFields", () => {
+  const submitted = { teamCount: "12", rounds: "3" };
+  const current = { teamCount: 6, rounds: 1 };
+
+  it("passes the submitted values through while DRAFT", () => {
+    expect(resolveGroupStageFields("DRAFT", submitted, current)).toEqual(submitted);
+  });
+
+  it("discards the submitted values outside DRAFT, keeping the tournament's current ones", () => {
+    for (const state of ["GROUP_STAGE", "PLAYOFF", "COMPLETED"] as const) {
+      expect(resolveGroupStageFields(state, submitted, current)).toEqual({
+        teamCount: "6",
+        rounds: "1",
+      });
+    }
+  });
+
+  it("does this even when the submitted values are missing or malformed", () => {
+    expect(resolveGroupStageFields("GROUP_STAGE", { teamCount: null, rounds: "abc" }, current)).toEqual(
+      { teamCount: "6", rounds: "1" },
+    );
   });
 });

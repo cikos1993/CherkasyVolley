@@ -34,9 +34,11 @@ function check(label: string, ok: boolean) {
 }
 
 const { id } = await createTournamentRecord(original);
-const team = await db.team.create({ data: { name: `__verify_edit_team__${stamp}` } });
+let teamId: string | null = null;
 
 try {
+  const team = await db.team.create({ data: { name: `__verify_edit_team__${stamp}` } });
+  teamId = team.id;
   const entry = await db.tournamentEntry.create({
     data: { tournamentId: id, teamId: team.id },
   });
@@ -88,9 +90,17 @@ try {
     (await db.tournamentEntry.count({ where: { tournamentId: id } })) === 0,
   );
   check("player cascade-deleted", (await db.player.count({ where: { entryId: entry.id } })) === 0);
+  check(
+    "team survives (Restrict FK — only its entry cascades, the team itself is not deleted)",
+    (await db.team.findUnique({ where: { id: teamId } })) !== null,
+  );
 } finally {
-  await db.team.delete({ where: { id: team.id } }).catch(() => undefined);
+  // Tournament first: its cascade removes any surviving `TournamentEntry`,
+  // which is what would otherwise block the team delete below (`Restrict` FK).
+  // Deleting team first would fail — and silently, under the `.catch` — if an
+  // earlier step throws before the tournament (and its entry) is gone.
   await db.tournament.delete({ where: { id } }).catch(() => undefined);
+  if (teamId) await db.team.delete({ where: { id: teamId } }).catch(() => undefined);
 }
 
 await db.$disconnect();

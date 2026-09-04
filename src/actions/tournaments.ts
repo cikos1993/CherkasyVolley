@@ -21,7 +21,11 @@ import {
   type TournamentState,
   type TransitionContext,
 } from "@/domain/tournamentState";
-import { validateNewTournament, type TournamentField } from "@/domain/tournamentForm";
+import {
+  resolveGroupStageFields,
+  validateNewTournament,
+  type TournamentField,
+} from "@/domain/tournamentForm";
 
 /**
  * The only sanctioned way to change `Tournament.state`. Validates the transition
@@ -133,15 +137,19 @@ export async function updateTournament(
     return { formError: "Турнір не знайдено." };
   }
 
-  const draft = tournament.state === "DRAFT";
+  const { teamCount, rounds } = resolveGroupStageFields(
+    tournament.state,
+    { teamCount: formData.get("teamCount"), rounds: formData.get("rounds") },
+    { teamCount: tournament.teamCount, rounds: tournament.rounds },
+  );
   const parsed = validateNewTournament({
-    discipline: "CLASSIC",
+    discipline: tournament.discipline,
     type: formData.get("type"),
     name: formData.get("name"),
     year: formData.get("year"),
     scoringPreset: formData.get("scoringPreset"),
-    teamCount: draft ? formData.get("teamCount") : String(tournament.teamCount),
-    rounds: draft ? formData.get("rounds") : String(tournament.rounds),
+    teamCount,
+    rounds,
   });
   if (!parsed.ok) return { fieldErrors: parsed.fieldErrors };
 
@@ -159,7 +167,8 @@ export async function updateTournament(
 
   revalidatePath("/admin/tournaments");
   revalidatePath(`/admin/tournaments/${tournamentId}`);
-  revalidatePath("/classic");
+  revalidatePath(tournament.discipline === "BEACH" ? "/beach" : "/classic");
+  revalidatePath("/archive");
 
   return {};
 }

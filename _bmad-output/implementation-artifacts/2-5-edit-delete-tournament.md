@@ -16,7 +16,7 @@ context:
 
 # Story 2.5: Edit and delete tournament
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -71,7 +71,7 @@ Translated from `epics.md` → Epic 2 → Story 2.5. The Ukrainian source is aut
   - [x] Keep the existing `useEffect(() => { if (state.formError) notify.error(state.formError); }, [state])` untouched (both modes share `formError` semantics — do not risk the already-reviewed create path). Add a **second, edit-only** effect for the success toast, keyed off the **falling edge of `pending`** (not `state`'s identity, which is fragile to reason about): `const wasPending = useRef(false); useEffect(() => { if (mode === "edit" && wasPending.current && !pending && !state.formError && !state.fieldErrors) { notify.success("Зміни збережено"); router.refresh(); } wasPending.current = pending; }, [pending, state, mode]);` — fires only once a real submit completes successfully (never on mount, since `wasPending.current` starts `false`); inert in create mode.
   - [x] `typecheck` + `lint` clean.
 - [x] **Task 4 — `src/components/tournament-actions.tsx` (NEW): `DeleteTournamentButton`** (AC: 3)
-  - [x] `"use client"`. Props: `{ tournamentId: string }`. Uses `ConfirmDialog` (title "Видалити турнір?", description "Турнір і всі повʼязані заявки та склади будуть видалені.", `confirmLabel="Видалити"`, `destructive`), same shape as `RevokeAdminButton` in `admin-role-controls.tsx`: `onConfirm` calls `deleteTournament(tournamentId)` (catch → `notify.error(...)` + `return false`; `!ok` → `notify.error(res.message)` + `return false`; success → `notify.success("Турнір видалено")` + `router.push("/admin/tournaments")`).
+  - [x] `"use client"`. Props: `{ tournamentId: string }`. Uses `ConfirmDialog` (title "Видалити турнір?", description "Турнір і всі повʼязані заявки та склади будуть видалені.", `confirmLabel="Видалити"`, `destructive`), same shape as `RevokeAdminButton` in `admin-role-controls.tsx`: `onConfirm` calls `deleteTournament(tournamentId)` — a **rejected** call (thrown/network failure) → `notify.error(...)` then `throw` (an unexpected exception, so `ConfirmDialog` stays open per its own throw-handling contract); a resolved `{ ok: false }` (e.g. `NOT_FOUND`) → `notify.error(res.message)` + `return false` (a handled failure, dialog stays open); success → `notify.success("Турнір видалено")` + `router.push("/admin/tournaments")`.
   - [x] Trigger: `<Button variant="destructive">Видалити турнір</Button>`.
   - [x] `typecheck` + `lint` clean.
 - [x] **Task 5 — `src/app/admin/tournaments/[id]/page.tsx` (UPDATE): inline edit + delete** (AC: 1, 2, 3)
@@ -102,6 +102,33 @@ Translated from `epics.md` → Epic 2 → Story 2.5. The Ukrainian source is aut
   - [x] **Browser walkthrough — not run** (no automated Google OAuth in this environment, same residual gap as Story 2.4's create-form walkthrough and every prior action-layer story). Coverage instead: `typecheck` + `lint` + `build` (full route tree, including the new `/admin/tournaments` list, compiles and type-checks) + the DB round-trip script above (the real AC-1/AC-3 verification) + code review. The `teamCount`/`rounds`-locked-outside-`DRAFT` UI path has no real fixture to walk (no way to reach `GROUP_STAGE`+ before Epic 3's draw) — enforcement is server-side (`updateTournament` substitutes the DB values regardless of what the client sends), verified by reading the code, not a live non-`DRAFT` tournament. Recorded in `deferred-work.md` (Task 9).
   - [x] Real command output + notes captured in the Dev Agent Record.
 - [x] **Task 11 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
+
+### Review Findings
+
+Implementation review 2026-09-04 (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor) over `git diff d4077d9..HEAD`. Acceptance Auditor: all 3 ACs met, no architecture-invariant violations. 0 decision-needed, 9 patch, 4 defer, 2 dismissed.
+
+#### Patch
+
+- [x] [Review][Patch] `updateTournament`'s DRAFT-lock substitution for `teamCount`/`rounds` has no automated coverage — the mechanism enforcing AC 2 is verified only by reading the code [src/actions/tournaments.ts:136-145]
+- [x] [Review][Patch] `updateTournament` never calls `revalidatePath("/archive")`, unlike its sibling `deleteTournament` — a renamed `COMPLETED` tournament leaves the archive page stale [src/actions/tournaments.ts:160-162]
+- [x] [Review][Patch] `updateTournament` revalidates `/classic` unconditionally instead of branching on `tournament.discipline` like `transitionTournament` does, despite already having `discipline` in hand [src/actions/tournaments.ts:162]
+- [x] [Review][Patch] `updateTournament` hardcodes `discipline: "CLASSIC"` in the validation payload instead of the tournament's actual `discipline` column [src/actions/tournaments.ts:138]
+- [x] [Review][Patch] `TournamentForm`'s props aren't a discriminated union — `mode="edit"` without `tournamentId`/`initial` type-checks cleanly but breaks at runtime via the `tournamentId!` non-null assertion [src/components/tournament-form.tsx:928-940]
+- [x] [Review][Patch] `scripts/verify-tournament-edit-delete.mts` never asserts the throwaway `Team` survives the tournament delete — a regression that accidentally cascaded `Team` too would go undetected [scripts/verify-tournament-edit-delete.mts]
+- [x] [Review][Patch] `scripts/verify-tournament-edit-delete.mts`'s `finally` cleanup deletes `Team` before `Tournament` — if an exception occurs before the final `deleteTournamentRecord` call, the still-live `TournamentEntry` blocks the team delete (Restrict FK) and the swallowed `.catch` silently leaks the team row [scripts/verify-tournament-edit-delete.mts]
+- [x] [Review][Patch] `scripts/verify-tournament-edit-delete.mts` creates the throwaway `Team` outside the `try/finally` — if `db.team.create` throws, the already-created tournament is never cleaned up [scripts/verify-tournament-edit-delete.mts]
+- [x] [Review][Patch] Task 4's description of `DeleteTournamentButton`'s failure path ("catch → notify.error + return false") doesn't match the shipped code, which throws on a rejected call and only returns `false` on `{ ok: false }` — doc-only drift, the code itself correctly matches `RevokeAdminButton`'s precedent [2-5-edit-delete-tournament.md Task 4]
+
+#### Defer
+
+- [x] [Review][Defer] TOCTOU race: `updateTournament` reads `tournament.state` once, then writes without re-checking — a concurrent `transitionTournament` could let `teamCount`/`rounds` slip through just after the tournament leaves `DRAFT` [src/actions/tournaments.ts:131-149] — deferred, same accepted risk class as the existing "No atomic transition" item (2.3 review), extended to this writer
+- [x] [Review][Defer] Editing a `COMPLETED`/archived tournament's name/year/type/preset gets no extra confirmation, unlike delete [src/actions/tournaments.ts] — deferred, extends this story's own already-decided "no delete-state-restriction" call to the edit surface
+- [x] [Review][Defer] `/admin/tournaments` has no pagination/search/filter and will become unwieldy as tournaments accumulate across seasons [src/app/admin/tournaments/page.tsx] — deferred, same class as the existing `/admin/people` unbounded-list item
+- [x] [Review][Defer] `updateTournament`'s `getTournamentForAdmin` read and `updateTournamentRecord`'s unmapped-error branch aren't wrapped in a unified catch — an unexpected DB error propagates unhandled [src/actions/tournaments.ts:131,150-158] — deferred, pre-existing pattern identical to `createTournament`'s already-accepted design (Story 2.4) for `CreateTournamentState`-shaped actions
+
+#### Dismissed as noise / by design (2)
+
+`DeleteTournamentButton` doesn't auto-navigate away on a `NOT_FOUND` result — matches `RevokeAdminButton`'s established stay-open-on-`!ok` behavior exactly, not a deviation · `listTournamentsForAdmin` selects `discipline` but the list page doesn't render it — negligible; matches the project's pattern of carrying `discipline` through the data model even where inert for v1 (AD-9).
 
 ## Dev Notes
 
@@ -253,13 +280,18 @@ claude-sonnet-5
 
 **Modified**
 - `src/data/tournaments.ts` — `listTournamentsForAdmin`, `updateTournamentRecord`, `deleteTournamentRecord`, `isRecordNotFound`
-- `src/actions/tournaments.ts` — `updateTournament`, `deleteTournament`; `createTournament` gains one `revalidatePath`
-- `src/components/tournament-form.tsx` — `mode="edit"` support
+- `src/actions/tournaments.ts` — `updateTournament`, `deleteTournament`; `createTournament` gains one `revalidatePath`; review fix pass: uses `resolveGroupStageFields`, `tournament.discipline` (not hardcoded `"CLASSIC"`), revalidates `/archive` and branches `/classic`/`/beach`
+- `src/components/tournament-form.tsx` — `mode="edit"` support; review fix pass: `TournamentFormProps` discriminated union (no `tournamentId!` assertion)
+- `src/domain/tournamentForm.ts` — review fix pass: new `resolveGroupStageFields` (pure, unit-tested)
+- `src/domain/tournamentForm.test.ts` — review fix pass: 3 new tests for `resolveGroupStageFields`
 - `src/app/admin/tournaments/[id]/page.tsx` — inline edit form + delete button
 - `src/app/admin/page.tsx` — dashboard link
 - `src/data/README.md` · `src/actions/README.md` · `src/components/README.md` · `AGENTS.md`
 - `_bmad-output/implementation-artifacts/deferred-work.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+**Modified (review fix pass only)**
+- `scripts/verify-tournament-edit-delete.mts` — team creation moved inside `try`, cleanup order reversed (tournament before team), added a "team survives" assertion (15/15 checks)
 
 ## Change Log
 
@@ -276,3 +308,4 @@ claude-sonnet-5
 | 2026-09-04 | Task 8 — README + `AGENTS.md` updates. |
 | 2026-09-04 | Task 9 — `deferred-work.md`: resolved/narrowed carried items, new "Story 2.5 implementation" section. |
 | 2026-09-04 | Task 10 — verification gate green (`test`/`typecheck`/`lint`/`build`); new `scripts/verify-tournament-edit-delete.mts` 14/14 live; `verify-tournament-create.mts` re-run 13/13 (no regression). Browser walkthrough not run (no OAuth automation), documented as a residual gap. |
+| 2026-09-04 | `bmad-code-review` (4 layers) over `git diff d4077d9..HEAD`. 0 decision-needed, 9 patch, 4 defer, 2 dismissed. Fixed: `updateTournament`'s DRAFT-lock now goes through a new pure `resolveGroupStageFields` (`src/domain/tournamentForm.ts`, 3 new Vitest cases — closes the AC-2 automated-coverage gap 3 layers converged on); `updateTournament` now revalidates `/archive` and branches `/classic`/`/beach` on `tournament.discipline`; validation payload uses the tournament's real `discipline` instead of a hardcoded `"CLASSIC"`; `TournamentForm`'s props are now a discriminated union (`tournamentId!` assertion removed); `scripts/verify-tournament-edit-delete.mts` — team creation moved inside `try`, cleanup order reversed (tournament before team, avoiding a Restrict-FK deadlock in the swallowed `.catch`), added a "team survives" assertion (15/15 checks). 4 items added to `deferred-work.md` (TOCTOU on the DRAFT lock, no extra friction editing a `COMPLETED` tournament, `/admin/tournaments` has no pagination, `updateTournament`'s unmapped-error path — the last three deliberately left as-is, matching precedents this story or Story 2.4 already established). Gate re-run clean: `test` 42/42, `typecheck`, `lint`, `build`; both verify scripts green (13/13, 15/15). Status → done. |

@@ -86,26 +86,29 @@ function Field({
   );
 }
 
-export function TournamentForm({
-  mode = "create",
-  tournamentId,
-  initial,
-  locked = [],
-}: {
-  mode?: "create" | "edit";
-  tournamentId?: string;
-  initial?: FormValues;
-  locked?: readonly TournamentField[];
-}) {
+type TournamentFormProps =
+  | { mode?: "create" }
+  | {
+      mode: "edit";
+      tournamentId: string;
+      initial: FormValues;
+      locked?: readonly TournamentField[];
+    };
+
+export function TournamentForm(props: TournamentFormProps) {
+  const mode = props.mode ?? "create";
   const router = useRouter();
-  const action = mode === "edit" ? updateTournament.bind(null, tournamentId!) : createTournament;
+  const action = props.mode === "edit" ? updateTournament.bind(null, props.tournamentId) : createTournament;
   const [state, formAction, pending] = useActionState(action, {});
   const { fieldErrors } = state;
+  const locked = props.mode === "edit" ? (props.locked ?? []) : [];
 
   // Controlled fields — React 19 resets an uncontrolled `<form action>` on
   // submit (and the base-ui Input ignores a changed `defaultValue`). Controlled
   // state is untouched by the reset, so a rejected submit keeps the user's input.
-  const [form, setForm] = useState<FormValues>(() => initial ?? initialValues());
+  const [form, setForm] = useState<FormValues>(() =>
+    props.mode === "edit" ? props.initial : initialValues(),
+  );
 
   useEffect(() => {
     // Depend on `state` (a new object every submit), not `formError` alone —
