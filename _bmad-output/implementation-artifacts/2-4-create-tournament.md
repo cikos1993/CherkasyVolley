@@ -114,11 +114,11 @@ Translated from `epics.md` → Epic 2 → Story 2.4. The Ukrainian source is aut
   - [x] User confirmed. `pnpm prisma migrate dev` **refuses non-interactive mode** here — the "unique constraint … will be added" warning forces an interactive prompt (even with `--create-only`). Used the documented fallback: hand-wrote `prisma/migrations/20260904160000_tournament_group_and_natural_key/migration.sql` from the pre-flight `migrate diff --script` output (verbatim — `CREATE TABLE "group"` + 2 `CREATE UNIQUE INDEX` + FK, no `DROP`/`ALTER`), then `pnpm prisma migrate deploy` (non-interactive) applied it to Neon.
   - [x] `pnpm prisma migrate status` → "Database schema is up to date!"; `migrate diff --exit-code` → "No difference detected."
   - [x] `scripts/db-check.mts` — `db.group.count()` added; `pnpm exec tsx scripts/db-check.mts` → `groups: 0`, all tables still 0.
-- [ ] **Task 4 — `src/data/tournaments.ts` (UPDATE): `createTournamentRecord`** (AC: 1, 2, 4)
-  - [ ] `import type { NewTournamentInput } from "@/domain/tournamentForm"` — the `data → domain` type import is allowed (lint does not block it; `src/README.md` sanctions `data → domain` for read-time computation, and a type import is inert). Alternatively keep the input type local to `src/data` — dev's call; prefer the shared domain type to avoid a third declaration.
-  - [ ] `export function createTournamentRecord(input: NewTournamentInput): Promise<{ id: string }>` — `db.tournament.create({ data: { discipline: input.discipline, type: input.type, name: input.name, year: input.year, scoringPreset: input.scoringPreset, teamCount: input.teamCount, rounds: input.rounds, group: { create: {} } }, select: { id: true } })`. The nested `group: { create: {} }` makes the `Tournament` + `Group` insert one atomic statement. **No `state`** — it defaults to `DRAFT`.
-  - [ ] Doc comment: the sole creator of a `Tournament` (+ its `Group`); `state` is never set here (defaults `DRAFT`; changed only by `transitionTournament`).
-  - [ ] Lint: `src/data/**` imports only `@/data/client` + generated types + (now) a `@/domain` type. No `next` / `react` / `actions` / `auth`.
+- [x] **Task 4 — `src/data/tournaments.ts` (UPDATE): `createTournamentRecord`** (AC: 1, 2, 4)
+  - [x] `import type { NewTournamentInput } from "@/domain/tournamentForm"` — first `data → domain` import in the codebase; lint passes (the `src/data/**` block does not list `@/domain`).
+  - [x] `createTournamentRecord(input)` → `db.tournament.create({ data: { …7 fields…, group: { create: {} } }, select: { id: true } })` — Tournament + Group in one atomic insert. No `state` (defaults `DRAFT`). The domain unions are assignable to the Prisma enum fields (structurally identical — enforced at this call site).
+  - [x] `isUniqueViolation(error)` — `error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"` (`Prisma` re-exported from `@/generated/prisma/client`; Prisma coupling stays in `src/data`).
+  - [x] Doc comments added. `typecheck` + `lint` clean.
 - [ ] **Task 5 — `src/actions/tournaments.ts` (UPDATE): `createTournament`** (AC: 3, 4)
   - [ ] `"use server"` (already at the top of the file). Add imports: `redirect` from `next/navigation`, `validateNewTournament` + `type NewTournamentInput` from `@/domain/tournamentForm`, `createTournamentRecord` from `@/data/tournaments`, `AdminRequiredError` from `@/auth/requireAdmin` (for the narrowed catch). Keep the existing `transitionTournament` untouched.
   - [ ] `export type CreateTournamentState = { fieldErrors?: Partial<Record<keyof NewTournamentInput, string>>; formError?: string; values?: Partial<Record<keyof NewTournamentInput, string>> }`.
@@ -319,6 +319,7 @@ claude-sonnet-5
 - **Task 1:** `src/components/ui/input.tsx` (rounded-sm), `src/components/ui/label.tsx` — the two shadcn form primitives, `cn` imports corrected. No `select.tsx` — the form uses a styled native `<select>` (AC-sanctioned; simpler + `FormData`-native inside `<form action>`). Bogus `cn@0.2.4` dependency removed.
 - **Task 2:** `src/domain/tournamentForm.ts` — `allowedTournamentTypes(discipline)` (CLASSIC → 4 types, BEACH → none), numeric bounds (`YEAR` 2000–2100, `TEAM_COUNT` 4–64, `ROUNDS` 1–10, `NAME_MAX` 120), `validateNewTournament(raw)` returning `{ ok, value }` or `{ ok, fieldErrors }` with all failing fields collected. `toInteger` rejects floats / non-numerics. 14-test spec.
 - **Task 3:** `Group` model (`tournamentId @unique` — one group per tournament in v1; `onDelete: Cascade`); `Tournament.group Group?` + `@@unique([discipline, type, year, name])`. Migration `20260904160000_tournament_group_and_natural_key` hand-written (non-interactive `migrate dev` block) + `migrate deploy`. `db-check.mts` + `db.group.count()`.
+- **Task 4:** `src/data/tournaments.ts` — `createTournamentRecord(input)` (Tournament + nested `group: { create: {} }`, `select: { id }`, no `state`) and `isUniqueViolation(error)` (P2002). First `data → domain` type import (`NewTournamentInput`) — lint-clean.
 
 ### File List
 
@@ -332,6 +333,7 @@ claude-sonnet-5
 **Modified**
 - `prisma/schema.prisma` — `Group` model, `Tournament.group` relation, `@@unique` natural key
 - `scripts/db-check.mts` — `db.group.count()`
+- `src/data/tournaments.ts` — `createTournamentRecord`, `isUniqueViolation`
 - `package.json` / `pnpm-lock.yaml` — removed the stray `cn` dep (Task 1)
 
 ## Change Log
@@ -342,3 +344,4 @@ claude-sonnet-5
 | 2026-09-04 | Task 1 — shadcn `input` / `label` primitives (`cn` import + radius fixed; bogus `cn` npm dep removed); native `<select>` chosen over the base-ui popover. `bmad-dev-story`. |
 | 2026-09-04 | Task 2 — `src/domain/tournamentForm.ts` (`allowedTournamentTypes`, bounds, `validateNewTournament`) + 14-test spec. `pnpm test` 39/39. |
 | 2026-09-04 | Task 3 — `Group` model + `Tournament` natural key `@@unique([discipline, type, year, name])`; migration `20260904160000_tournament_group_and_natural_key` (hand-written + `migrate deploy` — non-interactive `migrate dev` blocked by the constraint warning). `db-check.mts` + `groups`. `migrate status` / `diff` in sync. |
+| 2026-09-04 | Task 4 — `src/data/tournaments.ts`: `createTournamentRecord` (Tournament + Group, no `state`) + `isUniqueViolation`. |
