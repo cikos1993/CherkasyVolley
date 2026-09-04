@@ -99,8 +99,13 @@ option lists and the `min` / `max` bounds; `src/lib/tournament-labels` supplies
 the Ukrainian option text.
 
 **Form-reset workaround (UX-DR11):** React 19 clears an uncontrolled
-`<form action>` on submit. The action echoes every raw field string back in
-`state.values`, and each control's `defaultValue` reads from it — so a failed
-submit keeps the user's input. Per-field errors come back in `state.fieldErrors`
-(wired to the control via `aria-invalid` / `aria-describedby`); a whole-form
-error (`state.formError` — auth, duplicate name) fires `notify.error`.
+`<form action>` on submit. The planned fix — the action echoing values back and
+each control reading `defaultValue` from them — does not work here: `@base-ui/react`'s
+`Input` rejects a `defaultValue` that changes after mount (logs an error and
+ignores it). The form is **fully controlled** instead (a local `useState` with
+`value` / `onChange` on every field); React never clears controlled state, so a
+rejected submit keeps the user's input with no echo needed. Per-field errors
+come back in `state.fieldErrors` (wired to the control via `aria-invalid` /
+`aria-describedby`); a whole-form error (`state.formError` — auth, duplicate
+name) fires `notify.error`, keyed on the whole `state` object so two identical
+error strings in a row both toast.

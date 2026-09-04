@@ -43,7 +43,11 @@ try {
 
   let duplicateRejected = false;
   try {
-    await createTournamentRecord(input);
+    const duplicate = await createTournamentRecord(input);
+    // The constraint was supposed to reject this — if it did not, the row it
+    // just created is a second, untracked tournament. Clean it up too so a
+    // regression here does not itself leave debris behind.
+    await db.tournament.delete({ where: { id: duplicate.id } });
   } catch (error) {
     duplicateRejected = isUniqueViolation(error);
   }

@@ -5,11 +5,11 @@ import { getTournamentForAdmin } from "@/data/tournaments";
 import { LABELS as STATE_LABELS } from "@/domain/tournamentState";
 import { SCORING_PRESET_LABELS, TOURNAMENT_TYPE_LABELS } from "@/lib/tournament-labels";
 
-export async function generateMetadata({ params }: PageProps<"/admin/tournaments/[id]">) {
-  const { id } = await params;
-  const tournament = await getTournamentForAdmin(id);
-  return { title: tournament?.name ?? "Турнір" };
-}
+// A static title, not `generateMetadata` reading the tournament: Next resolves
+// metadata in a pass separate from the tree the `/admin` layout's auth redirect
+// runs in, so a per-tournament title here would read admin-only data — and leak
+// a draft tournament's name in <title> — ahead of that gate.
+export const metadata = { title: "Турнір" };
 
 export default async function AdminTournamentPage({
   params,

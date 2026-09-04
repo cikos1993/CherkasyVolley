@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  NAME_MAX,
   ROUNDS_MAX,
   ROUNDS_MIN,
   SCORING_PRESETS,
@@ -27,15 +28,20 @@ const selectClassName =
 
 type FormValues = Record<TournamentField, string>;
 
-const INITIAL: FormValues = {
-  discipline: "CLASSIC",
-  type: TOURNAMENT_TYPES[0],
-  name: "",
-  year: String(new Date().getFullYear()),
-  scoringPreset: SCORING_PRESETS[0],
-  teamCount: "",
-  rounds: "1",
-};
+// A function, not a module-level constant — `year` must be read per mount
+// (per request when server-rendered), not once when the module is first
+// loaded into a long-lived server process.
+function initialValues(): FormValues {
+  return {
+    discipline: "CLASSIC",
+    type: TOURNAMENT_TYPES[0],
+    name: "",
+    year: String(new Date().getFullYear()),
+    scoringPreset: SCORING_PRESETS[0],
+    teamCount: "",
+    rounds: "1",
+  };
+}
 
 function Field({
   name,
@@ -72,16 +78,19 @@ function Field({
 
 export function TournamentForm() {
   const [state, formAction, pending] = useActionState(createTournament, {});
-  const { fieldErrors, formError } = state;
+  const { fieldErrors } = state;
 
   // Controlled fields — React 19 resets an uncontrolled `<form action>` on
   // submit (and the base-ui Input ignores a changed `defaultValue`). Controlled
   // state is untouched by the reset, so a rejected submit keeps the user's input.
-  const [form, setForm] = useState<FormValues>(INITIAL);
+  const [form, setForm] = useState<FormValues>(initialValues);
 
   useEffect(() => {
-    if (formError) notify.error(formError);
-  }, [formError]);
+    // Depend on `state` (a new object every submit), not `formError` alone —
+    // two consecutive submits can return the identical error string, which
+    // would not be a new dependency value and would silently skip the toast.
+    if (state.formError) notify.error(state.formError);
+  }, [state]);
 
   const bind = (field: TournamentField) => ({
     value: form[field],
@@ -104,7 +113,7 @@ export function TournamentForm() {
       </Field>
 
       <Field name="name" label="Назва" error={fieldErrors?.name}>
-        {(props) => <Input {...props} {...bind("name")} name="name" maxLength={120} />}
+        {(props) => <Input {...props} {...bind("name")} name="name" maxLength={NAME_MAX} />}
       </Field>
 
       <Field name="year" label="Рік" error={fieldErrors?.year}>

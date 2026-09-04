@@ -42,5 +42,7 @@ Actions are wired in their feature stories.
   `createTournament(_prev, formData)` — a `useActionState` action:
   `requireAdmin()` → `validateNewTournament` (`src/domain/tournamentForm`) →
   `createTournamentRecord` → `redirect` to the new tournament page. Returns
-  `CreateTournamentState` (`fieldErrors` + echoed `values`, or `formError`) — not
-  `ActionResult`; forms and `ActionResult` are different surfaces.
+  `CreateTournamentState` (`fieldErrors`, or `formError`) — not `ActionResult`;
+  forms and `ActionResult` are different surfaces. The form keeps the user's
+  input on a rejected submit via controlled state on its side, not by echoing
+  values back through this type — see `src/components/README.md`.
