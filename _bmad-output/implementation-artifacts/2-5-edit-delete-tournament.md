@@ -78,11 +78,11 @@ Translated from `epics.md` → Epic 2 → Story 2.5. The Ukrainian source is aut
   - [x] Replace the static `<dl>` with `<TournamentForm mode="edit" tournamentId={id} initial={{...}} locked={tournament.state === "DRAFT" ? [] : ["teamCount", "rounds"]} key={tournament.updatedAt.getTime()} />` followed by `<DeleteTournamentButton tournamentId={id} />` in its own section (visually separated — a destructive action below the save form, not beside it, so it can't be mis-clicked as "save"). `initial` maps every DB field to its string form (`String(tournament.year)`, etc. — the form's `FormValues` are all strings, same as create's `initial`).
   - [x] Keep the state label (`STATE_LABELS[tournament.state]`) as read-only text near the top — `state` itself is never editable here (AD-8; only `transitionTournament` changes it, out of this story's scope).
   - [x] `export const metadata = { title: "Турнір" }` stays static (the 2.4 story's rationale for not reading tournament data ahead of the layout's auth gate still holds).
-- [ ] **Task 6 — `src/app/admin/tournaments/page.tsx` (NEW): admin tournament list** (AC: reachability — carried finding from the 2.4 review)
-  - [ ] Server Component. `await listTournamentsForAdmin()`. Back-link to `/admin`, `<h1>Турніри</h1>`, a "Створити турнір" link (`/admin/tournaments/new`) near the top.
-  - [ ] Empty (`length === 0`): a plain paragraph, same weight as `/admin/people`'s "Ще ніхто не входив." — `Ще немає турнірів.` (do **not** reuse `NO_TOURNAMENTS` from `@/lib/empty-states` — that copy ("Активні турніри зʼявляться тут, коли їх створить адміністратор.") is viewer-voiced, for the public `/classic` empty state (Story 2.9); an admin looking at their own empty list needs the create-CTA, not that sentence).
-  - [ ] Non-empty: a `<ul>` of rows (name, type label, year, state label), each row a `<Link href={\`/admin/tournaments/${t.id}\`}>`, same `divide-y` list shell as `/admin/people`.
-  - [ ] `export const metadata = { title: "Турніри" }`.
+- [x] **Task 6 — `src/app/admin/tournaments/page.tsx` (NEW): admin tournament list** (AC: reachability — carried finding from the 2.4 review)
+  - [x] Server Component. `await listTournamentsForAdmin()`. Back-link to `/admin`, `<h1>Турніри</h1>`, a "Створити турнір" link (`/admin/tournaments/new`) near the top.
+  - [x] Empty (`length === 0`): a plain paragraph, same weight as `/admin/people`'s "Ще ніхто не входив." — `Ще немає турнірів.` (do **not** reuse `NO_TOURNAMENTS` from `@/lib/empty-states` — that copy ("Активні турніри зʼявляться тут, коли їх створить адміністратор.") is viewer-voiced, for the public `/classic` empty state (Story 2.9); an admin looking at their own empty list needs the create-CTA, not that sentence).
+  - [x] Non-empty: a `<ul>` of rows (name, type label, year, state label), each row a `<Link href={\`/admin/tournaments/${t.id}\`}>`, same `divide-y` list shell as `/admin/people`.
+  - [x] `export const metadata = { title: "Турніри" }`.
 - [ ] **Task 7 — `src/app/admin/page.tsx` (UPDATE): dashboard link** (AC: reachability)
   - [ ] Replace the "Створити турнір" link with a "Турніри" link to `/admin/tournaments` (the list is now the single entry point; the list page itself carries the "Створити турнір" link — Task 6).
 - [ ] **Task 8 — Docs**
