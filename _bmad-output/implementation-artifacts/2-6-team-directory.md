@@ -16,7 +16,7 @@ context:
 
 # Story 2.6: Team directory
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -99,14 +99,15 @@ Translated from `epics.md` → Epic 2 → Story 2.6. The Ukrainian source is aut
   - [x] Marked **resolved**: 2-1-review "`Team.name @unique` has no normalization".
   - [x] Updated the "P2002 / P2003 / P2025 mapping" item: the `src/data/errors.ts` extraction, `Team.nameKey` now using `isUniqueViolation`; `P2003` stays open (no team-delete action exists).
   - [x] Added a **"Story 2.6 implementation"** section: no team edit/delete; `createTeam` untested at the action layer; `team-form.tsx`'s success effect untested at the component layer.
-- [ ] **Task 11 — Verification gate** (AC: all)
-  - [ ] `pnpm test` (existing 2 domain files + the new `teamForm.test.ts`) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean.
-  - [ ] Route table — `/admin/teams` (NEW, `ƒ`) added; rest unchanged from Story 2.5's table.
-  - [ ] Import-boundary greps: Prisma client only in `src/data/**`; no new `next`/`react` import in `src/domain/**`.
-  - [ ] `scripts/verify-team-create.mts` (NEW, self-cleaning, same style as `verify-tournament-create.mts`): create a throwaway team → assert `name` stored (trimmed/collapsed) and `nameKey` case-folded correctly → attempt a case/whitespace-different duplicate (`"  спартак  черкаси  "` vs. the original `"Спартак Черкаси"`) → assert it is rejected as `P2002` via `isUniqueViolation(error, TEAM_NAME_KEY_INDEX)` → delete the throwaway team, confirm gone.
-  - [ ] **Browser walkthrough — expect not run** (no automated Google OAuth in this environment, the same residual gap carried since Story 2.4). Coverage instead: `typecheck`/`lint`/`build` (full route tree including `/admin/teams`) + the verify script (the real AC-1/AC-2 check) + code review.
-  - [ ] Capture real command output + notes in the Dev Agent Record.
-- [ ] **Task 12 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
+- [x] **Task 11 — Verification gate** (AC: all)
+  - [x] `pnpm test` → 3 files, 51/51 · `pnpm typecheck` · `pnpm lint` · `pnpm build` — all clean.
+  - [x] Route table — `/admin/teams` (NEW, `ƒ`) added; rest unchanged from Story 2.5's table.
+  - [x] Import-boundary greps: no Prisma import outside `src/data/**`; `src/domain/**` free of `next`/`react`.
+  - [x] `scripts/verify-team-create.mts` (NEW, self-cleaning): create a throwaway team → assert `name` trimmed/collapsed and `nameKey` case-folded → a re-cased, re-whitespaced "duplicate" rejected as `P2002` via `isUniqueViolation(error, TEAM_NAME_KEY_INDEX)` → delete, confirm gone. 5/5 live.
+  - [x] All three verify scripts re-run together: `verify-tournament-create.mts` 13/13, `verify-tournament-edit-delete.mts` 15/15, `verify-team-create.mts` 5/5 — no regression from the `errors.ts` extraction or the `Team.nameKey` migration.
+  - [x] **Browser walkthrough — not run** (no automated Google OAuth in this environment, same residual gap carried since Story 2.4). Coverage instead: `typecheck`/`lint`/`build` (full route tree including `/admin/teams`) + the verify scripts (the real AC-1/AC-2 check) + code review.
+  - [x] Real command output captured in the Dev Agent Record.
+- [x] **Task 12 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
 
 ## Dev Notes
 
@@ -224,14 +225,69 @@ No `project-context.md`. Binding docs: `epics.md` (Story 2.6 AC, FR-8), `glossar
 
 ### Agent Model Used
 
+claude-sonnet-5
+
 ### Debug Log References
+
+**Task 1 — migration.** `pnpm prisma migrate dev` non-interactive-blocked as predicted (drop-unique/add-unique warning). Fallback: `migrate diff --script` → hand-wrote `20260904200627_team_name_key/migration.sql` → `migrate deploy`. Clean apply; `migrate status`/`diff` in sync.
+
+**Task 2 — side effect.** `scripts/verify-tournament-edit-delete.mts` (Story 2.5) creates a throwaway `Team` via a raw `db.team.create` (not `createTeamRecord`) — Task 1's `nameKey NOT NULL` column broke its `typecheck`. Fixed by supplying `nameKey: teamName.toLowerCase()` at that one call site; unrelated to this story's own domain logic, required for the build to stay green.
+
+**Task 2/4 — design refinement.** Originally planned `NewTeamInput = { name: string }` with `createTeamRecord` calling `teamNameKey()` itself (a `data → domain` function-call edge, not just a type). Switched `NewTeamInput` to `{ name, nameKey }`, both computed once in `validateNewTeam`, so `createTeamRecord` only needs a type-only import — matches the `NewTournamentInput` precedent (Story 2.4) exactly rather than introducing a wider edge. `TeamField` stays `"name"` (not `keyof NewTeamInput`) so `nameKey` can never appear in `FieldErrors`.
+
+**Task 11 — verification.** `verify-team-create.mts` (5/5), plus both Story 2.5 scripts re-run unchanged (13/13, 15/15) to confirm the `errors.ts` extraction and the `Team.nameKey` migration caused no regression. `pnpm build` route table: `/admin/teams` new `ƒ`, rest identical to Story 2.5's table.
 
 ### Completion Notes List
 
+- **Task 1:** `Team.name` drops `@unique`; `Team.nameKey String @unique` added. Migration `20260904200627_team_name_key` (hand-written + `migrate deploy`). `db-check.mts` unaffected (`teams: 0`).
+- **Task 2:** `src/domain/teamForm.ts` — `normalizeTeamName`, `teamNameKey`, `validateNewTeam` (`NewTeamInput = { name, nameKey }`). 9 Vitest cases. Fixed a Story 2.5 script's raw `db.team.create` for the new `NOT NULL` column.
+- **Task 3:** `src/data/errors.ts` (NEW) — `isUniqueViolation`, `isRecordNotFound` moved from `tournaments.ts`; both `src/actions/tournaments.ts` and the two `scripts/verify-tournament-*.mts` updated to the new import path. Zero behavior change (13/13 + 15/15 unchanged).
+- **Task 4:** `src/data/teams.ts` (NEW) — `listTeams`, `createTeamRecord`, `TEAM_NAME_KEY_INDEX`.
+- **Task 5:** `src/actions/teams.ts` (NEW) — `createTeam` + `TeamFormState`. `requireAdmin` → `validateNewTeam` → `createTeamRecord` → `revalidatePath("/admin/teams")` → `{}` (no redirect).
+- **Task 6:** `src/components/team-form.tsx` (NEW) — single controlled field, `formError` toast, clear-on-success + `notify.success` + `router.refresh()` via the falling-edge-of-`pending` technique.
+- **Task 7:** `src/app/admin/teams/page.tsx` (NEW) — create form + list, single page. Plain-paragraph empty state (not `NO_TEAMS`).
+- **Task 8:** `/admin` dashboard gained a "Команди" link.
+- **Task 9:** README updates in `src/{domain,data,actions,components}` + `AGENTS.md`; also backfilled a Story 2.5 documentation gap (`resolveGroupStageFields` was missing from `src/domain/README.md`).
+- **Task 10:** `deferred-work.md` — resolved the `Team.name` normalization item, updated the P2002/P2003/P2025 mapping item, added a "Story 2.6 implementation" section (no team edit/delete, 2 untested-layer gaps).
+- **Task 11:** `pnpm test` 3/3 files (51/51) · `typecheck` · `lint` · `build` (route table: `/admin/teams` new `ƒ`) — all clean. New `scripts/verify-team-create.mts` 5/5 live. All three verify scripts re-run together: 13/13 + 15/15 + 5/5, no regression. Browser walkthrough not run (no OAuth automation) — same residual gap as every prior story.
+
 ### File List
+
+**New**
+- `prisma/migrations/20260904200627_team_name_key/migration.sql`
+- `src/domain/teamForm.ts`
+- `src/domain/teamForm.test.ts`
+- `src/data/errors.ts`
+- `src/data/teams.ts`
+- `src/actions/teams.ts`
+- `src/components/team-form.tsx`
+- `src/app/admin/teams/page.tsx`
+- `scripts/verify-team-create.mts`
+
+**Modified**
+- `prisma/schema.prisma` — `Team.name` drops `@unique`; `Team.nameKey` added
+- `src/data/tournaments.ts` — `isUniqueViolation`/`isRecordNotFound` removed (moved to `errors.ts`), unused `Prisma` import removed
+- `src/actions/tournaments.ts` — import path for the two predicates updated
+- `scripts/verify-tournament-create.mts` — import path for `isUniqueViolation` updated
+- `scripts/verify-tournament-edit-delete.mts` — import path for `isRecordNotFound` updated; raw `db.team.create` supplies `nameKey`
+- `src/app/admin/page.tsx` — "Команди" link
+- `src/domain/README.md` · `src/data/README.md` · `src/actions/README.md` · `src/components/README.md` · `AGENTS.md`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ## Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-04 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
+| 2026-09-04 | Task 1 — `Team.nameKey` migration (hand-written + `migrate deploy`, non-interactive `migrate dev` blocked as expected). `bmad-dev-story`. |
+| 2026-09-04 | Task 2 — `src/domain/teamForm.ts` (`normalizeTeamName`, `teamNameKey`, `validateNewTeam`) + 9 Vitest cases. Design refinement: `NewTeamInput` carries `name`+`nameKey` together (type-only `data → domain` edge). |
+| 2026-09-04 | Task 3 — `src/data/errors.ts`: `isUniqueViolation`/`isRecordNotFound` extracted from `tournaments.ts`. Zero behavior change (verify scripts unchanged). |
+| 2026-09-04 | Task 4 — `src/data/teams.ts`: `listTeams`, `createTeamRecord`, `TEAM_NAME_KEY_INDEX`. |
+| 2026-09-04 | Task 5 — `src/actions/teams.ts`: `createTeam` Server Action. |
+| 2026-09-04 | Task 6 — `src/components/team-form.tsx`: single controlled field, clear-on-success. |
+| 2026-09-04 | Task 7 — `/admin/teams` (NEW): create form + list, single page. |
+| 2026-09-04 | Task 8 — `/admin` dashboard links to "Команди". |
+| 2026-09-04 | Task 9 — README + `AGENTS.md` updates; backfilled a Story 2.5 doc gap. |
+| 2026-09-04 | Task 10 — `deferred-work.md`: resolved the `Team.name` normalization item, updated P2002/P2003/P2025 mapping, new "Story 2.6 implementation" section. |
+| 2026-09-04 | Task 11 — verification gate green; new `scripts/verify-team-create.mts` (5/5). All three verify scripts re-run together, no regression. |
