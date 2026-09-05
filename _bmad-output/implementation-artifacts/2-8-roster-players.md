@@ -93,13 +93,14 @@ Translated from `epics.md` → Epic 2 → Story 2.8. The Ukrainian source is aut
   - [x] No `ARCHITECTURE-SPINE.md` / `EXPERIENCE.md` / `epics.md` / `SPEC.md` edit — the new route extends the documented `/admin/tournaments/**` prefix; no new invariant.
 - [x] **Task 10 — `deferred-work.md` (UPDATE)**
   - [x] Add a **"Story 2.8 implementation"** section: `addPlayer`/`editPlayer`/`removePlayer` have no automated action-level test (same class as every prior action); `player-form.tsx`/`roster.tsx` untested at the component layer; no roster-size cap (SPEC gives none, not required); no public roster read yet (`listPlayersForEntry` is admin-only in this story — Story 2.9's decision).
-- [ ] **Task 11 — Verification gate** (AC: all)
-  - [ ] `pnpm test` (existing 4 domain files + the new `playerForm.test.ts`) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean.
-  - [ ] Route table — `/admin/tournaments/[id]/entries/[entryId]` (NEW, `ƒ`) added; rest unchanged.
-  - [ ] Import-boundary greps: no new Prisma import site outside `src/data/**`; `src/domain/**` free of `next`/`react`.
-  - [ ] `scripts/verify-roster.mts` (NEW, self-cleaning, same style as the prior verify scripts): create a throwaway tournament + team + entry → `createPlayer` with only `fullName` → assert all optional fields are `null` and not just missing → `createPlayer` a second player with every field filled → assert stored verbatim → `updatePlayer` the first player's `sportRank` → assert it updated and other fields untouched → **assert `updatePlayer`/`deletePlayer` scoped to a *different*, throwaway entry's id return `{ count: 0 }` and change nothing** (the direct regression test for the Story 2.7 lesson this story applies) → `deletePlayer` one player → assert gone, the other survives → delete the tournament (cascades team? no — cascades entry+players; delete the team separately) and confirm nothing orphaned.
-  - [ ] **Browser walkthrough — expect not run** (no automated Google OAuth in this environment, the same residual gap carried since Story 2.4). Coverage instead: `typecheck`/`lint`/`build` + the verify script (the real AC-1/AC-2/AC-4 check) + code review.
-  - [ ] Capture real command output + notes in the Dev Agent Record.
+- [x] **Task 11 — Verification gate** (AC: all)
+  - [x] `pnpm test` (existing 4 domain files + the new `playerForm.test.ts`) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean. `pnpm test`: 5 test files, 68/68 passed.
+  - [x] Route table — `/admin/tournaments/[id]/entries/[entryId]` (NEW, `ƒ`) added; rest unchanged (confirmed against Task 7's build output).
+  - [x] Import-boundary greps: no new Prisma import site outside `src/data/**` (only the generated client's own self-imports under `src/generated/prisma/**` match); `src/domain/**` free of `next`/`react`.
+  - [x] `scripts/verify-roster.mts` (NEW, self-cleaning) — 15/15 checks passed: `createPlayer` with only `fullName` → every optional field `null`; a second player with every field filled → stored verbatim; `updatePlayer` one field → updated, others untouched; **`updatePlayer`/`deletePlayer` scoped to a different, throwaway entry's id → `{count: 0}`, nothing changed** (the Story 2.7 lesson's direct regression test); `deletePlayer` one player → gone, the other survives; full teardown, no orphans.
+  - [x] Re-ran all four prior verify scripts (`verify-tournament-create.mts`, `verify-tournament-edit-delete.mts`, `verify-team-create.mts`, `verify-team-enrollment.mts`) — all green, no cross-story regression.
+  - [x] **Browser walkthrough — not run** (no automated Google OAuth in this environment, the same residual gap carried since Story 2.4). Coverage instead: `typecheck`/`lint`/`build` + the verify script (the real AC-1/AC-2/AC-4 check) + code review.
+  - [x] Real command output + notes captured in the Dev Agent Record.
 - [ ] **Task 12 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
 
 ## Dev Notes
@@ -202,11 +203,52 @@ No `project-context.md`. Binding docs: `epics.md` (Story 2.8 AC, FR-10), `glossa
 
 ### Agent Model Used
 
+claude-sonnet-5
+
 ### Debug Log References
+
+**Task 4 — deviation from the established `requireAdmin` pattern caught in review of my own draft.** First pass wrote `addPlayer`/`editPlayer` with a bare `catch { return { formError: "..." } }` around `requireAdmin()`, which would mask any unexpected non-auth error as "Потрібні права адміністратора." Fixed by importing `AdminRequiredError` and narrowing: `catch (error) { if (error instanceof AdminRequiredError) return {formError}; throw error; }` — matching `createTournament`/`createTeam`.
+
+**Task 5 — two ESLint rules new to this story, both in `player-form.tsx`.** `react-hooks/set-state-in-effect`: `setForm(emptyValues())` (even wrapped as `setForm(() => emptyValues())`) directly inside a `useEffect` errors — fixed by adopting `team-form.tsx`'s `submitted`-ref-comparison updater (`setForm((current) => submitted.current && current === submitted.current ? emptyValues() : current)`), which reads prior state instead of ignoring it, and as a side benefit preserves in-progress typing for the next player (the exact gap Story 2.7's own review flagged, applied here proactively). `react-hooks/refs`: an early draft synced `onCancelRef.current` in the component body during render — errors. Fixed by removing the ref and calling `props.onCancel()` directly inside the effect, with `props` added to its dependency array (a "wasteful but correct" extra re-run, same precedent as `team-enrollment.tsx`).
+
+**Task 7 — expected `tsc` failure on the new nested route, handled proactively.** Per the story's own Dev Notes caveat (carried since Story 2.4), `PageProps<"/admin/tournaments/[id]/entries/[entryId]">` needs `.next/types`, which doesn't exist for a brand-new route until a build runs. Ran `pnpm build` before `pnpm typecheck` — avoided a false failure; route table confirmed the new route as `ƒ`.
+
+**Task 9 — pre-existing doc bug found and fixed while touching `src/actions/README.md`.** The `entries.ts` entry still described `removeTeamEntry` as mapping a caught `P2025` to `NOT_FOUND` — stale since the Story 2.7 review fix changed it to scope `deleteEntry` by `(tournamentId, entryId)` and check the returned `count === 0` instead. Corrected while adding this story's `players.ts` entry.
+
+**Task 11 — script run.** `pnpm exec tsx scripts/verify-roster.mts` — 15/15 checks pass against the live Neon dev branch (self-cleaning: throwaway tournament + 2 teams + 2 entries + 2 players, all removed by the end), including the direct regression test for the Story 2.7 lesson applied to players (`updatePlayer`/`deletePlayer` scoped to a different entry's id → `{count: 0}`, nothing changed). Re-ran all four prior verify scripts immediately after — 13/13, 15/15, 5/5, 12/12, confirming no regression.
 
 ### Completion Notes List
 
+- **Task 1:** `src/domain/playerForm.ts` (NEW) — `FULL_NAME_MAX`/`FREE_TEXT_MAX`, `validatePlayer(raw)` (trims every field, empty optional → `null`). 9 Vitest cases.
+- **Task 2:** `src/data/entries.ts` (UPDATE) — `getEntryForAdmin(tournamentId, entryId)`, `findFirst` scoped by both ids, `null` on mismatch.
+- **Task 3:** `src/data/players.ts` (NEW) — `listPlayersForEntry`, `createPlayer`, `updatePlayer`/`deletePlayer` (both `(entryId, playerId)`-scoped via `updateMany`/`deleteMany` → `{count}`, applying the Story 2.7 lesson from the start).
+- **Task 4:** `src/actions/players.ts` (NEW) — `addPlayer`/`editPlayer` (`PlayerFormState`) and `removePlayer` (`ActionResult<undefined>`); the `requireAdmin` narrowing fix (see Debug Log).
+- **Task 5:** `src/components/player-form.tsx` (NEW) — `mode: "create" | "edit"` discriminated union; the two new ESLint-rule fixes (see Debug Log).
+- **Task 6:** `src/components/roster.tsx` (NEW) — `PlayerRow` (filters null optional fields, `ConfirmDialog`-gated delete) + inline edit swap + always-rendered create form.
+- **Task 7:** `/admin/tournaments/[id]/entries/[entryId]/page.tsx` (NEW) — `getEntryForAdmin` → `notFound()`; the `.next/types` build-before-typecheck caveat (see Debug Log).
+- **Task 8:** `src/components/team-enrollment.tsx` (UPDATE) — "Склад" link per entry row, unconditional on `state`.
+- **Task 9:** README updates in `src/{domain,data,actions,components}` + `AGENTS.md`; fixed the stale `removeTeamEntry`/`P2025` line in `src/actions/README.md` (see Debug Log).
+- **Task 10:** `deferred-work.md` — new "Story 2.8 implementation" section (4 items).
+- **Task 11:** `pnpm test` 5/5 files (68/68) · `typecheck` · `lint` · `build` (route table unchanged) — all clean. New `scripts/verify-roster.mts`: 15/15 live. All five verify scripts re-run together: 13/13 + 15/15 + 5/5 + 12/12 + 15/15, no regression. Browser walkthrough not run (no OAuth automation) — same residual gap as every prior story.
+
 ### File List
+
+**New**
+- `src/domain/playerForm.ts`
+- `src/domain/playerForm.test.ts`
+- `src/data/players.ts`
+- `src/actions/players.ts`
+- `src/components/player-form.tsx`
+- `src/components/roster.tsx`
+- `src/app/admin/tournaments/[id]/entries/[entryId]/page.tsx`
+- `scripts/verify-roster.mts`
+
+**Modified**
+- `src/data/entries.ts` — `getEntryForAdmin` added
+- `src/components/team-enrollment.tsx` — "Склад" link per entry
+- `src/domain/README.md` · `src/data/README.md` · `src/actions/README.md` · `src/components/README.md` · `AGENTS.md`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ## Change Log
 
