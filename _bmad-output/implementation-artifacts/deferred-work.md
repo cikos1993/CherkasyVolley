@@ -15,6 +15,19 @@ _Implementation review (`bmad-code-review`, 4 layers) over `git diff 2c6517e..HE
 - **No test asserts `listPlayersForEntry`'s documented `fullName`-ascending order.** Low-value test gap, same class as every other "no action-level test" item already tracked below.
 - **`editPlayer`'s `formError` path doesn't auto-close the edit form.** If a player is deleted concurrently (`count === 0`), the edit form stays open referencing a gone player until the admin manually clicks "Скасувати". Rare race at this project's admin-only scale, same class as other accepted concurrency gaps.
 
+## Deferred from: code review of 2-9-public-tournament-page-teams-tab (2026-09-05)
+
+_Implementation review (`bmad-code-review`, 4 layers) over `git diff 7d4950c..HEAD`. **All 4 layers independently converged on the same critical finding** (patched — see the story file's Review Findings). 0 decision-needed, 5 patched, 8 deferred, 3 dismissed._
+
+- **No automated test for the `BEACH`-discipline admin-preview path.** `resolveTournament` depends on `getSessionUser()` (`next/headers`), which can't run outside a real Next.js request the way the existing `verify-*.mts` scripts run pure `src/data` functions. Mitigated by the code fix plus a live manual verification.
+- **No caching/revalidation strategy for the app's first anonymous-traffic-facing routes.** Every request runs fresh Prisma queries. A product/perf decision, not a bug.
+- **`listPublicTournaments()` doesn't distinguish active from `COMPLETED` tournaments, and its relationship to the future `/archive` route tree (Story 4.7) is undiscussed.** Real question for whoever builds `/archive` — will completed tournaments need to disappear from `/classic` once archived, or is the overlap intentional?
+- **The tab-chip row has no ARIA tab semantics.** A11y polish — these are inert placeholder chips, not yet a real tablist with real panels.
+- **`resolveTournament`/`getEntryByTeam` are each called twice per request** (once from `generateMetadata`, once from the page body), with no caching/dedup beyond `getSessionUser`'s own `cache()`. Perf note only.
+- **No SEO/indexing discussion** (robots/sitemap, `noindex` for the admin-preview render path) for the app's first crawlable, sign-in-free content.
+- **AD-3's dependency graph doesn't literally name a `view → auth` edge**, and this story's use of it (widening visibility for an admin preview) is materially different from `/admin/layout.tsx`'s existing use (gating/denying access to an already-admin-only tree). A spine-reconciliation gap, same class as the already-tracked `data → domain` open item — not a code defect.
+- **`/classic`'s listing has no admin-preview logic**, unlike the tournament/roster pages — an admin's own `DRAFT` tournament never appears there, only reachable via a direct link. Satisfies AC 3's literal text but is an undocumented asymmetry.
+
 ## Deferred from / decided in: Story 2.9 implementation (2026-09-05)
 
 - **No automated test for the admin draft-preview fallback branch.** Both `/classic/[tournament]/page.tsx` and `.../teams/[team]/page.tsx` call `getSessionUser()` and branch on `user?.isAdmin` when the public read returns `null` — untested beyond a manual signed-in browser pass, the same class of gap as every prior admin-touching flow (no `requireAdmin`/session-mock infra).

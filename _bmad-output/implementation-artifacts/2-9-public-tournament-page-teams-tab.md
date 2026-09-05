@@ -101,6 +101,33 @@ Translated from `epics.md` → Epic 2 → Story 2.9. The Ukrainian source is aut
   - [x] Real command output + notes captured in the Dev Agent Record.
 - [x] **Task 11 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
 
+### Review Findings
+
+Implementation review 2026-09-05 (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Verification Gap Reviewer, Acceptance Auditor) over `git diff 7d4950c..HEAD`. **All 4 layers independently converged on the same critical finding** — the admin draft-preview fallback bypasses the `discipline` filter, the strongest cross-layer convergence this project has seen. 0 decision-needed, 5 patch, 8 defer, 3 dismissed.
+
+#### Patch
+
+- [ ] [Review][Patch] **The admin-preview fallback (`getTournamentForAdmin`) has no `discipline` filter** — an admin signed in and visiting `/classic/[id]` (or `.../teams/[team]`) with the id of a `BEACH` tournament (any state) would have it rendered under the `CLASSIC`-only `/classic` route tree, violating AD-9. Found independently by **all 4 review layers**. [src/app/classic/[tournament]/page.tsx, src/app/classic/[tournament]/teams/[team]/page.tsx]
+- [ ] [Review][Patch] **`teams/[team]/page.tsx`'s `generateMetadata` calls `getEntryByTeam` directly, with no tournament-visibility check at all** — the real team name leaks into the page `<title>` for any anonymous visitor, even for a `DRAFT` or wrong-discipline tournament, while the page body correctly 404s. The sibling tournament page's `generateMetadata` does call the visibility check first; this one doesn't. [src/app/classic/[tournament]/teams/[team]/page.tsx]
+- [ ] [Review][Patch] **`resolveTournament` is duplicated verbatim across both new page files** — a fix to the discipline bug above risks being applied to only one copy. Extract into a shared helper. [src/app/classic/[tournament]/page.tsx, src/app/classic/[tournament]/teams/[team]/page.tsx]
+- [ ] [Review][Patch] **`getTournamentForAdmin`'s doc comment ("call only from an admin-guarded path") is now stale** — it has a new caller (the shared `resolveTournament` helper) gated by an inline `user?.isAdmin` check via `getSessionUser()`, not `requireAdmin()`/`requireAdminPage()` (neither fits: one throws, one redirects — this call site needs a graceful `null`). [src/data/tournaments.ts]
+- [ ] [Review][Patch] `src/data/README.md`'s illustrative top-of-file sentence still names a placeholder `getPublicTournaments` (plural) that near-misses the two real functions this story introduces (`getPublicTournament` singular, `listPublicTournaments`) — confusing. [src/data/README.md]
+
+#### Defer
+
+- [x] [Review][Defer] No automated (script or unit) test exercises the `BEACH`-discipline admin-preview path — `resolveTournament` depends on `getSessionUser()` (`next/headers`), which can't run outside a real Next.js request context the way the existing `verify-*.mts` scripts do for pure `src/data` functions [src/app/classic/**] — deferred; mitigated by the patch above plus a live manual verification (browser + admin session) once fixed, same class as every other admin-preview-branch gap already tracked
+- [x] [Review][Defer] No caching/revalidation strategy for the app's first anonymous-traffic-facing routes — every request runs fresh Prisma queries [src/app/classic/**] — deferred, a product/perf decision out of this story's scope
+- [x] [Review][Defer] `listPublicTournaments()` doesn't distinguish active (`GROUP_STAGE`/`PLAYOFF`) from `COMPLETED` tournaments, and the story doesn't discuss how this scope relates to the future `/archive` route tree (Story 4.7) [src/data/tournaments.ts] — deferred, real question for whoever builds `/archive`
+- [x] [Review][Defer] The tab-chip row has no ARIA tab semantics (`role="tablist"`/`role="tab"`/`aria-selected"`) [src/app/classic/[tournament]/page.tsx] — deferred, a11y polish; these are inert placeholder chips, not a real tablist with real panels yet
+- [x] [Review][Defer] `resolveTournament`/`getEntryByTeam` are each called twice per request (once from `generateMetadata`, once from the page body) with no caching/dedup beyond `getSessionUser`'s own `cache()` [src/app/classic/**] — deferred, perf note only
+- [x] [Review][Defer] No SEO/indexing discussion (robots/sitemap, `noindex` for the admin-preview render) for the app's first crawlable, sign-in-free content — deferred, a future product decision
+- [x] [Review][Defer] AD-3's stated dependency graph (`view → shell → {domain, data}`; `auth → data`) doesn't literally list `view → auth`, and this story's use of that edge (**widen** visibility for an admin preview) is materially different from `/admin/layout.tsx`'s existing use (**gate/deny** access to an already-admin-only tree) — a real spine-reconciliation gap, same class as the already-tracked `data → domain` open item [ARCHITECTURE-SPINE.md#AD-3] — deferred, not a code defect
+- [x] [Review][Defer] `/classic`'s listing (Task 7) has no admin-preview logic — an admin's own `DRAFT` tournament never appears in the listing even while signed in, only reachable via a direct link (e.g. from `/admin/tournaments`) [src/app/classic/page.tsx] — deferred; satisfies AC 3's literal text (a `DRAFT` tournament must never appear in the listing) but is an undocumented asymmetry with Tasks 5/6's preview behavior
+
+#### Dismissed as noise / consistent precedent / out of scope (3)
+
+`public-roster.tsx`'s manually-redeclared local `Player` type instead of an imported one — matches the existing `roster.tsx` (Story 2.8) precedent of a local, non-Prisma-imported type, not a new gap · `verify-public-tournament.mts`'s explicit `deleteEntry` call before the tournament delete, despite the documented cascade — harmless, arguably clearer than relying on an implicit cascade in a script whose whole point is explicit assertions · a possible narrowing of AC 2's "перелічує заявлені команди **зі складами**" to "with a link to the roster" — already a deliberate, well-reasoned, explicitly documented interpretation in this story's own Notes on AC interpretation, backed by `EXPERIENCE.md`'s dedicated roster route.
+
 ## Dev Notes
 
 ### What this story is / is NOT
