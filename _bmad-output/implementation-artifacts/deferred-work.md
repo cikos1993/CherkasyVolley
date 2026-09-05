@@ -2,6 +2,11 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from / decided in: Story 3.4 implementation (2026-09-05)
+
+- **No automated action-level test for `redrawTournament` beyond the verify script.** Same class of gap as `drawTournament`'s already-deferred item (Story 3.3) — no `requireAdmin`/session-mock harness exists yet. Mitigated by `scripts/verify-redraw.mts` (the real DB round-trip through `checkCanRedraw` → `generateSchedule` → `saveRedraw`) + the domain logic's own Vitest coverage (`redraw.test.ts`).
+- **No atomic guard against two concurrent `redrawTournament` calls** (TOCTOU between `checkCanRedraw`'s read and `saveRedraw`'s write). Same accepted-risk class as `drawTournament`'s already-deferred TOCTOU item (Story 3.3 review) — lower stakes here, since a redraw requires an explicit `ConfirmDialog` click by a trusted admin and only matters in the narrow pre-first-result window.
+
 ## Deferred from: code review of 3-3-draw (2026-09-05)
 
 _Implementation review (`bmad-code-review`, 4 layers) over `git diff 02979c09..0c35e4c`. All 4 layers completed. 1 decision-needed, 3 patched, 3 deferred, 10 dismissed._

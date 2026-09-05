@@ -96,7 +96,9 @@ goes through a named function exported from here — `getPublicTournament`,
   `schema.prisma`) → every `GROUP`-stage `Match` + `SetScore` → `src/domain/scoring.ts`'s
   `computeStandings` → `src/domain/tiebreak.ts`'s `orderStandings`. Returns
   `[]` pre-draw (no `GroupSlot` rows yet) — never stored (AD-4), recomputed
-  every call.
+  every call. **`hasAnyGroupResult(tournamentId)` (Story 3.4)** — whether any
+  `GROUP`-stage `Match` has a `SetScore` yet; the sole read backing
+  `checkCanRedraw`'s "no results yet" gate.
 - `draw.ts` — `saveDraw(tournamentId, groupId, entryIds, pairings)` (Story
   3.3), the first real writer of `GroupSlot`/`Match`. One `db.$transaction`:
   seats every entry into `GroupSlot`, creates one `GROUP`-stage `Match` per
@@ -104,6 +106,14 @@ goes through a named function exported from here — `getPublicTournament`,
   atomically, so a partial failure can't leave draw data on a still-`DRAFT`
   tournament. Performs no validation itself; the caller (`drawTournament`)
   must already have confirmed the transition via `checkTransition`.
+  **`listGroupEntryIds(groupId)` / `saveRedraw(tournamentId, groupId, pairings)`
+  (Story 3.4)** — `listGroupEntryIds` reads who's actually seated (the source
+  a redraw must reuse, never re-reading `TournamentEntry`); `saveRedraw`
+  deletes every `GROUP`-stage `Match` for the tournament and recreates them
+  from fresh pairings, in one transaction — never touches `GroupSlot` or
+  `Tournament.state` (only the calendar changes on a redraw, not who's in the
+  group or the lifecycle stage). Also performs no validation itself; the
+  caller (`redrawTournament`) must already have confirmed `checkCanRedraw`.
 
 The `Tournament`, `Team`, `TournamentEntry`, `Player`, `Group`, `GroupSlot`, `Match`
 and `SetScore` entities (schema landed across Story 2.1, 2.4, and 3.2, migrations

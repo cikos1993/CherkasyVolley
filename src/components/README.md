@@ -160,6 +160,19 @@ longer exists (`GROUP_STAGE`/`PLAYOFF`/`COMPLETED` can't go "back" to
 `GROUP_STAGE`), so its message becomes a confusing, self-referential
 `INVALID_TRANSITION` string rather than a real explanation.
 
+`RedrawTournamentButton({ tournamentId, state, hasResults })` (Story 3.4) —
+unlike `DrawTournamentButton`, wrapped in a `ConfirmDialog` (`DeleteTournamentButton`'s
+exact shape: `onConfirm` returns `false`/throws to keep the dialog open on a
+handled/unexpected failure; success toasts and calls `router.refresh()`, not
+`router.push`, since this stays on the same page). The story's own AC text
+names confirmation explicitly ("тисну «Пережеребкувати» **й підтверджую**"),
+unlike the draw button, where confirmation was deliberately skipped. Disabled
+trigger + caption via `checkCanRedraw(state, hasResults)` (`src/domain/redraw`)
+— the caller must only render this while `state === "GROUP_STAGE"`
+(`/admin/tournaments/[id]/page.tsx` gates it, mirroring the draw section's
+`DRAFT` gate); once a result exists the button stays visible but disabled
+(PRD FR-12: "заблоковане", not "зникає").
+
 ## `team-enrollment.tsx`
 
 `TeamEnrollment({ tournamentId, state, teamCount, entries, availableTeams })`

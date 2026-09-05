@@ -113,3 +113,13 @@ Actions are wired in their feature stories.
   `GroupSlot` + `Match` rows + `setTournamentState`) → `revalidatePath`
   (including `/admin/tournaments`, the list page). The first dedicated
   (non-`transitionTournament`) transition action — see the note above.
+  **`redrawTournament(tournamentId)` (Story 3.4)** — same `ActionResult<undefined>`
+  shape, same file (same feature domain). `requireAdmin()` → `getTournamentForAdmin`
+  (not found/no `group` → `NOT_FOUND`) → `hasAnyGroupResult` (`src/data/matches.ts`)
+  → `checkCanRedraw(tournament.state, hasResults)` (`src/domain/redraw` — **not**
+  `checkTransition`; `state` never changes on a redraw) → `listGroupEntryIds`
+  (`src/data/draw.ts` — reads `GroupSlot`, never re-reads `TournamentEntry`) →
+  `defaultShuffle` → `generateSchedule` → `saveRedraw` (deletes + recreates
+  `GROUP`-stage `Match` rows in one transaction) → `revalidatePath` (discipline
+  route + the tournament page only — **not** `/admin/tournaments`, since `state`
+  is unchanged so the list page's display is already correct).

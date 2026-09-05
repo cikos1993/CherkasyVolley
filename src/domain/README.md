@@ -94,6 +94,15 @@ schedule generation, playoff seeding and bracket advancement.
   after that point is invalid); `CUSTOM` is always exactly 3 sets, no
   early-stop concept.
 
+- `redraw.ts` — `checkCanRedraw(state, hasResults)` (Story 3.4). Pure precondition
+  for re-running the draw on an already-drawn tournament — **not** a
+  `checkTransition` edge, since `Tournament.state` never changes during a
+  redraw (stays `GROUP_STAGE` before and after). `ok` only when `state ===
+  "GROUP_STAGE"` and no `SetScore` exists yet for the tournament; otherwise a
+  Ukrainian message naming which gate failed, state checked first (same
+  ordering precedent as `checkCanEnroll`). Same shape and dual-purpose reuse
+  (action + view) as `teamEnrollment.ts`'s `checkCanEnroll`/`checkCanRemoveEntry`.
+
 The Vitest runner (`pnpm test`) was added alongside the first module.
 
 **May import:** other `src/domain` modules, the standard library, pure npm utilities.

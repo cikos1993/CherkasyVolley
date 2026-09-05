@@ -75,14 +75,14 @@ PRD FR-12 (`prd.md` §4.4, cited in the story's context) adds two checkable cons
   - [x] Fetch `hasResults` via `hasAnyGroupResult(tournament.id)` alongside the existing `Promise.all` reads.
   - [x] New section, gated `tournament.state === "GROUP_STAGE"` (mirrors the existing `DRAFT`-gated draw section — mutually exclusive, both under a "Жеребкування" heading), rendering `<RedrawTournamentButton tournamentId={tournament.id} state={tournament.state} hasResults={hasResults} />`.
   - [x] `typecheck`/`lint` clean.
-- [ ] **Task 7 — Docs**
-  - [ ] `src/domain/README.md` — new `redraw.ts` entry.
-  - [ ] `src/data/README.md` — `matches.ts`'s entry gains `hasAnyGroupResult`; `draw.ts`'s entry gains `listGroupEntryIds`/`saveRedraw`.
-  - [ ] `src/actions/README.md` — `draw.ts`'s entry gains `redrawTournament`.
-  - [ ] `src/components/README.md` — `RedrawTournamentButton` entry (extend the `tournament-actions.tsx` section).
-  - [ ] `AGENTS.md` — Stack-status bullet for Story 3.4.
-- [ ] **Task 8 — `deferred-work.md` (UPDATE)**
-  - [ ] New "Story 3.4 implementation" section: no automated action-level test for `redrawTournament` beyond the verify script; no atomic guard against two concurrent redraws (same accepted-risk class as `drawTournament`'s already-deferred TOCTOU item — lower stakes here given the explicit `ConfirmDialog`).
+- [x] **Task 7 — Docs**
+  - [x] `src/domain/README.md` — new `redraw.ts` entry.
+  - [x] `src/data/README.md` — `matches.ts`'s entry gains `hasAnyGroupResult`; `draw.ts`'s entry gains `listGroupEntryIds`/`saveRedraw`.
+  - [x] `src/actions/README.md` — `draw.ts`'s entry gains `redrawTournament`.
+  - [x] `src/components/README.md` — `RedrawTournamentButton` entry (extend the `tournament-actions.tsx` section).
+  - [x] `AGENTS.md` — Stack-status bullet for Story 3.4.
+- [x] **Task 8 — `deferred-work.md` (UPDATE)**
+  - [x] New "Story 3.4 implementation" section: no automated action-level test for `redrawTournament` beyond the verify script; no atomic guard against two concurrent redraws (same accepted-risk class as `drawTournament`'s already-deferred TOCTOU item — lower stakes here given the explicit `ConfirmDialog`).
 - [ ] **Task 9 — Verification gate** (AC: all)
   - [ ] `pnpm test` (new `redraw.test.ts` cases included) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean (no new route).
   - [ ] Import-boundary grep: no new Prisma-client import site outside `src/data/**`.
@@ -205,6 +205,7 @@ claude-sonnet-5 (bmad-dev-story)
 - Task 4: `redrawTournament(tournamentId)` added to `src/actions/draw.ts` alongside `drawTournament` — reuses `checkCanRedraw`, `defaultShuffle`, `generateSchedule`, `saveRedraw`. `typecheck`/`lint` clean.
 - Task 5: `RedrawTournamentButton` added to `src/components/tournament-actions.tsx` — `ConfirmDialog` (destructive), disabled trigger + caption via `checkCanRedraw`, `router.refresh()` on success. `typecheck`/`lint` clean.
 - Task 6: `/admin/tournaments/[id]` fetches `hasResults` via `hasAnyGroupResult` and renders a `GROUP_STAGE`-gated redraw section (sibling to the existing `DRAFT`-gated draw section). `typecheck`/`lint` clean.
+- Tasks 7-8: updated `src/domain/README.md`, `src/data/README.md`, `src/actions/README.md`, `src/components/README.md`, `AGENTS.md` (Stack-status bullet), and `deferred-work.md` (new Story 3.4 section).
 
 ### File List
 
@@ -215,6 +216,12 @@ claude-sonnet-5 (bmad-dev-story)
 - `src/actions/draw.ts` (UPDATE)
 - `src/components/tournament-actions.tsx` (UPDATE)
 - `src/app/admin/tournaments/[id]/page.tsx` (UPDATE)
+- `src/domain/README.md` (UPDATE)
+- `src/data/README.md` (UPDATE)
+- `src/actions/README.md` (UPDATE)
+- `src/components/README.md` (UPDATE)
+- `AGENTS.md` (UPDATE)
+- `_bmad-output/implementation-artifacts/deferred-work.md` (UPDATE)
 
 ## Change Log
 
