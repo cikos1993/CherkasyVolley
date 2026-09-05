@@ -89,15 +89,15 @@ PRD §4.5 (`prd.md`, cited in context) makes the same three consequences explici
   - [x] `updateMatchSchedule(tournamentId, matchId, input)` — `db.match.updateMany({ where: { id: matchId, tournamentId, stage: "GROUP" }, data: { scheduledAt, venueText } })` → `{ count }`. Scoped by the pair + `stage`; writes only the two scheduling columns.
   - [x] `typecheck`/`lint` clean. No new Prisma-client import site.
 
-- [ ] **Task 3 — `src/actions/matches.ts` (NEW): `scheduleMatch`** (AC: 1, 2)
-  - [ ] `"use server"`. `export type MatchScheduleFormState = { fieldErrors?: { scheduledAt?: string; venueText?: string }; formError?: string }`.
-  - [ ] `scheduleMatch(tournamentId: string, matchId: string, _prev: MatchScheduleFormState, formData: FormData): Promise<MatchScheduleFormState>` — `requireAdmin()` caught narrowly (`instanceof AdminRequiredError` → `{ formError: "Потрібні права адміністратора." }`, else rethrow — the `players.ts` pattern) → `getTournamentForAdmin(tournamentId)` (falsy → `{ formError: "Турнір не знайдено." }`) → `validateMatchSchedule({ scheduledAt: formData.get("scheduledAt"), venueText: formData.get("venueText") })` (not ok → `{ fieldErrors }`) → `updateMatchSchedule(tournamentId, matchId, value)` → `count === 0` → `{ formError: "Матч не знайдено." }` → `revalidatePath(`/admin/tournaments/${tournamentId}/schedule`)` **and** `revalidatePath(`/classic/${tournamentId}`)` → `{}`.
-  - [ ] `src/actions/matches.ts` is a new file; no new `ActionErrorCode` (this action returns the form-state shape, not `ActionResult` — a multi-field form, like `players.ts`'s `addPlayer`/`editPlayer`).
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 3 — `src/actions/matches.ts` (NEW): `scheduleMatch`** (AC: 1, 2)
+  - [x] `"use server"`. `MatchScheduleFormState = { fieldErrors?: MatchScheduleFieldErrors; formError?: string }` (`MatchScheduleFieldErrors` reused from the domain module).
+  - [x] `scheduleMatch(tournamentId, matchId, _prev, formData)` — narrow `requireAdmin()` catch → `getTournamentForAdmin` (falsy → `formError`) → `validateMatchSchedule` (not ok → `fieldErrors`) → `updateMatchSchedule` → `count === 0` → `formError` → `revalidatePath` (`…/schedule` **and** `/classic/${tournamentId}`) → `{}`.
+  - [x] New file; form-state shape (like `players.ts`), not `ActionResult`. Data reads stay imported from `@/data` by the pages — the action file exports only the action (Next requires every `"use server"` export to be a callable action).
+  - [x] `typecheck`/`lint` clean.
 
-- [ ] **Task 4 — `src/actions/draw.ts` (UPDATE): revalidate the public detail route** (AC: 3)
-  - [ ] Add `revalidatePath(`/classic/${tournamentId}`)` to both `drawTournament` and `redrawTournament`, alongside the existing `revalidatePath(tournament.discipline === "BEACH" ? "/beach" : "/classic")` line. Closes the `deferred-work.md` item ("becomes relevant once Story 3.5/3.8 render schedule/standings publicly") now that `/classic/[tournament]?tab=schedule` renders `Match` data.
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 4 — `src/actions/draw.ts` (UPDATE): revalidate the public detail route** (AC: 3)
+  - [x] Added `revalidatePath(`/classic/${tournamentId}`)` to both `drawTournament` and `redrawTournament`, with a one-line why-comment.
+  - [x] `typecheck`/`lint` clean; `pnpm test` 124/124.
 
 - [ ] **Task 5 — `src/components/match-schedule.tsx` (NEW): admin editor** (AC: 1, 2)
   - [ ] `"use client"`. `MatchScheduleList({ tournamentId, matches })` where `matches: { id: string; homeTeam: string; awayTeam: string; scheduledAtLocal: string; scheduledAtDisplay: string | null; venueText: string; resultSummary: string | null }[]` — a plain view model, shaped server-side (local `type` in the component, not Prisma-imported — the `team-enrollment.tsx` / `roster.tsx` precedent).
@@ -297,12 +297,16 @@ claude-sonnet-5 (bmad-dev-story)
 
 - Task 1: `src/domain/matchSchedule.ts` — `kyivOffsetMinutes`, `parseKyivDateTimeLocal` (naive-guess + one DST re-check, rollover guard for impossible dates), `toKyivDateTimeLocalValue`, `formatKyivDateTime`, `validateMatchSchedule`, `VENUE_TEXT_MAX`. `matchSchedule.test.ts` — 17 cases (offsets, both DST switches incl. the re-check branch, null/empty, malformed, impossible date, round-trip, venue trim/over-max, display shape). `pnpm test` 124/124; `typecheck`/`lint` clean. No timezone library — `Intl.DateTimeFormat` only.
 - Task 2: `src/data/matches.ts` — `listGroupMatchesForTournament` (chronological, `nulls: "last"`, joined team names + sets) and `updateMatchSchedule` (`updateMany` scoped by `(tournamentId, matchId, stage:"GROUP")` → `{ count }`, writes only `scheduledAt`/`venueText`). `typecheck`/`lint` clean.
+- Task 3: `src/actions/matches.ts` (NEW) — `scheduleMatch`, form-state shape, narrow `requireAdmin` catch, revalidates the admin schedule route and `/classic/${id}`.
+- Task 4: `src/actions/draw.ts` — `drawTournament` / `redrawTournament` now also `revalidatePath(`/classic/${tournamentId}`)` (closes the carried deferred item).
 
 ### File List
 
 - `src/domain/matchSchedule.ts` (NEW)
 - `src/domain/matchSchedule.test.ts` (NEW)
 - `src/data/matches.ts` (UPDATE)
+- `src/actions/matches.ts` (NEW)
+- `src/actions/draw.ts` (UPDATE)
 
 ## Change Log
 
