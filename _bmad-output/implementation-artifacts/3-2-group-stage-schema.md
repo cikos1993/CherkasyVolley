@@ -88,14 +88,14 @@ Implementation review 2026-09-05 (`bmad-code-review`, 4 layers attempted) over `
 
 #### Patch
 
-- [ ] [Review][Patch] **No `CHECK` requires a `GROUP`-stage match to have non-null `homeEntryId`/`awayEntryId`** — only `groupId` consistency is enforced. A future bug in Story 3.3's draw could silently create an incomplete `GROUP` match; `getStandings` would then silently filter it out rather than fail loudly. [prisma/schema.prisma, new migration]
-- [ ] [Review][Patch] **No index on `match.groupId`, `match.homeEntryId`, `match.awayEntryId`, or `group_slot.entryId`** — all four are `ON DELETE CASCADE` FKs; Postgres doesn't auto-index FK columns, so cascading deletes and future per-team match lookups need a sequential scan. [prisma/schema.prisma, new migration]
-- [ ] [Review][Patch] **No `CHECK` bounds `SetScore.setNo` to a sane range** — asymmetric with `homePoints`/`awayPoints`, which do get a DB-level bound as documented defense-in-depth. [prisma/schema.prisma, new migration]
-- [ ] [Review][Patch] **`GroupSlot` has `createdAt` but no `updatedAt`**, unlike every sibling model added in the same migration (`Match`, `SetScore`) and every other model in the schema. [prisma/schema.prisma, new migration]
-- [ ] [Review][Patch] **`getStandings`'s `sets` query has no `orderBy: { setNo: "asc" }`** — the returned order isn't guaranteed. Harmless today (`computeStandings`'s set-counting is order-independent), but cheap and correct to fix before a future consumer (e.g. a match detail page) relies on set order. [src/data/matches.ts]
-- [ ] [Review][Patch] **The verify script never tests `set_score_points_check`** — only the two `match_*` checks get a bad-insert test; a typo or logic error in the points-check SQL would go undetected by this story's own verification gate. [scripts/verify-group-stage-schema.mts]
-- [ ] [Review][Patch] **The verify script only exercises one standings scenario (the fully-tied 3-way stats cycle)** — the real Prisma-to-domain mapping is never exercised for the far more common "clear winner" case through the actual pipeline. [scripts/verify-group-stage-schema.mts]
-- [ ] [Review][Patch] **Two documentation inaccuracies in `AGENTS.md`**: the Story 3.2 bullet says "два нові raw-SQL CHECK" but the migration adds three (`match_group_stage_check`, `match_distinct_entries_check`, `set_score_points_check`); the Story 3.1 bullet still says "99 тестів," stale since Story 3.1's own code-review fix pass added 4 more tests (103 total) after that bullet was written. [AGENTS.md]
+- [x] [Review][Patch] **No `CHECK` requires a `GROUP`-stage match to have non-null `homeEntryId`/`awayEntryId`** — only `groupId` consistency is enforced. A future bug in Story 3.3's draw could silently create an incomplete `GROUP` match; `getStandings` would then silently filter it out rather than fail loudly. [prisma/schema.prisma, new migration]
+- [x] [Review][Patch] **No index on `match.groupId`, `match.homeEntryId`, `match.awayEntryId`, or `group_slot.entryId`** — all four are `ON DELETE CASCADE` FKs; Postgres doesn't auto-index FK columns, so cascading deletes and future per-team match lookups need a sequential scan. [prisma/schema.prisma, new migration]
+- [x] [Review][Patch] **No `CHECK` bounds `SetScore.setNo` to a sane range** — asymmetric with `homePoints`/`awayPoints`, which do get a DB-level bound as documented defense-in-depth. [prisma/schema.prisma, new migration]
+- [x] [Review][Patch] **`GroupSlot` has `createdAt` but no `updatedAt`**, unlike every sibling model added in the same migration (`Match`, `SetScore`) and every other model in the schema. [prisma/schema.prisma, new migration]
+- [x] [Review][Patch] **`getStandings`'s `sets` query has no `orderBy: { setNo: "asc" }`** — the returned order isn't guaranteed. Harmless today (`computeStandings`'s set-counting is order-independent), but cheap and correct to fix before a future consumer (e.g. a match detail page) relies on set order. [src/data/matches.ts]
+- [x] [Review][Patch] **The verify script never tests `set_score_points_check`** — only the two `match_*` checks get a bad-insert test; a typo or logic error in the points-check SQL would go undetected by this story's own verification gate. [scripts/verify-group-stage-schema.mts]
+- [x] [Review][Patch] **The verify script only exercises one standings scenario (the fully-tied 3-way stats cycle)** — the real Prisma-to-domain mapping is never exercised for the far more common "clear winner" case through the actual pipeline. [scripts/verify-group-stage-schema.mts]
+- [x] [Review][Patch] **Two documentation inaccuracies in `AGENTS.md`**: the Story 3.2 bullet says "два нові raw-SQL CHECK" but the migration adds three (`match_group_stage_check`, `match_distinct_entries_check`, `set_score_points_check`); the Story 3.1 bullet still says "99 тестів," stale since Story 3.1's own code-review fix pass added 4 more tests (103 total) after that bullet was written. [AGENTS.md]
 
 #### Defer
 
@@ -200,6 +200,10 @@ claude-sonnet-5
 
 **Task 6 — reused Story 3.1's exact tiebreak fixture as the verify script's test data, not a new one.** The 3-way stats-cycle (A beats B, B beats C, C beats A, all 3:0) from `tiebreak.test.ts` was already hand-verified correct in Story 3.1's own review; reusing it here — this time through a real Prisma round-trip and `getStandings` end-to-end, with real team names substituted for the entry ids — gives high confidence the DB-backed pipeline reproduces the pure-function result exactly, rather than inventing a second fixture that would need its own independent verification.
 
+**Code review — only 2/4 layers completed (session rate limit); proceeded with Blind Hunter + Edge Case Hunter's findings per the workflow's own layer-failure-handling rule rather than blocking, and disclosed the incompleteness explicitly.** Both completed layers converged in spirit on the same class of gap: the original migration's `CHECK`s covered `stage`/`groupId` consistency and distinct entries, but not "a `GROUP` match actually has both entries" or "`SetScore.setNo` is in a sane range" — real, cheap-to-close gaps in the "app validates, DB also checks" pattern this project follows. Fixed with a second migration (`20260905161412_group_stage_schema_constraints`) rather than amending the already-applied first one, matching the established `tournament_schema` → `tournament_schema_constraints` precedent (Story 2.1) instead of a schema/migration mismatch.
+
+**Code review — decided NOT to change `Match.homeEntryId`/`awayEntryId`'s `onDelete: Cascade` to `Restrict`, despite it being a real inconsistency with the `Team`/`TournamentEntry` precedent.** Traced why: `Match` also cascades directly from `Tournament` via its own `tournamentId` FK, so a `Tournament` delete cascades both `TournamentEntry` and `Match` in the same operation — introducing `Restrict` on the `Match → TournamentEntry` edge risks a foreign-key violation depending on Postgres's cascade-resolution order, which would need careful testing against the already-passing `verify-tournament-edit-delete.mts` cascade assertions, not a routine review-fix change. Deferred instead, with the reasoning recorded so a future story doesn't have to re-derive it.
+
 ### Completion Notes List
 
 - **Task 1:** `prisma/schema.prisma` (UPDATE) — `MatchStage` enum, `GroupSlot`, `Match`, `SetScore` models; back-relations on `Group`/`Tournament`/`TournamentEntry`. `homeEntryId`/`awayEntryId` nullable per AD-5.
@@ -221,6 +225,15 @@ claude-sonnet-5
 - `src/data/README.md` · `AGENTS.md`
 - `_bmad-output/implementation-artifacts/deferred-work.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+**New (review fix pass only)**
+- `prisma/migrations/20260905161412_group_stage_schema_constraints/migration.sql` — `GroupSlot.updatedAt`, indexes on `Match.groupId`/`homeEntryId`/`awayEntryId` and `GroupSlot.entryId`, two new `CHECK`s (`match_group_entries_required_check`, `set_score_set_no_check`)
+
+**Modified (review fix pass only)**
+- `prisma/schema.prisma` — `GroupSlot` gains `updatedAt` + `@@index([entryId])`; `Match` gains `@@index([groupId])`/`@@index([homeEntryId])`/`@@index([awayEntryId])`
+- `src/data/matches.ts` — `getStandings`'s `sets` query now has an explicit `orderBy: { setNo: "asc" }`
+- `scripts/verify-group-stage-schema.mts` — new "clear winner" scenario through the real pipeline; tests for the two new `CHECK`s and the previously-untested `set_score_points_check`
+- `AGENTS.md` — corrected "два нові CHECK" to reflect all five (three original + two follow-up); corrected Story 3.1's stale "99 тестів" to note the post-review-fix 103 count; Story 3.2's bullet updated with the second migration and its additions
 
 ## Change Log
 

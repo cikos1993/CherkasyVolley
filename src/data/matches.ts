@@ -36,7 +36,10 @@ export async function getStandings(tournamentId: string): Promise<OrderedStandin
     select: {
       homeEntryId: true,
       awayEntryId: true,
-      sets: { select: { setNo: true, homePoints: true, awayPoints: true } },
+      sets: {
+        select: { setNo: true, homePoints: true, awayPoints: true },
+        orderBy: { setNo: "asc" },
+      },
     },
   });
 

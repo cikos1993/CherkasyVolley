@@ -161,8 +161,10 @@ model GroupSlot {
   entryId   String
   entry     TournamentEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
   createdAt DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime        @default(now()) @updatedAt @db.Timestamptz(3)
 
   @@unique([groupId, entryId])
+  @@index([entryId])
   @@map("group_slot")
 }
 
@@ -202,6 +204,9 @@ model Match {
   updatedAt    DateTime         @default(now()) @updatedAt @db.Timestamptz(3)
 
   @@index([tournamentId, stage])
+  @@index([groupId])
+  @@index([homeEntryId])
+  @@index([awayEntryId])
   @@map("match")
 }
 
