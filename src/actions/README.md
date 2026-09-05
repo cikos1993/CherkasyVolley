@@ -105,8 +105,11 @@ Actions are wired in their feature stories.
   the `admin-roles.ts` shape. `requireAdmin()` → `getTournamentForAdmin` (not
   found, or no `group` → `NOT_FOUND`) → `listEntriesForTournament` for the entry
   ids/count → `checkTransition(tournament.state, "GROUP_STAGE", { entryCount,
-  teamCount })` (not ok → `{ ok: false, code, message }`) → `generateSchedule`
+  teamCount })` (not ok → `{ ok: false, code, message }`) → shuffles the entry
+  ids with `schedule.ts`'s exported `defaultShuffle` (review fix — without it,
+  `listEntriesForTournament`'s alphabetical order would make the actual
+  matchups, not just their listing, deterministic) → `generateSchedule`
   (`src/domain/schedule`) → `saveDraw` (`src/data/draw.ts`, one transaction:
-  `GroupSlot` + `Match` rows + `setTournamentState`) → `revalidatePath`. The
-  first dedicated (non-`transitionTournament`) transition action — see the
-  note above.
+  `GroupSlot` + `Match` rows + `setTournamentState`) → `revalidatePath`
+  (including `/admin/tournaments`, the list page). The first dedicated
+  (non-`transitionTournament`) transition action — see the note above.

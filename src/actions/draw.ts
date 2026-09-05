@@ -8,7 +8,7 @@ import { listEntriesForTournament } from "@/data/entries";
 import { saveDraw } from "@/data/draw";
 import { getTournamentForAdmin } from "@/data/tournaments";
 import { checkTransition } from "@/domain/tournamentState";
-import { generateSchedule } from "@/domain/schedule";
+import { defaultShuffle, generateSchedule } from "@/domain/schedule";
 
 /**
  * Runs the group-stage draw: seats every entered team into the tournament's
@@ -42,16 +42,25 @@ export async function drawTournament(tournamentId: string): Promise<ActionResult
       return { ok: false, code: check.code, message: check.message };
     }
 
-    const schedule = generateSchedule(entryIds, tournament.rounds);
+    // `listEntriesForTournament` orders entries alphabetically by team name —
+    // `generateSchedule`'s circle method fixes its first entry as an anchor
+    // and rotates the rest, so without this shuffle the actual matchup
+    // pattern (who plays whom, in which tour) would be a deterministic
+    // function of team names, not a real draw. `generateSchedule`'s own
+    // `shuffle` param only randomizes pair order within a tour and home/away.
+    const shuffledEntryIds = defaultShuffle(entryIds);
+
+    const schedule = generateSchedule(shuffledEntryIds, tournament.rounds);
     const pairings = schedule.map(({ homeEntryId, awayEntryId }) => ({
       homeEntryId,
       awayEntryId,
     }));
 
-    await saveDraw(tournamentId, tournament.group.id, entryIds, pairings);
+    await saveDraw(tournamentId, tournament.group.id, shuffledEntryIds, pairings);
 
     revalidatePath(tournament.discipline === "BEACH" ? "/beach" : "/classic");
     revalidatePath(`/admin/tournaments/${tournamentId}`);
+    revalidatePath("/admin/tournaments");
 
     return { ok: true, data: undefined };
   } catch (error) {

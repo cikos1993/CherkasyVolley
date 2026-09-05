@@ -73,6 +73,14 @@ schedule generation, playoff seeding and bracket advancement.
   *order* pairs are listed within a tour is randomized, independently per
   cycle, via the injectable `shuffle` (defaults to `Math.random`-based
   Fisher–Yates; tests inject the identity function for determinism).
+  `defaultShuffle` is also exported (Story 3.3 review fix) so a caller can
+  randomize *which* entries end up paired together in the first place —
+  `circleMethodTours` fixes its first entry as an anchor and rotates the
+  rest, so the actual matchup structure is a deterministic function of
+  `entryIds`' input order; `generateSchedule`'s own `shuffle` param never
+  touches that order. `drawTournament` (`src/actions/draw.ts`) shuffles
+  `entryIds` with it before calling `generateSchedule`, since
+  `listEntriesForTournament` otherwise hands it alphabetically-ordered ids.
 
 - `validation.ts` — set-score validation (Story 3.1, FR-5/FR-15). `targetScore(preset,
   tournamentType, setNo)` — `VETERAN` is always 15 regardless of preset;

@@ -16,7 +16,7 @@ const { createEntry, deleteEntry } = await import("../src/data/entries");
 const { saveDraw } = await import("../src/data/draw");
 const { getStandings } = await import("../src/data/matches");
 const { checkTransition } = await import("../src/domain/tournamentState");
-const { generateSchedule } = await import("../src/domain/schedule");
+const { defaultShuffle, generateSchedule } = await import("../src/domain/schedule");
 
 let failed = 0;
 function check(label: string, ok: boolean) {
@@ -73,9 +73,10 @@ try {
   });
   check("checkTransition allows the draw once entries match teamCount", fullCheck.ok);
 
-  const schedule = generateSchedule(entryIds, tournament.rounds);
+  const shuffledEntryIds = defaultShuffle(entryIds);
+  const schedule = generateSchedule(shuffledEntryIds, tournament.rounds);
   const pairings = schedule.map(({ homeEntryId, awayEntryId }) => ({ homeEntryId, awayEntryId }));
-  await saveDraw(tournamentId, tournament.group.id, entryIds, pairings);
+  await saveDraw(tournamentId, tournament.group.id, shuffledEntryIds, pairings);
 
   const slots = await db.groupSlot.findMany({ where: { groupId: tournament.group.id } });
   check("GroupSlot has exactly one row per entry", slots.length === entryIds.length);
@@ -109,6 +110,37 @@ try {
   check(
     "every entry shows played: 0 (no SetScore rows yet)",
     standings.every((row) => row.row.played === 0),
+  );
+
+  // Prove saveDraw's transaction actually rolls back on partial failure,
+  // rather than merely asserting the happy-path end state (the gap the
+  // Story 3.3 code review's Verification Gap Reviewer flagged). A second
+  // call against the same, already-seated group hits GroupSlot's
+  // @@unique([groupId, entryId]) mid-transaction -- if the transaction
+  // didn't roll back, this would leave a duplicate GroupSlot row for one
+  // entry and skip seating the rest, or leave extra Match rows.
+  let secondDrawRejected = false;
+  try {
+    await saveDraw(tournamentId, tournament.group.id, shuffledEntryIds, pairings);
+  } catch {
+    secondDrawRejected = true;
+  }
+  check("a second saveDraw on an already-drawn group throws", secondDrawRejected);
+
+  const slotsAfterRetry = await db.groupSlot.findMany({ where: { groupId: tournament.group.id } });
+  check(
+    "GroupSlot row count unchanged after the rejected second draw",
+    slotsAfterRetry.length === entryIds.length,
+  );
+  const matchesAfterRetry = await db.match.findMany({ where: { tournamentId } });
+  check(
+    "Match row count unchanged after the rejected second draw",
+    matchesAfterRetry.length === expectedMatchCount,
+  );
+  const tournamentAfterRetry = await db.tournament.findUniqueOrThrow({ where: { id: tournamentId } });
+  check(
+    "Tournament.state still GROUP_STAGE after the rejected second draw (no partial state)",
+    tournamentAfterRetry.state === "GROUP_STAGE",
   );
 } finally {
   if (tournamentId) {

@@ -76,17 +76,19 @@ export default async function AdminTournamentPage({
         </div>
       </section>
 
-      <section className="mt-10 border-t pt-6">
-        <h2 className="text-lg font-semibold">Жеребкування</h2>
-        <div className="mt-4">
-          <DrawTournamentButton
-            tournamentId={tournament.id}
-            state={tournament.state}
-            entryCount={entries.length}
-            teamCount={tournament.teamCount}
-          />
-        </div>
-      </section>
+      {tournament.state === "DRAFT" ? (
+        <section className="mt-10 border-t pt-6">
+          <h2 className="text-lg font-semibold">Жеребкування</h2>
+          <div className="mt-4">
+            <DrawTournamentButton
+              tournamentId={tournament.id}
+              state={tournament.state}
+              entryCount={entries.length}
+              teamCount={tournament.teamCount}
+            />
+          </div>
+        </section>
+      ) : null}
 
       <div className="mt-10 border-t pt-6">
         <DeleteTournamentButton tournamentId={tournament.id} />

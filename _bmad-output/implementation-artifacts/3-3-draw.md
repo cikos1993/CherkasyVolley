@@ -13,7 +13,7 @@ context:
 
 # Story 3.3: Draw
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -91,13 +91,13 @@ _Code review (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Veri
 
 #### Decision Needed
 
-- [ ] [Review][Decision] `entryIds` reach `generateSchedule` in the exact order `listEntriesForTournament` returns them (alphabetical by team name) and are never shuffled — `generateSchedule`'s injectable `shuffle` (Story 3.1) only reorders pairs *within* a tour and each pair's home/away side; `circleMethodTours`'s fixed anchor (`ids[0]`) and rotation mean the actual pairing structure (which team plays whom, in which tour) is a pure, deterministic function of `entryIds`' input order. In production this means the *matchup* pattern for a given set of team names is identical every time — not random at all, only its cosmetic listing order and home/away side are. [`src/actions/draw.ts:34-45`] — Given the feature is literally called "жеребкування" (a draw/lottery), and this is silent (no error, no test failure, looks correct), this needs a human call: (a) leave as-is (Story 3.1's own doc comment interprets the AC's "випадковим порядком пар у турах" as being about within-tour listing order only, a decision already made and reviewed in 3.1), or (b) shuffle `entryIds` before calling `generateSchedule` (requires exporting a shuffle helper from `src/domain/schedule.ts`, or having `drawTournament` shuffle locally) so the actual matchups are randomized, not just their presentation.
+- [x] [Review][Decision] `entryIds` reach `generateSchedule` in the exact order `listEntriesForTournament` returns them (alphabetical by team name) and are never shuffled — `generateSchedule`'s injectable `shuffle` (Story 3.1) only reorders pairs *within* a tour and each pair's home/away side; `circleMethodTours`'s fixed anchor (`ids[0]`) and rotation mean the actual pairing structure (which team plays whom, in which tour) is a pure, deterministic function of `entryIds`' input order. In production this means the *matchup* pattern for a given set of team names is identical every time — not random at all, only its cosmetic listing order and home/away side are. [`src/actions/draw.ts:34-45`] — **Resolved by user: shuffle `entryIds` before `generateSchedule`.** Fixed by exporting `defaultShuffle` from `src/domain/schedule.ts` and calling it on `entryIds` in `drawTournament` before both `generateSchedule` and `saveDraw`.
 
 #### Patch
 
-- [ ] [Review][Patch] "Жеребкування" section rendered unconditionally regardless of `tournament.state`, producing a confusing, self-referential message once already drawn (`checkTransition("GROUP_STAGE", "GROUP_STAGE", ...)` → "Неможливий перехід зі стану «Груповий етап» до «Груповий етап»."), and persisting forever through `PLAYOFF`/`COMPLETED`. [`src/app/admin/tournaments/[id]/page.tsx`] — 3-way convergence (Blind Hunter, Verification Gap Reviewer, Acceptance Auditor citing `EXPERIENCE.md`'s admin-action-bar spec, which scopes this button to the `DRAFT` bar only).
-- [ ] [Review][Patch] `drawTournament` never revalidates `/admin/tournaments` — the tournament list page keeps showing "Чернетка" after a successful draw until an unrelated cache expiry. [`src/actions/draw.ts:53-54`] — 2-way convergence (Blind Hunter, Edge Case Hunter).
-- [ ] [Review][Patch] `saveDraw`'s transaction-atomicity/rollback guarantee (stated in its own doc comment) is asserted but never verified by any test — `scripts/verify-draw.mts` only exercises the happy path. [`scripts/verify-draw.mts`, `src/data/draw.ts`] — Verification Gap Reviewer; fix is test-only (assert a second `saveDraw` call against an already-seated group throws and leaves row counts/state unchanged), no production-code change needed.
+- [x] [Review][Patch] "Жеребкування" section rendered unconditionally regardless of `tournament.state`, producing a confusing, self-referential message once already drawn (`checkTransition("GROUP_STAGE", "GROUP_STAGE", ...)` → "Неможливий перехід зі стану «Груповий етап» до «Груповий етап»."), and persisting forever through `PLAYOFF`/`COMPLETED`. [`src/app/admin/tournaments/[id]/page.tsx`] — 3-way convergence (Blind Hunter, Verification Gap Reviewer, Acceptance Auditor citing `EXPERIENCE.md`'s admin-action-bar spec, which scopes this button to the `DRAFT` bar only). **Fixed:** the whole "Жеребкування" section is now gated by `tournament.state === "DRAFT"`, matching `team-enrollment.tsx`'s "Зняти" button precedent.
+- [x] [Review][Patch] `drawTournament` never revalidates `/admin/tournaments` — the tournament list page keeps showing "Чернетка" after a successful draw until an unrelated cache expiry. [`src/actions/draw.ts:53-54`] — 2-way convergence (Blind Hunter, Edge Case Hunter). **Fixed:** added `revalidatePath("/admin/tournaments")`.
+- [x] [Review][Patch] `saveDraw`'s transaction-atomicity/rollback guarantee (stated in its own doc comment) is asserted but never verified by any test — `scripts/verify-draw.mts` only exercises the happy path. [`scripts/verify-draw.mts`, `src/data/draw.ts`] — Verification Gap Reviewer; fix is test-only (assert a second `saveDraw` call against an already-seated group throws and leaves row counts/state unchanged), no production-code change needed. **Fixed:** extended `verify-draw.mts` with 4 new assertions proving a second `saveDraw` call throws and leaves `GroupSlot`/`Match` row counts and `Tournament.state` unchanged.
 
 #### Defer
 
@@ -214,6 +214,7 @@ claude-sonnet-5 (bmad-dev-story)
 - Task 5: `/admin/tournaments/[id]` renders a new "Жеребкування" section with `DrawTournamentButton`, passing `entries.length` (already-fetched `entries`). `typecheck`/`lint` clean.
 - Tasks 6-7: updated `src/data/README.md`, `src/actions/README.md`, `src/components/README.md`, `AGENTS.md` (Stack-status bullet), and `deferred-work.md` (new Story 3.3 section + annotated the existing AD-8-wording item).
 - Task 8: `pnpm test` 103/103 unchanged, `pnpm typecheck`/`pnpm lint` clean, `pnpm build` clean (no new route — `/admin/tournaments/[id]` is existing). Import-boundary grep confirms `src/data/**` is the only place importing the Prisma client. New `scripts/verify-draw.mts` — all 14 assertions pass (precondition refusal, `GroupSlot`/`Match` row counts and shape, `Tournament.state` transition, post-draw `getStandings` all-zero-played, full teardown). Re-ran all 7 prior verify scripts (`verify-admin-roles`, `verify-tournament-create`, `verify-tournament-edit-delete`, `verify-team-create`, `verify-team-enrollment`, `verify-roster`, `verify-public-tournament`, `verify-group-stage-schema`) — no regression.
+- Review fix pass: exported `defaultShuffle` from `src/domain/schedule.ts`; `drawTournament` now shuffles `entryIds` before `generateSchedule`/`saveDraw` (closes the decision-needed matchup-determinism finding); `/admin/tournaments/[id]` gates the "Жеребкування" section behind `state === "DRAFT"`; `drawTournament` adds `revalidatePath("/admin/tournaments")`; `verify-draw.mts` extended with 4 assertions proving `saveDraw`'s transaction rolls back cleanly on a second, conflicting call. `pnpm test` 103/103, `typecheck`/`lint`/`build` clean, all 8 verify scripts (including the extended `verify-draw.mts`, now 18 assertions) pass with no regression.
 
 ### File List
 
@@ -227,7 +228,8 @@ claude-sonnet-5 (bmad-dev-story)
 - `src/components/README.md` (UPDATE)
 - `AGENTS.md` (UPDATE)
 - `_bmad-output/implementation-artifacts/deferred-work.md` (UPDATE)
-- `scripts/verify-draw.mts` (NEW)
+- `scripts/verify-draw.mts` (NEW, extended in review-fix pass)
+- `src/domain/schedule.ts` (UPDATE — exported `defaultShuffle`)
 
 ## Change Log
 
@@ -235,3 +237,4 @@ claude-sonnet-5 (bmad-dev-story)
 | --- | --- |
 | 2026-09-05 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-05 | Implementation complete (`bmad-dev-story`) — all 9 tasks done, `pnpm test`/`typecheck`/`lint`/`build` clean, all 8 verify scripts (7 prior + new `verify-draw.mts`) pass. Status: review. |
+| 2026-09-05 | Code review (`bmad-code-review`, 4 layers) — 1 decision-needed (entryIds unshuffled) resolved by user and patched, 3 patches applied (DRAFT-only gating, `/admin/tournaments` revalidation, transaction-rollback test), 3 deferred, 10 dismissed. All checks green post-fix. |

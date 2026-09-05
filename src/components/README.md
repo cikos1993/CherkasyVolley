@@ -152,7 +152,13 @@ Disabled + captioned via `checkTransition(state, "GROUP_STAGE", { entryCount,
 teamCount })` (`src/domain/tournamentState`) computed client-side — the same
 `view → domain` edge `team-enrollment.tsx`'s `checkCanEnroll` already uses,
 applied here to reuse the transition's own precondition instead of a second
-implementation of it.
+implementation of it. **The caller must only render this component while
+`state === "DRAFT"`** (review fix — `/admin/tournaments/[id]/page.tsx` gates
+the whole "Жеребкування" section on it): once a tournament has been drawn,
+`checkTransition(state, "GROUP_STAGE", ...)` is checking an edge that no
+longer exists (`GROUP_STAGE`/`PLAYOFF`/`COMPLETED` can't go "back" to
+`GROUP_STAGE`), so its message becomes a confusing, self-referential
+`INVALID_TRANSITION` string rather than a real explanation.
 
 ## `team-enrollment.tsx`
 
