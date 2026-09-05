@@ -61,10 +61,10 @@ Translated from `epics.md` → Epic 2 → Story 2.9. The Ukrainian source is aut
   - [x] `getEntryByTeam(tournamentId: string, teamId: string)` — `findFirst({ where: { tournamentId, teamId }, select: { id: true, team: { select: { id: true, name: true } } } })`. Scoped by both ids together (never `teamId` alone) — the same discipline as `getEntryForAdmin`/`deleteEntry`. **No state/discipline filter** — visibility is the caller's job (see Notes on AC interpretation).
   - [x] Doc comment states explicitly it is visibility-agnostic and why (mirrors `getEntryForAdmin`).
   - [x] `typecheck`/`lint` clean.
-- [ ] **Task 3 — `src/components/status-badge.tsx` (NEW)** (AC: 1)
-  - [ ] `StatusBadge({ state }: { state: TournamentState })` — `TournamentState` type from `@/domain/tournamentState` (sanctioned type-only `view → domain` import, Story 2.4 precedent). Ukrainian text from that module's existing `LABELS`.
-  - [ ] Visual variant per `DESIGN.md`'s `status-badge` token + Colors section: `DRAFT` → gray fill (only ever rendered via the admin-preview fallback, never to a visitor); `GROUP_STAGE`/`PLAYOFF` → blue outline; `COMPLETED` → `#6B6B70` outline. Pill shape (`rounded-full`), `caption`-size text (`text-xs`).
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 3 — `src/components/status-badge.tsx` (NEW)** (AC: 1)
+  - [x] `StatusBadge({ state }: { state: TournamentState })` — `TournamentState` type from `@/domain/tournamentState` (sanctioned type-only `view → domain` import, Story 2.4 precedent). Ukrainian text from that module's existing `LABELS`.
+  - [x] Visual variant per `DESIGN.md`'s `status-badge` token + Colors section: `DRAFT` → gray fill (only ever rendered via the admin-preview fallback, never to a visitor); `GROUP_STAGE`/`PLAYOFF` → blue outline; `COMPLETED` → `#6B6B70` outline. Pill shape (`rounded-full`), `caption`-size text (`text-xs`).
+  - [x] `typecheck`/`lint` clean.
 - [ ] **Task 4 — `src/components/public-roster.tsx` (NEW)** (AC: 2)
   - [ ] `PublicRoster({ players })` — read-only. One entry per player: `fullName` + only the non-null optional fields (same filter logic as the admin `PlayerRow`, but no edit/delete affordances at all). Labels from `@/lib/player-labels`'s `PLAYER_OPTIONAL_FIELDS`.
   - [ ] Empty roster → a plain line, not `EmptyState` (a team with zero players mid-setup is an admin data-quality concern, not a "nothing here yet" product surface a visitor needs guided out of — matches `EXPERIENCE.md`'s "Порожньо" rows, none of which name this case).
