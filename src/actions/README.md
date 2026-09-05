@@ -74,6 +74,25 @@ Actions are wired in their feature stories.
   (`checkCanEnroll` / `checkCanRemoveEntry`; not ok → `PRECONDITION_FAILED`) →
   the write (`createEntry` / `deleteEntry`) → `revalidatePath`. `enrollTeam`
   additionally maps a `P2002` (via `@/data/errors`'s `isUniqueViolation`) to
-  "Ця команда вже заявлена в цей турнір."; `removeTeamEntry` maps `P2025` to
-  `NOT_FOUND` "Заявку вже видалено.". No new `ActionErrorCode` — both reuse
-  `PRECONDITION_FAILED`/`NOT_FOUND` (Story 2.3).
+  "Ця команда вже заявлена в цей турнір."; `removeTeamEntry` scopes
+  `deleteEntry` by `(tournamentId, entryId)` together and treats `count === 0`
+  as `NOT_FOUND` "Заявку вже видалено." rather than catching `P2025` (Story
+  2.7 fix — a mismatched pair must delete nothing, not the wrong tournament's
+  entry). No new `ActionErrorCode` — both reuse `PRECONDITION_FAILED`/`NOT_FOUND`
+  (Story 2.3).
+- `players.ts` — `addPlayer(tournamentId, entryId, _prev, formData)` /
+  `editPlayer(tournamentId, entryId, playerId, _prev, formData)`: the
+  `PlayerFormState` (`fieldErrors`/`formError`) shape, the same family as
+  `CreateTournamentState`/`TeamFormState`. Both: `requireAdmin()` (caught
+  narrowly via `instanceof AdminRequiredError` → `formError`; anything else
+  rethrows — no bare catch) → `getEntryForAdmin(tournamentId, entryId)` (not
+  found → `formError`) → `validatePlayer` (`src/domain/playerForm`) → the
+  write (`createPlayer` / `updatePlayer`) → `revalidatePath`. `editPlayer`
+  scopes `updatePlayer` by `(entryId, playerId)` together and treats
+  `count === 0` as a `formError` (same lesson as `entries.ts`'s Story 2.7
+  fix, applied here from the start — see `src/data/README.md`).
+  `removePlayer(tournamentId, entryId, playerId)` — `ActionResult<undefined>`,
+  the `admin-roles.ts` shape: `requireAdmin()` → `getEntryForAdmin` (not
+  found → `NOT_FOUND`) → `deletePlayer(entryId, playerId)` → `count === 0` →
+  `NOT_FOUND` → `revalidatePath`. No state restriction (unlike `entries.ts`) —
+  Story 2.8's AC leaves roster edits open regardless of `Tournament.state`.

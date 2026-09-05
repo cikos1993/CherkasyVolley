@@ -50,12 +50,29 @@ goes through a named function exported from here — `getPublicTournaments`,
   `team: { id, name }`), `countTournamentEntries(tournamentId)` (**moved here
   from `tournaments.ts`, Story 2.7** — entry-owned, not tournament-owned;
   `transitionTournament`'s `DRAFT → GROUP_STAGE` precondition is still its only
-  caller), `createEntry(tournamentId, teamId)` — **the sole creator of a
-  `TournamentEntry`** — and `deleteEntry(entryId)` — **the sole canceler**;
-  relies on the schema's `Player.entryId onDelete: Cascade` to remove the
-  roster, no explicit cleanup code. `TOURNAMENT_ENTRY_NATURAL_KEY_INDEX` is the
-  Postgres index name backing `@@unique([tournamentId, teamId])`, used with
-  `errors.ts`'s `isUniqueViolation`.
+  caller), `getEntryForAdmin(tournamentId, entryId)` (Story 2.8 — admin read,
+  scoped by both ids together via `findFirst`, `null` if the pair doesn't
+  match; the roster page's sole existence/ownership check),
+  `createEntry(tournamentId, teamId)` — **the sole creator of a
+  `TournamentEntry`** — and `deleteEntry(tournamentId, entryId)` — **the sole
+  canceler**, scoped by both ids via `deleteMany` returning `{count}` (Story
+  2.7 fix — a bare `delete({ where: { id } })` let a mismatched
+  `tournamentId`/`entryId` pair cancel an entry in the wrong tournament;
+  `removeTeamEntry` treats `count === 0` as not-found instead of catching
+  `P2025`). Relies on the schema's `Player.entryId onDelete: Cascade` to
+  remove the roster, no explicit cleanup code. `TOURNAMENT_ENTRY_NATURAL_KEY_INDEX`
+  is the Postgres index name backing `@@unique([tournamentId, teamId])`, used
+  with `errors.ts`'s `isUniqueViolation`.
+- `players.ts` — the `Player` roster (Story 2.8), every function scoped by
+  `(entryId, playerId)` together, never `playerId` alone (the same lesson as
+  `entries.ts`'s Story 2.7 fix, applied here from the start).
+  `listPlayersForEntry(entryId)` (admin read, ordered by `fullName`),
+  `createPlayer(entryId, input)` — **the sole creator of a `Player`** — and
+  `updatePlayer(entryId, playerId, input)` / `deletePlayer(entryId, playerId)`
+  — the sole writer/canceler, both via `updateMany`/`deleteMany` returning
+  `{count}`; `src/actions/players.ts` treats `count === 0` as not-found. Takes
+  `PlayerInput` from `src/domain/playerForm` (a sanctioned type-only
+  `data → domain` import, same pattern as `tournaments.ts`/`teams.ts`).
 
 The `Tournament`, `Team`, `TournamentEntry` and `Player` entities (schema landed in
 Story 2.1, migration `20260903174727_tournament_schema`) are owned here too; their

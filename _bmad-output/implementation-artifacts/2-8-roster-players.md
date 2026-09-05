@@ -84,13 +84,13 @@ Translated from `epics.md` → Epic 2 → Story 2.8. The Ukrainian source is aut
   - [x] `pnpm build` regenerated `.next/types` for the new nested route (the Story 2.4-carried caveat) — route table confirms `/admin/tournaments/[id]/entries/[entryId]` (`ƒ`). `typecheck`/`lint` clean.
 - [x] **Task 8 — `src/components/team-enrollment.tsx` (UPDATE): link to the roster page** (AC: reachability)
   - [x] "Склад" link per entry row, unconditional on `state`. No other change. `typecheck`/`lint` clean.
-- [ ] **Task 9 — Docs**
-  - [ ] `src/domain/README.md` — `playerForm.ts` entry.
-  - [ ] `src/data/README.md` — `entries.ts`'s entry gains `getEntryForAdmin`; new `players.ts` entry.
-  - [ ] `src/actions/README.md` — `players.ts` entry.
-  - [ ] `src/components/README.md` — `player-form.tsx` + `roster.tsx` entries.
-  - [ ] `AGENTS.md` — Stack-status bullet for Story 2.8.
-  - [ ] No `ARCHITECTURE-SPINE.md` / `EXPERIENCE.md` / `epics.md` / `SPEC.md` edit — the new route extends the documented `/admin/tournaments/**` prefix; no new invariant.
+- [x] **Task 9 — Docs**
+  - [x] `src/domain/README.md` — `playerForm.ts` entry.
+  - [x] `src/data/README.md` — `entries.ts`'s entry gains `getEntryForAdmin`; new `players.ts` entry.
+  - [x] `src/actions/README.md` — `players.ts` entry. (Also corrected an outdated line: `removeTeamEntry` was documented as catching `P2025`, but the actual Story 2.7 fix checks `deleteEntry`'s `{count}` — fixed while touching this file.)
+  - [x] `src/components/README.md` — `player-form.tsx` + `roster.tsx` entries.
+  - [x] `AGENTS.md` — Stack-status bullet for Story 2.8.
+  - [x] No `ARCHITECTURE-SPINE.md` / `EXPERIENCE.md` / `epics.md` / `SPEC.md` edit — the new route extends the documented `/admin/tournaments/**` prefix; no new invariant.
 - [ ] **Task 10 — `deferred-work.md` (UPDATE)**
   - [ ] Add a **"Story 2.8 implementation"** section: `addPlayer`/`editPlayer`/`removePlayer` have no automated action-level test (same class as every prior action); `player-form.tsx`/`roster.tsx` untested at the component layer; no roster-size cap (SPEC gives none, not required); no public roster read yet (`listPlayersForEntry` is admin-only in this story — Story 2.9's decision).
 - [ ] **Task 11 — Verification gate** (AC: all)

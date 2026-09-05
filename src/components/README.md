@@ -162,4 +162,56 @@ a thrown/rejected call or `{ ok: false }` toasts the error and returns `false`
   "Зняти" button calling `removeTeamEntry`, same shape as
   `DeleteTournamentButton`. Empty list → `<EmptyState {...NO_TEAMS} />` — the
   first context in the codebase where `NO_TEAMS`'s copy ("Ще немає заявлених
-  команд.") is actually the right one (`src/lib/empty-states.ts`).
+  команд.") is actually the right one (`src/lib/empty-states.ts`). Each entry
+  row also carries a "Склад" link to `/admin/tournaments/[id]/entries/[entryId]`
+  (Story 2.8), unconditional on `state` — only "Зняти" stays `DRAFT`-gated.
+
+## `player-form.tsx`
+
+`PlayerForm(props)` — the roster add/edit form (Story 2.8), discriminated on
+`mode: "create" | "edit"` (default `"create"`): create-mode props are just
+`tournamentId`/`entryId`; edit-mode additionally requires `playerId`,
+`initial` (a `FormValues` seed) and `onCancel` (fixed after a Story 2.5-review
+lesson — an all-optional-props shape let a caller construct an invalid
+create/edit mix behind a non-null assertion). `useActionState(action, {})`
+where `action` is `addPlayer.bind(null, tournamentId, entryId)` or
+`editPlayer.bind(null, tournamentId, entryId, playerId)`. Fully controlled
+(`useState<FormValues>`, one `<Input>` per field, `fullName` required, the six
+optional fields share `FREE_TEXT_MAX` — the `tournament-form.tsx` UX-DR11
+pattern, single flat record instead of per-field `useState`).
+
+Two effects, following the `tournament-form.tsx`/`team-form.tsx` split:
+`state.formError` → `notify.error`; a second effect keyed off the falling
+edge of `pending` (a `useRef`) that on a clean completion does
+mode-dependent work — edit mode toasts "Зміни збережено" and calls
+`props.onCancel()`; create mode clears the form back to `emptyValues()` (via
+a `submitted` ref comparison, not an unconditional reset, so in-progress
+typing for the *next* player survives a slow request racing a fast one — the
+pattern Story 2.7's own review found missing and is applied here from the
+start) and toasts "Гравця додано" — then both call `router.refresh()`.
+
+**Two ESLint rules new to this story**, both from this component:
+`react-hooks/set-state-in-effect` forbids `setForm(emptyValues())` (even
+`setForm(() => emptyValues())`) directly inside an effect — fixed by the
+`submitted`-ref-comparison updater above, which *reads* prior state rather
+than ignoring it. `react-hooks/refs` forbids writing to a ref during render
+(an earlier draft synced `onCancelRef.current` in the component body) — fixed
+by calling `props.onCancel()` directly inside the effect and adding `props`
+to its dependency array (a "wasteful but correct" extra re-run, same
+precedent as `team-enrollment.tsx`).
+
+## `roster.tsx`
+
+`Roster({ tournamentId, entryId, players })` — the player list on the roster
+page (Story 2.8). A local `Player` type (not Prisma-imported, matching
+`team-enrollment.tsx`'s `Entry`/`Team` precedent). `PlayerRow` renders a
+player's `fullName` plus only the optional fields that are non-null
+(`OPTIONAL_FIELDS.filter(({ name }) => player[name] != null)` — nulls are
+omitted, not shown as empty), an "Редагувати" button, and a
+`ConfirmDialog`-gated "Видалити" button calling `removePlayer` (the
+`team-enrollment.tsx` remove-entry shape: `catch` → toast + `throw` on an
+unexpected failure, `{ ok: false }` → toast + `return false`, success →
+toast + `router.refresh()`). `editingPlayerId` (local `useState`) swaps one
+row for `<PlayerForm mode="edit">` in place; a `<PlayerForm mode="create">`
+is always rendered at the bottom. No roster-size cap or dedup UI — Story
+2.8's AC leaves "duplicate ПІБ allowed" as an intentional absence.

@@ -39,6 +39,14 @@ schedule generation, playoff seeding and bracket advancement.
   inline action logic — the same shape as `tournamentForm.ts`'s
   `resolveGroupStageFields`.
 
+- `playerForm.ts` — rules for the roster (player) form (Story 2.8). `FULL_NAME_MAX`
+  / `FREE_TEXT_MAX` bounds and `validatePlayer(raw)`, which trims every field —
+  `fullName` required, the six optional fields (`birthDate`, `birthPlace`,
+  `sportRank`, `position`, `height`, `weight`) become `null` when empty after
+  trim rather than an empty string, matching Prisma's `String?` nullability so
+  the value passes straight through to `src/data`. No unique/dedup check — AC 3
+  ("не забороняє однакове ПІБ") is an intentional absence, not a gap.
+
 The Vitest runner (`pnpm test`) was added alongside the first module.
 
 **May import:** other `src/domain` modules, the standard library, pure npm utilities.
