@@ -48,11 +48,11 @@ Translated from `epics.md` → Epic 3 → Story 3.1. The Ukrainian source is aut
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — `src/domain/scoring.ts` (NEW) + Vitest spec** (AC: 1, 3)
-  - [ ] `MatchResult` type: `{ homeEntryId: string; awayEntryId: string; sets: { setNo: number; homePoints: number; awayPoints: number }[] }`.
-  - [ ] `matchPoints(sets, preset): { home: number; away: number }` — `CLASSIC`: winner determined by sets won (first to 3); 3:0/3:1 → 3/0, 3:2 → 2/1. `CUSTOM`: exactly 3 sets, 1 point per set won each side (independent of who "wins" the match).
-  - [ ] `computeStandings(entryIds, matches, preset): StandingsRow[]` — `{ entryId, played, wins, losses, points, setsWon, setsLost }` per entry, aggregated from every match involving that entry; wins/losses derived from sets-won majority (`CLASSIC`: first to 3; `CUSTOM`: majority of 3). Ordering delegated to `tiebreak.ts`.
-  - [ ] Vitest: both presets' point allocation for every legal set-count outcome (3:0, 3:1, 3:2 for `CLASSIC`; each of the 4 possible 3-set outcomes for `CUSTOM`), `computeStandings` aggregation across a small multi-match fixture.
+- [x] **Task 1 — `src/domain/scoring.ts` (NEW) + Vitest spec** (AC: 1, 3)
+  - [x] `MatchResult` type: `{ homeEntryId: string; awayEntryId: string; sets: { setNo: number; homePoints: number; awayPoints: number }[] }`.
+  - [x] `matchPoints(sets, preset): { home: number; away: number }` — `CLASSIC`: winner determined by sets won (first to 3); 3:0/3:1 → 3/0, 3:2 → 2/1. `CUSTOM`: exactly 3 sets, 1 point per set won each side (independent of who "wins" the match).
+  - [x] `computeStandings(entryIds, matches, preset): StandingsRow[]` — `{ entryId, played, wins, losses, points, setsWon, setsLost }` per entry, aggregated from every match involving that entry; wins/losses derived from sets-won majority (`CLASSIC`: first to 3; `CUSTOM`: majority of 3). Ordering delegated to `tiebreak.ts`.
+  - [x] Vitest: both presets' point allocation for every legal set-count outcome (3:0, 3:1, 3:2 for `CLASSIC`; each of the 4 possible 3-set outcomes for `CUSTOM`), `computeStandings` aggregation across a small multi-match fixture. `pnpm test` → 6 files, 78/78.
 - [ ] **Task 2 — `src/domain/tiebreak.ts` (NEW) + Vitest spec** (AC: 1, 3)
   - [ ] `orderStandings(rows, matches): { row: StandingsRow; needsManualSeed: boolean }[]` — sorts by points desc, then (for ties) the head-to-head mini-table among just the tied entries, then total sets won desc, then team name (needs a `name` field threaded through — extend `StandingsRow` or take a name-lookup map), flagging `needsManualSeed: true` only on rows that reached the name fallback.
   - [ ] Vitest: a clean points-only ordering (no ties); a 2-team tie broken by head-to-head; a 3-team tie broken by the mini-table where one team clearly dominates the subset; a constructed 3-way tie that survives the mini-table (a stats cycle) and falls through to sets-won, then to name + `needsManualSeed`. At least one fully worked fixture with real numbers in the test file, since none exist in the PRD to draw from.
