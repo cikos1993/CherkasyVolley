@@ -13,7 +13,7 @@ context:
 
 # Story 3.2: Group stage schema
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -251,3 +251,4 @@ claude-sonnet-5
 | 2026-09-05 | Task 4 — README + `AGENTS.md` updates. |
 | 2026-09-05 | Task 5 — `deferred-work.md`: new "Story 3.2 implementation" section. |
 | 2026-09-05 | Task 6/7 — verification gate green (`test` 103/103, `typecheck`, `lint`, `build`). New `scripts/verify-group-stage-schema.mts` (11/11). All seven verify scripts re-run together, no regression. Status → review. |
+| 2026-09-05 | `bmad-code-review` (4 layers, run in two passes after a session rate limit) over `git diff 9e53089..7d6a664`. 0 decision-needed, 9 patch, 5 defer, 2 dismissed. First pass (Blind Hunter + Edge Case Hunter) fixed: missing `CHECK` requiring non-null entries on `GROUP` matches; missing indexes on four cascade-FK columns; missing `CHECK` bounding `SetScore.setNo`; `GroupSlot` missing `updatedAt`; `getStandings`'s missing `orderBy`; two verify-script coverage gaps; two stale `AGENTS.md` claims — via a second migration `20260905161412_group_stage_schema_constraints`. **Second pass (Verification Gap Reviewer) found a critical bug the first pass missed**: `getStandings` scored an unplayed `GROUP` match (no `SetScore` rows — the normal mid-tournament state) as a decided 0:0, crediting the away side a phantom win/points — fixed with a `sets.length > 0` filter and a new verify-script scenario proving it. Acceptance Auditor's re-run confirmed everything else was correctly applied. Gate re-run clean: `test` 103/103, `typecheck`, `lint`, `build`; all seven verify scripts green (19/19 for `verify-group-stage-schema.mts`). Status → done. |
