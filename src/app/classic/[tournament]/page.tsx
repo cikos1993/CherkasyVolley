@@ -2,12 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/empty-state";
+import { PublicSchedule } from "@/components/public-schedule";
 import { StatusBadge } from "@/components/status-badge";
+import { normalizeTournamentTab, TournamentTabs } from "@/components/tournament-tabs";
 import { listEntriesForTournament } from "@/data/entries";
+import { listGroupMatchesForTournament } from "@/data/matches";
+import { formatKyivDateTime } from "@/domain/matchSchedule";
 import { NO_TEAMS } from "@/lib/empty-states";
 import { resolveTournament } from "../_lib/resolve-tournament";
-
-const STUB_TABS = ["Розклад", "Таблиця", "Плейоф"];
 
 export async function generateMetadata({ params }: PageProps<"/classic/[tournament]">) {
   const { tournament: id } = await params;
@@ -15,14 +17,42 @@ export async function generateMetadata({ params }: PageProps<"/classic/[tourname
   return { title: tournament?.name ?? "Турнір" };
 }
 
+function setSummary(sets: { homePoints: number; awayPoints: number }[]): string | null {
+  if (sets.length === 0) return null;
+  let home = 0;
+  let away = 0;
+  for (const set of sets) {
+    if (set.homePoints > set.awayPoints) home += 1;
+    else if (set.awayPoints > set.homePoints) away += 1;
+  }
+  return `${home}:${away}`;
+}
+
 export default async function PublicTournamentPage({
   params,
+  searchParams,
 }: PageProps<"/classic/[tournament]">) {
   const { tournament: id } = await params;
   const tournament = await resolveTournament(id);
   if (!tournament) notFound();
 
-  const entries = await listEntriesForTournament(id);
+  const { tab } = await searchParams;
+  const showPlayoff = tournament.state === "PLAYOFF" || tournament.state === "COMPLETED";
+  let activeTab = normalizeTournamentTab(tab);
+  if (activeTab === "playoff" && !showPlayoff) activeTab = "teams";
+
+  const entries = activeTab === "teams" ? await listEntriesForTournament(id) : [];
+  const matches =
+    activeTab === "schedule"
+      ? (await listGroupMatchesForTournament(id)).map((match) => ({
+          id: match.id,
+          homeTeam: match.homeEntry?.team.name ?? "—",
+          awayTeam: match.awayEntry?.team.name ?? "—",
+          scheduledAtDisplay: match.scheduledAt ? formatKyivDateTime(match.scheduledAt) : null,
+          venueText: match.venueText,
+          resultSummary: setSummary(match.sets),
+        }))
+      : [];
 
   return (
     <main className="mx-auto w-full max-w-[1120px] px-4 py-8">
@@ -34,38 +64,41 @@ export default async function PublicTournamentPage({
         <StatusBadge state={tournament.state} />
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-2">
-        <span className="rounded-full border border-foreground px-3 py-1 text-sm text-foreground">
-          Команди
-        </span>
-        {STUB_TABS.map((label) => (
-          <span
-            key={label}
-            aria-disabled="true"
-            className="rounded-full border border-border px-3 py-1 text-sm text-muted-foreground"
-          >
-            {label}
-          </span>
-        ))}
-      </div>
+      <TournamentTabs tournamentId={id} active={activeTab} showPlayoff={showPlayoff} />
 
       <div className="mt-6">
-        {entries.length === 0 ? (
-          <EmptyState {...NO_TEAMS} />
-        ) : (
-          <ul className="divide-y">
-            {entries.map((entry) => (
-              <li key={entry.id} className="py-2">
-                <Link
-                  href={`/classic/${id}/teams/${entry.teamId}`}
-                  className="text-sm underline underline-offset-4"
-                >
-                  {entry.team.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+        {activeTab === "teams" ? (
+          entries.length === 0 ? (
+            <EmptyState {...NO_TEAMS} />
+          ) : (
+            <ul className="divide-y">
+              {entries.map((entry) => (
+                <li key={entry.id} className="py-2">
+                  <Link
+                    href={`/classic/${id}/teams/${entry.teamId}`}
+                    className="text-sm underline underline-offset-4"
+                  >
+                    {entry.team.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )
+        ) : null}
+
+        {activeTab === "schedule" ? <PublicSchedule matches={matches} /> : null}
+
+        {activeTab === "standings" ? (
+          <p className="text-sm text-muted-foreground">
+            Турнірна таблиця зʼявиться в наступному оновленні.
+          </p>
+        ) : null}
+
+        {activeTab === "playoff" ? (
+          <p className="text-sm text-muted-foreground">
+            Сітка плейофа зʼявиться в наступному оновленні.
+          </p>
+        ) : null}
       </div>
     </main>
   );

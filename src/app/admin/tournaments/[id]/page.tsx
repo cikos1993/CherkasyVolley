@@ -109,6 +109,20 @@ export default async function AdminTournamentPage({
         </section>
       ) : null}
 
+      {tournament.state !== "DRAFT" ? (
+        <section className="mt-10 border-t pt-6">
+          <h2 className="text-lg font-semibold">Розклад</h2>
+          <div className="mt-4">
+            <Link
+              href={`/admin/tournaments/${tournament.id}/schedule`}
+              className="text-sm underline underline-offset-4"
+            >
+              Керувати розкладом матчів
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
       <div className="mt-10 border-t pt-6">
         <DeleteTournamentButton tournamentId={tournament.id} />
       </div>

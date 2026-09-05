@@ -99,44 +99,34 @@ PRD §4.5 (`prd.md`, cited in context) makes the same three consequences explici
   - [x] Added `revalidatePath(`/classic/${tournamentId}`)` to both `drawTournament` and `redrawTournament`, with a one-line why-comment.
   - [x] `typecheck`/`lint` clean; `pnpm test` 124/124.
 
-- [ ] **Task 5 — `src/components/match-schedule.tsx` (NEW): admin editor** (AC: 1, 2)
-  - [ ] `"use client"`. `MatchScheduleList({ tournamentId, matches })` where `matches: { id: string; homeTeam: string; awayTeam: string; scheduledAtLocal: string; scheduledAtDisplay: string | null; venueText: string; resultSummary: string | null }[]` — a plain view model, shaped server-side (local `type` in the component, not Prisma-imported — the `team-enrollment.tsx` / `roster.tsx` precedent).
-  - [ ] One row per match: `"{homeTeam} — {awayTeam}"`, the current schedule (`scheduledAtDisplay ?? "час не визначено"`, the `null` case in `text-muted-foreground`), result (`resultSummary ?? "—"`), and an always-visible inline form: a `datetime-local` `<input>` (seeded `scheduledAtLocal`), a text `<input name="venueText">` (seeded `venueText`, `maxLength={VENUE_TEXT_MAX}` from `@/domain/matchSchedule`), a "Зберегти" `Button`. `useActionState(scheduleMatch.bind(null, tournamentId, match.id), {})`; fully controlled inputs (`useState`, the `player-form.tsx` UX-DR11 pattern). Field errors → under the field via `aria-invalid`/`aria-describedby`; `formError` → `notify.error` (effect keyed on `state`). Falling-edge-of-`pending` success effect (the `useRef` technique, not `state` identity — `player-form.tsx`) → `notify.success("Розклад оновлено")` + `router.refresh()`.
-  - [ ] Uses the native `<input type="datetime-local">` directly (not `ui/input` / base-ui — no base-ui date primitive, and `datetime-local` needs the native control); style it with the shared `selectClassName`-style utility string (copy the one from `team-enrollment.tsx` or lift it to a shared spot if the reviewer prefers).
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 5 — `src/components/match-schedule.tsx` (NEW): admin editor** (AC: 1, 2)
+  - [x] `"use client"`. `MatchScheduleList({ tournamentId, matches })` + inner `MatchScheduleRow` (own hooks per row). Plain `MatchRow` view model (local type, not Prisma-imported).
+  - [x] Per row: header line `"{home} — {away}"` + a `·`-joined meta line (`scheduledAtDisplay ?? "час не визначено"`, venue, `рахунок X:Y`); an always-visible `<form action={formAction}>` with a `datetime-local` `Input`, a `venueText` `Input` (`maxLength={VENUE_TEXT_MAX}`), and a "Зберегти" `Button`. Controlled inputs (`useState`, the `player-form.tsx` pattern). Field errors under the field (`aria-invalid`/`aria-describedby`); `formError` → `notify.error`; falling-edge-of-`pending` (a `useRef`) → `notify.success("Розклад оновлено")` + `router.refresh()`.
+  - [x] Uses `ui/input`'s `Input` with `type="datetime-local"` (controlled — base-ui only rejects a *changed `defaultValue`*, not `value`; `player-form.tsx` precedent). No shared class needed.
+  - [x] `typecheck`/`lint` clean.
 
-- [ ] **Task 6 — `src/components/public-schedule.tsx` (NEW): read-only schedule** (AC: 2, 3)
-  - [ ] `PublicSchedule({ matches })` where `matches: { id: string; homeTeam: string; awayTeam: string; scheduledAtDisplay: string | null; venueText: string | null; resultSummary: string | null }[]` — the read-only counterpart to `MatchScheduleList`, the `public-roster.tsx` precedent (**not** a reuse-with-a-flag: no `@/actions` import, no form, no session assumption). Each row: teams, `scheduledAtDisplay ?? "час не визначено"` (muted for the `null` case), `venueText` if present, `resultSummary` if present. Empty list → a plain muted line ("Розклад матчів зʼявиться після жеребкування."), not `EmptyState` (a drawn `GROUP_STAGE` tournament always has matches; the empty case is a should-not-happen edge, treated like `public-roster.tsx`'s zero-players line).
-  - [ ] Server component (no interactivity) — no `"use client"`.
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 6 — `src/components/public-schedule.tsx` (NEW): read-only schedule** (AC: 2, 3)
+  - [x] `PublicSchedule({ matches })` — read-only counterpart, `public-roster.tsx` precedent (no `@/actions`, no form). Per row: teams, `resultSummary` (right, `tabular-nums`) if present, `scheduledAtDisplay ?? "час не визначено"` + venue on a muted line. Empty list → plain muted line, not `EmptyState`.
+  - [x] Server component. `typecheck`/`lint` clean.
 
-- [ ] **Task 7 — `src/components/tournament-tabs.tsx` (NEW): `?tab=` chip nav** (AC: 3)
-  - [ ] `TournamentTabs({ tournamentId, active, showPlayoff }: { tournamentId: string; active: "teams" | "schedule" | "standings" | "playoff"; showPlayoff: boolean })` — a **server** component. Renders the chips as `<Link href={`/classic/${tournamentId}?tab=${key}`}>`; the active chip gets the `tab-chip-active` style (`border-foreground text-foreground`, DESIGN.md), the rest `tab-chip` (`border-border text-muted-foreground`). Order: `Команди` (`teams`), `Розклад` (`schedule`), `Таблиця` (`standings`), `Плейоф` (`playoff` — omitted entirely unless `showPlayoff`). Horizontal scroll container on mobile (`overflow-x-auto`, no body scroll — UX-DR14).
-  - [ ] No `useSearchParams` (the page passes `active` as a prop) — so no client Suspense boundary needed.
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 7 — `src/components/tournament-tabs.tsx` (NEW): `?tab=` chip nav** (AC: 3)
+  - [x] `TournamentTabs({ tournamentId, active, showPlayoff })` — server component, chips as `<Link href="/classic/{id}?tab={key}">`, active → `border-foreground text-foreground`, rest → `border-border text-muted-foreground`, `aria-current="page"` on the active one. Order Команди · Розклад · Таблиця · Плейоф; `playoff` omitted unless `showPlayoff`. `overflow-x-auto` container.
+  - [x] Also exports `TournamentTabKey` + `normalizeTournamentTab(raw)` (coerce → known key, default `teams`). No `useSearchParams`.
+  - [x] `typecheck`/`lint` clean.
 
-- [ ] **Task 8 — `src/app/classic/[tournament]/page.tsx` (UPDATE): tab routing + schedule panel** (AC: 2, 3)
-  - [ ] Read `searchParams` (now needed): `const { tab } = await searchParams;` — normalize to one of `"teams" | "schedule" | "standings" | "playoff"`, default `"teams"`; an unknown value → `"teams"` (do not 404). If `tab === "playoff"` but `state` is not `PLAYOFF`/`COMPLETED` → treat as `"teams"`.
-  - [ ] Replace the inline `STUB_TABS` `<span>` row with `<TournamentTabs tournamentId={id} active={activeTab} showPlayoff={tournament.state === "PLAYOFF" || tournament.state === "COMPLETED"} />`.
-  - [ ] Panel switch:
-    - `teams` → the existing entries list (unchanged).
-    - `schedule` → `const matches = await listGroupMatchesForTournament(id);` shaped into the `PublicSchedule` view model (`formatKyivDateTime` for `scheduledAtDisplay`, inline set-win tally for `resultSummary`), then `<PublicSchedule matches={…} />`.
-    - `standings` / `playoff` → a plain muted placeholder line (`"Таблиця зʼявиться в наступному оновленні."` / `"Плейоф зʼявиться в наступному оновленні."`) — Story 3.8 / 4.6 replace these. Do **not** build standings/bracket content.
-  - [ ] `generateMetadata` unchanged (title is the tournament name regardless of tab).
-  - [ ] After adding a new route param usage nothing regenerates types (same route, only `searchParams` added) — but run the full gate anyway.
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 8 — `src/app/classic/[tournament]/page.tsx` (UPDATE): tab routing + schedule panel** (AC: 2, 3)
+  - [x] `const { tab } = await searchParams;` → `normalizeTournamentTab`; `playoff` below `PLAYOFF` state → `teams`. Data fetched per active tab only.
+  - [x] `<TournamentTabs>` replaces the `STUB_TABS` `<span>` row. Panels: `teams` (existing entries list, verbatim), `schedule` (`listGroupMatchesForTournament` → VM with `formatKyivDateTime` + inline `setSummary` tally → `<PublicSchedule>`), `standings`/`playoff` (muted placeholder lines — 3.8 / 4.6).
+  - [x] `generateMetadata` unchanged. `typecheck`/`lint` clean.
 
-- [ ] **Task 9 — `src/app/admin/tournaments/[id]/schedule/page.tsx` (NEW route): admin schedule page** (AC: 1, 2)
-  - [ ] Server Component. `const { id } = await params;` → `getTournamentForAdmin(id)` → `notFound()` if falsy. If `tournament.state === "DRAFT"` → render a plain "Розклад зʼявиться після жеребкування." line with a back-link to `/admin/tournaments/${id}` (not `notFound()` — the tournament exists and the admin navigated here deliberately; a friendly explanation beats a 404).
-  - [ ] `const matches = await listGroupMatchesForTournament(id);` → shape into the `MatchScheduleList` view model (`toKyivDateTimeLocalValue` for `scheduledAtLocal`, `formatKyivDateTime` for `scheduledAtDisplay`, inline tally for `resultSummary`) → `<MatchScheduleList tournamentId={id} matches={…} />`.
-  - [ ] Back-link to `/admin/tournaments/${id}`, `<h1>` with the tournament name, the "Розклад" heading. `export const metadata = { title: "Розклад" }` (static — same rationale as `[id]/page.tsx`'s static title: metadata resolves outside the `/admin` auth tree).
-  - [ ] **New nested dynamic route** → run `pnpm build` before `pnpm typecheck` (regenerates `.next/types` for `PageProps<"/admin/tournaments/[id]/schedule">`; documented pitfall).
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 9 — `src/app/admin/tournaments/[id]/schedule/page.tsx` (NEW route): admin schedule page** (AC: 1, 2)
+  - [x] Server Component → `getTournamentForAdmin` → `notFound()` if falsy. `state === "DRAFT"` → back-link + "Розклад зʼявиться після жеребкування." (not `notFound()`).
+  - [x] Otherwise `listGroupMatchesForTournament` → `MatchScheduleList` VM (`toKyivDateTimeLocalValue` seed, `formatKyivDateTime` display, inline tally). Back-link, `<h1>`, `metadata = { title: "Розклад" }` static.
+  - [x] `pnpm build` run before `pnpm typecheck` — new route `/admin/tournaments/[id]/schedule` registered, `.next/types` regenerated, `typecheck`/`lint` clean.
 
-- [ ] **Task 10 — `src/app/admin/tournaments/[id]/page.tsx` (UPDATE): "Розклад" link** (AC: 1)
-  - [ ] Add a section (sibling to "Команди" / "Жеребкування"), rendered when `tournament.state === "GROUP_STAGE" || tournament.state === "PLAYOFF" || tournament.state === "COMPLETED"`: a heading "Розклад" + a `<Link href={`/admin/tournaments/${tournament.id}/schedule`}>` ("Керувати розкладом" or similar). No new data fetch on this page.
-  - [ ] Preserve the four existing sections and their data flow verbatim.
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 10 — `src/app/admin/tournaments/[id]/page.tsx` (UPDATE): "Розклад" link** (AC: 1)
+  - [x] New "Розклад" section (`state !== "DRAFT"`) with a `<Link>` to `…/schedule` ("Керувати розкладом матчів"). No new data fetch. Four existing sections untouched.
+  - [x] `typecheck`/`lint` clean.
 
 - [ ] **Task 11 — Docs**
   - [ ] `src/domain/README.md` — new `matchSchedule.ts` entry.
@@ -299,6 +289,7 @@ claude-sonnet-5 (bmad-dev-story)
 - Task 2: `src/data/matches.ts` — `listGroupMatchesForTournament` (chronological, `nulls: "last"`, joined team names + sets) and `updateMatchSchedule` (`updateMany` scoped by `(tournamentId, matchId, stage:"GROUP")` → `{ count }`, writes only `scheduledAt`/`venueText`). `typecheck`/`lint` clean.
 - Task 3: `src/actions/matches.ts` (NEW) — `scheduleMatch`, form-state shape, narrow `requireAdmin` catch, revalidates the admin schedule route and `/classic/${id}`.
 - Task 4: `src/actions/draw.ts` — `drawTournament` / `redrawTournament` now also `revalidatePath(`/classic/${tournamentId}`)` (closes the carried deferred item).
+- Tasks 5–10: admin editor (`match-schedule.tsx`, per-row `useActionState` form), read-only `public-schedule.tsx`, `tournament-tabs.tsx` (server, `?tab=` chips + `normalizeTournamentTab`), public page rewired to render the active tab panel (schedule panel new), new admin route `/admin/tournaments/[id]/schedule`, "Розклад" link on the admin tournament page. Result summary is an inline `setSummary` tally duplicated in both page files (deliberate — Story 3.6 owns the canonical helper; noted in deferred-work). `pnpm build` clean (new route registered), `typecheck`/`lint` clean, `pnpm test` 124/124.
 
 ### File List
 
@@ -307,6 +298,12 @@ claude-sonnet-5 (bmad-dev-story)
 - `src/data/matches.ts` (UPDATE)
 - `src/actions/matches.ts` (NEW)
 - `src/actions/draw.ts` (UPDATE)
+- `src/components/match-schedule.tsx` (NEW)
+- `src/components/public-schedule.tsx` (NEW)
+- `src/components/tournament-tabs.tsx` (NEW)
+- `src/app/classic/[tournament]/page.tsx` (UPDATE)
+- `src/app/admin/tournaments/[id]/schedule/page.tsx` (NEW)
+- `src/app/admin/tournaments/[id]/page.tsx` (UPDATE)
 
 ## Change Log
 
