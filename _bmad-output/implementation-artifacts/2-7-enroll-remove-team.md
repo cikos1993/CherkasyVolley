@@ -17,7 +17,7 @@ context:
 
 # Story 2.7: Enroll and remove a team from a tournament
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -90,14 +90,15 @@ Translated from `epics.md` → Epic 2 → Story 2.7. The Ukrainian source is aut
 - [x] **Task 7 — `deferred-work.md` (UPDATE)**
   - [x] Marked **resolved**: 2-1-review "`TournamentEntry` count vs `Tournament.teamCount`".
   - [x] Added a **"Story 2.7 implementation"** section: action-level test gap (narrowed — domain preconditions now unit-tested); `team-enrollment.tsx` untested at the component layer; no visual distinction between "field full" and "team already enrolled" beyond toast text.
-- [ ] **Task 8 — Verification gate** (AC: all)
-  - [ ] `pnpm test` (existing 3 domain files + the new `teamEnrollment.test.ts`) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean.
-  - [ ] Route table unchanged (no new route — `/admin/tournaments/[id]` already exists).
-  - [ ] Import-boundary greps: no new Prisma import site outside `src/data/**`; `src/domain/**` free of `next`/`react`.
-  - [ ] `scripts/verify-team-enrollment.mts` (NEW, self-cleaning, same style as the Story 2.4/2.5/2.6 scripts): create a throwaway tournament (`teamCount: 2`) and two throwaway teams → `createEntry` both → assert exactly 2 entries, `countTournamentEntries` returns 2 → assert a third enroll attempt's precondition (`checkCanEnroll` with `currentEntryCount: 2, teamCount: 2`) reports not-ok → assert a duplicate `createEntry` (same tournament+team pair) rejects as `P2002` via `isUniqueViolation(error, TOURNAMENT_ENTRY_NATURAL_KEY_INDEX)` → `deleteEntry` one → assert its `Player` roster (add one throwaway player first) cascades away → delete the tournament (cascades the rest) and both teams, confirm nothing orphaned.
-  - [ ] **Browser walkthrough — expect not run** (no automated Google OAuth in this environment, the same residual gap carried since Story 2.4). Coverage instead: `typecheck`/`lint`/`build` + the verify script (the real AC-1/AC-2/AC-3 check) + code review.
-  - [ ] Capture real command output + notes in the Dev Agent Record.
-- [ ] **Task 9 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
+- [x] **Task 8 — Verification gate** (AC: all)
+  - [x] `pnpm test` → 4 files, 59/59 · `pnpm typecheck` · `pnpm lint` · `pnpm build` — all clean.
+  - [x] Route table unchanged (confirmed — no new route).
+  - [x] Import-boundary greps clean.
+  - [x] `scripts/verify-team-enrollment.mts` (NEW, self-cleaning): 2-team-capacity tournament, both enrolled, `checkCanEnroll` reports full at capacity, duplicate rejected as `P2002`, one entry canceled with its roster cascading away, the other survives, full teardown confirmed. 10/10 live.
+  - [x] All four verify scripts re-run together: 13/13, 15/15, 5/5, 10/10 — no regression from the `countTournamentEntries` relocation.
+  - [x] **Browser walkthrough — not run** (no automated Google OAuth in this environment, same residual gap carried since Story 2.4). Coverage instead: `typecheck`/`lint`/`build` + the verify script (the real AC-1/AC-2/AC-3 check) + code review.
+  - [x] Real command output captured in the Dev Agent Record.
+- [x] **Task 9 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
 
 ## Dev Notes
 
@@ -209,14 +210,55 @@ No `project-context.md`. Binding docs: `epics.md` (Story 2.7 AC, FR-9), `glossar
 
 ### Agent Model Used
 
+claude-sonnet-5
+
 ### Debug Log References
+
+**Task 4 — stale `<select>` selection.** `TeamEnrollment`'s `selectedTeamId` `useState` doesn't reset automatically when `availableTeams` changes after a `router.refresh()` (e.g. the just-enrolled team disappears from the list). Fixed by deriving `effectiveTeamId` at render time (falls back to the current first `availableTeams` entry when the stored selection is no longer in the list) instead of trusting the raw state value — no `useEffect` needed.
+
+**Task 6 — pre-existing doc bug found and fixed.** `src/components/README.md`'s "Edit mode" paragraph (describing `tournament-form.tsx`'s `mode="edit"`) was nested under the `## team-form.tsx` header instead of `## tournament-form.tsx` — a leftover from how the Story 2.6 edit landed the two sections adjacently. Moved to the correct section while editing this file for Story 2.7's own entry.
+
+**Task 8 — script run.** `pnpm exec tsx scripts/verify-team-enrollment.mts` — 10/10 checks pass against the live Neon dev branch (self-cleaning: throwaway 2-team-capacity tournament + 2 teams + 1 player, all removed by the end). Re-ran all three prior verify scripts immediately after — 13/13, 15/15, 5/5, confirming the `countTournamentEntries` relocation didn't regress `transitionTournament` or anything else.
 
 ### Completion Notes List
 
+- **Task 1:** `src/domain/teamEnrollment.ts` — `checkCanEnroll` (DRAFT + capacity, state checked first), `checkCanRemoveEntry` (DRAFT-only). 6 Vitest cases.
+- **Task 2:** `src/data/entries.ts` (NEW) — `listEntriesForTournament`, `countTournamentEntries` (relocated from `tournaments.ts`), `createEntry`, `deleteEntry`, `TOURNAMENT_ENTRY_NATURAL_KEY_INDEX`. `transitionTournament`'s import path updated, zero behavior change.
+- **Task 3:** `src/actions/entries.ts` (NEW) — `enrollTeam`, `removeTeamEntry`. Both `ActionResult<undefined>`, reuse `PRECONDITION_FAILED`/`NOT_FOUND`.
+- **Task 4:** `src/components/team-enrollment.tsx` (NEW) — enroll picker (`useTransition`) + entries list (`ConfirmDialog`-gated removal, DRAFT-only); the stale-selection guard (see Debug Log).
+- **Task 5:** `/admin/tournaments/[id]/page.tsx` — new "Команди" section between the edit form and the delete button; parallel `Promise.all` fetch of tournament/teams/entries.
+- **Task 6:** README updates in `src/{domain,data,actions,components}` + `AGENTS.md`; fixed the Story 2.6 doc-placement bug (see Debug Log).
+- **Task 7:** `deferred-work.md` — resolved the `TournamentEntry`-count-vs-`teamCount` item; new "Story 2.7 implementation" section (3 items).
+- **Task 8:** `pnpm test` 4/4 files (59/59) · `typecheck` · `lint` · `build` (route table unchanged) — all clean. New `scripts/verify-team-enrollment.mts`: 10/10 live. All four verify scripts re-run together: 13/13 + 15/15 + 5/5 + 10/10, no regression. Browser walkthrough not run (no OAuth automation) — same residual gap as every prior story.
+
 ### File List
+
+**New**
+- `src/domain/teamEnrollment.ts`
+- `src/domain/teamEnrollment.test.ts`
+- `src/data/entries.ts`
+- `src/actions/entries.ts`
+- `src/components/team-enrollment.tsx`
+- `scripts/verify-team-enrollment.mts`
+
+**Modified**
+- `src/data/tournaments.ts` — `countTournamentEntries` removed (relocated)
+- `src/actions/tournaments.ts` — `countTournamentEntries` import path updated
+- `src/app/admin/tournaments/[id]/page.tsx` — new "Команди" section
+- `src/domain/README.md` · `src/data/README.md` · `src/actions/README.md` · `src/components/README.md` · `AGENTS.md`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ## Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-05 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
+| 2026-09-05 | Task 1 — `src/domain/teamEnrollment.ts`: `checkCanEnroll`, `checkCanRemoveEntry` + 6 Vitest cases. `bmad-dev-story`. |
+| 2026-09-05 | Task 2 — `src/data/entries.ts`: `listEntriesForTournament`, `createEntry`, `deleteEntry`, `TOURNAMENT_ENTRY_NATURAL_KEY_INDEX`; `countTournamentEntries` relocated from `tournaments.ts`. |
+| 2026-09-05 | Task 3 — `src/actions/entries.ts`: `enrollTeam`, `removeTeamEntry`. |
+| 2026-09-05 | Task 4 — `team-enrollment.tsx`: enroll picker + entries list; stale-selection guard added during implementation. |
+| 2026-09-05 | Task 5 — `/admin/tournaments/[id]`: new "Команди" section. |
+| 2026-09-05 | Task 6 — README + `AGENTS.md` updates; fixed a Story 2.6 doc-placement bug. |
+| 2026-09-05 | Task 7 — `deferred-work.md`: resolved the capacity-check item, new "Story 2.7 implementation" section. |
+| 2026-09-05 | Task 8 — verification gate green; new `scripts/verify-team-enrollment.mts` (10/10). All four verify scripts re-run together, no regression. |
