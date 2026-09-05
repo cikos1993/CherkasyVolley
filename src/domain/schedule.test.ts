@@ -76,6 +76,23 @@ describe("generateSchedule", () => {
     );
   });
 
+  it("home/away assignment is controlled by shuffle, not fixed to one entry", () => {
+    // The circle method's "fixed" anchor entry (entryIds[0]) is `pair[0]`
+    // in every pairing it's constructed with. Reversing every shuffled
+    // array (both the pair order and each pair's own two elements) must
+    // flip that entry to the away slot in all of its matches — proving
+    // home/away genuinely depends on `shuffle`, not on circle-method
+    // position (the bug this closes: entryIds[0] used to be home 100% of
+    // the time regardless of `shuffle`).
+    const reverseShuffle = <T>(items: T[]): T[] => [...items].reverse();
+    const ids = ["A", "B", "C", "D"];
+    const schedule = generateSchedule(ids, 1, reverseShuffle);
+
+    const matchesWithA = schedule.filter((m) => m.homeEntryId === "A" || m.awayEntryId === "A");
+    expect(matchesWithA).toHaveLength(3);
+    expect(matchesWithA.every((m) => m.awayEntryId === "A")).toBe(true);
+  });
+
   it("6 teams — same even-count guarantees as 4 teams, scaled up", () => {
     const ids = ["A", "B", "C", "D", "E", "F"];
     const schedule = generateSchedule(ids, 1, identityShuffle);

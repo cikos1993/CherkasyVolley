@@ -3,8 +3,10 @@
  * framework, no IO.
  */
 
-import type { SetScore } from "@/domain/scoring";
+import { homeWonSet, type SetScore } from "@/domain/scoring";
 import type { ScoringPreset, TournamentType } from "@/domain/tournamentForm";
+
+export type Validation = { ok: true } | { ok: false; message: string };
 
 /**
  * Target set score. `VETERAN` plays every set to 15, regardless of preset.
@@ -23,15 +25,13 @@ export function targetScore(
   return 25;
 }
 
-export type SetValidation = { ok: true } | { ok: false; message: string };
-
 /**
  * A set is won by reaching `target` with at least a 2-point lead — the same
  * win-by-2 rule for both presets (see Notes on AC interpretation: PRD states
  * it only under `CLASSIC`, but nothing there redefines what winning a set
  * means under `CUSTOM`). No upper cap on the winning score.
  */
-export function validateSetScore(homePoints: number, awayPoints: number, target: number): SetValidation {
+export function validateSetScore(homePoints: number, awayPoints: number, target: number): Validation {
   if (
     !Number.isInteger(homePoints) ||
     !Number.isInteger(awayPoints) ||
@@ -53,24 +53,32 @@ export function validateSetScore(homePoints: number, awayPoints: number, target:
   return { ok: true };
 }
 
-export type MatchValidation = { ok: true } | { ok: false; message: string };
-
 /**
  * `CLASSIC`: 3–5 sets, ends the instant one side reaches 3 set wins (no set
  * after that point). `CUSTOM`: exactly 3 sets, always all 3 played (FR-5 —
- * there is no "match decided early" concept under this preset).
+ * there is no "match decided early" concept under this preset). `sets` must
+ * be given in ascending, contiguous `setNo` order starting at 1 — the
+ * decisiveness check below walks the array in order while `targetScore`
+ * looks up each set's own `setNo`, so an out-of-order or gapped `sets`
+ * array would silently apply the wrong target if this weren't checked.
  */
 export function validateMatchScore(
   sets: SetScore[],
   preset: ScoringPreset,
   tournamentType: TournamentType,
-): MatchValidation {
+): Validation {
   if (preset === "CUSTOM") {
     if (sets.length !== 3) {
       return { ok: false, message: "Кастомний пресет: рівно 3 партії." };
     }
   } else if (sets.length < 3 || sets.length > 5) {
     return { ok: false, message: "Класичний пресет: від 3 до 5 партій." };
+  }
+
+  for (const [index, set] of sets.entries()) {
+    if (set.setNo !== index + 1) {
+      return { ok: false, message: "Партії мають бути пронумеровані по порядку, без пропусків." };
+    }
   }
 
   for (const set of sets) {
@@ -85,7 +93,7 @@ export function validateMatchScore(
     let homeWins = 0;
     let awayWins = 0;
     for (const [index, set] of sets.entries()) {
-      if (set.homePoints > set.awayPoints) homeWins++;
+      if (homeWonSet(set)) homeWins++;
       else awayWins++;
 
       const isDecided = homeWins === 3 || awayWins === 3;

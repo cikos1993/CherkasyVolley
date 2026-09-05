@@ -61,7 +61,12 @@ export function generateSchedule(
   const schedule: ScheduledPairing[] = [];
   for (let round = 1; round <= rounds; round++) {
     tours.forEach((pairs, tourIndex) => {
-      for (const [homeEntryId, awayEntryId] of shuffle(pairs)) {
+      for (const pair of shuffle(pairs)) {
+        // The circle method's "fixed" anchor entry is always `pair[0]` —
+        // shuffling each pair too (not just their order within the tour)
+        // keeps home/away genuinely arbitrary instead of that one entry
+        // being home in every single one of its matches.
+        const [homeEntryId, awayEntryId] = shuffle(pair);
         if (homeEntryId === BYE || awayEntryId === BYE) continue;
         schedule.push({ round, tour: tourIndex + 1, homeEntryId, awayEntryId });
       }

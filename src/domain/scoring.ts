@@ -27,11 +27,16 @@ export interface StandingsRow {
   setsLost: number;
 }
 
+/** The single "who won this set" comparison — the one place both this module and `validation.ts` read it from. */
+export function homeWonSet(set: SetScore): boolean {
+  return set.homePoints > set.awayPoints;
+}
+
 function countSetsWon(sets: SetScore[]): { homeSetsWon: number; awaySetsWon: number } {
   let homeSetsWon = 0;
   let awaySetsWon = 0;
   for (const set of sets) {
-    if (set.homePoints > set.awayPoints) homeSetsWon++;
+    if (homeWonSet(set)) homeSetsWon++;
     else awaySetsWon++;
   }
   return { homeSetsWon, awaySetsWon };
@@ -40,7 +45,9 @@ function countSetsWon(sets: SetScore[]): { homeSetsWon: number; awaySetsWon: num
 /**
  * Points each side earns for a completed match. `CLASSIC`: 3/0 for a 3:0 or
  * 3:1 sweep, 2/1 for a 3:2 decider (FR-5). `CUSTOM`: exactly 3 sets always
- * played, 1 point per set won each side.
+ * played, 1 point per set won each side. Trusts `sets` already passed
+ * `validation.ts`'s `validateMatchScore` — this module does not re-validate
+ * set counts, scores, or ordering itself.
  */
 export function matchPoints(
   sets: SetScore[],
@@ -64,7 +71,11 @@ export function matchPoints(
 /**
  * Group standings aggregated from every match result — never stored (AD-4),
  * always recomputed from `matches`. Ordering is `tiebreak.ts`'s job; this
- * returns rows in `entryIds` order.
+ * returns rows in `entryIds` order. Trusts every match's `sets` already
+ * passed `validateMatchScore` (see `matchPoints`'s note) and that `matches`
+ * never contains a self-paired entry or `entryIds` a duplicate — both are
+ * structurally prevented upstream (`TournamentEntry`'s DB uniqueness,
+ * `schedule.ts`'s circle method), not re-checked here.
  */
 export function computeStandings(
   entryIds: string[],

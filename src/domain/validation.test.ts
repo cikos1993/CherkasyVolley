@@ -81,6 +81,21 @@ describe("validateMatchScore", () => {
     expect(validateMatchScore(sets, "CUSTOM", "CHAMPIONSHIP").ok).toBe(false);
   });
 
+  it("rejects a CUSTOM match with a 1-point-margin set — win-by-2 applies here too", () => {
+    const sets = [set(1, 25, 24), set(2, 25, 20), set(3, 25, 22)];
+    expect(validateMatchScore(sets, "CUSTOM", "CHAMPIONSHIP").ok).toBe(false);
+  });
+
+  it("rejects sets given out of order", () => {
+    const sets = [set(2, 25, 20), set(1, 20, 25), set(3, 25, 22)];
+    expect(validateMatchScore(sets, "CUSTOM", "CHAMPIONSHIP").ok).toBe(false);
+  });
+
+  it("rejects sets with a gap in setNo", () => {
+    const sets = [set(1, 25, 20), set(3, 20, 25), set(4, 25, 22)];
+    expect(validateMatchScore(sets, "CUSTOM", "CHAMPIONSHIP").ok).toBe(false);
+  });
+
   it("rejects a CLASSIC match whose 5th set doesn't use the 15-point target", () => {
     const sets = [
       set(1, 25, 20),

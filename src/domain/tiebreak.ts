@@ -30,6 +30,13 @@ function sortedKeysDesc(groups: Map<number, unknown>): number[] {
   return [...groups.keys()].sort((a, b) => b - a);
 }
 
+/**
+ * The final fallback — team name, Ukrainian collation, ascending. Ascending
+ * vs. descending is an arbitrary-but-deterministic choice (FR-17 only
+ * requires *a* deterministic order here, not which direction); not a
+ * decision with any stated rationale to get "wrong," unlike the win-by-2
+ * and no-home/away-swap calls this story documents elsewhere.
+ */
 function resolveByNameFallback(
   group: StandingsRow[],
   teamNames: Record<string, string>,
