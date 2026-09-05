@@ -57,10 +57,10 @@ Translated from `epics.md` → Epic 2 → Story 2.9. The Ukrainian source is aut
   - [x] `listPublicTournaments()` — `findMany({ where: { state: { not: "DRAFT" }, discipline: "CLASSIC" }, orderBy: [{ year: "desc" }, { name: "asc" }] })`, same field selection shape as `listTournamentsForAdmin` minus `discipline` (always `CLASSIC` here).
   - [x] Doc comments state plainly these are the sole public (role-blind) tournament reads — AD-7.
   - [x] `typecheck`/`lint` clean.
-- [ ] **Task 2 — `src/data/entries.ts` (UPDATE): `getEntryByTeam`** (AC: 2)
-  - [ ] `getEntryByTeam(tournamentId: string, teamId: string)` — `findFirst({ where: { tournamentId, teamId }, select: { id: true, team: { select: { id: true, name: true } } } })`. Scoped by both ids together (never `teamId` alone) — the same discipline as `getEntryForAdmin`/`deleteEntry`. **No state/discipline filter** — visibility is the caller's job (see Notes on AC interpretation).
-  - [ ] Doc comment states explicitly it is visibility-agnostic and why (mirrors `getEntryForAdmin`).
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 2 — `src/data/entries.ts` (UPDATE): `getEntryByTeam`** (AC: 2)
+  - [x] `getEntryByTeam(tournamentId: string, teamId: string)` — `findFirst({ where: { tournamentId, teamId }, select: { id: true, team: { select: { id: true, name: true } } } })`. Scoped by both ids together (never `teamId` alone) — the same discipline as `getEntryForAdmin`/`deleteEntry`. **No state/discipline filter** — visibility is the caller's job (see Notes on AC interpretation).
+  - [x] Doc comment states explicitly it is visibility-agnostic and why (mirrors `getEntryForAdmin`).
+  - [x] `typecheck`/`lint` clean.
 - [ ] **Task 3 — `src/components/status-badge.tsx` (NEW)** (AC: 1)
   - [ ] `StatusBadge({ state }: { state: TournamentState })` — `TournamentState` type from `@/domain/tournamentState` (sanctioned type-only `view → domain` import, Story 2.4 precedent). Ukrainian text from that module's existing `LABELS`.
   - [ ] Visual variant per `DESIGN.md`'s `status-badge` token + Colors section: `DRAFT` → gray fill (only ever rendered via the admin-preview fallback, never to a visitor); `GROUP_STAGE`/`PLAYOFF` → blue outline; `COMPLETED` → `#6B6B70` outline. Pill shape (`rounded-full`), `caption`-size text (`text-xs`).

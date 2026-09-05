@@ -50,5 +50,21 @@ export function deleteEntry(tournamentId: string, entryId: string) {
   return db.tournamentEntry.deleteMany({ where: { id: entryId, tournamentId } });
 }
 
+/**
+ * Looks up an entry by `(tournamentId, teamId)` together — the same
+ * "never look up by the child id alone" discipline `getEntryForAdmin`
+ * follows, keyed by `teamId` instead of `entryId` since that's what the
+ * public roster route (`/classic/[tournament]/teams/[team]`) carries.
+ * Deliberately does **not** filter tournament state or discipline — that
+ * visibility decision belongs to the caller (see `getPublicTournament`),
+ * which resolves whether the tournament is visible before ever calling this.
+ */
+export function getEntryByTeam(tournamentId: string, teamId: string) {
+  return db.tournamentEntry.findFirst({
+    where: { tournamentId, teamId },
+    select: { id: true, team: { select: { id: true, name: true } } },
+  });
+}
+
 /** The Postgres index backing `TournamentEntry`'s `@@unique([tournamentId, teamId])`. */
 export const TOURNAMENT_ENTRY_NATURAL_KEY_INDEX = "tournament_entry_tournamentId_teamId_key";
