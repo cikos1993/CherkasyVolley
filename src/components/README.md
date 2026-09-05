@@ -320,3 +320,25 @@ line with `scheduledAtDisplay ?? "час не визначено"` + venue. Empt
 plain muted line, not `EmptyState` (a drawn tournament always has matches — the
 empty case is a should-not-happen edge, same treatment as `public-roster.tsx`'s
 zero-players line).
+
+## `match-result-form.tsx`
+
+`MatchResultForm({ tournamentId, matchId, preset, homeTeam, awayTeam })` (Story
+3.6) — the Score input (UX-DR8) on `/admin/tournaments/[id]/matches/[matchId]`.
+`useActionState(enterMatchResult.bind(null, tournamentId, matchId), {})`; fully
+controlled (`useState<Row[]>` seeded with 3 empty rows). `CUSTOM` → the 3 rows
+are fixed; `CLASSIC` → "Додати партію" appends up to 5, "Прибрати партію" drops a
+trailing empty row. Each row is two `inputMode="numeric"` `tabular-nums` inputs
+(`home-N` / `away-N`) with an `aria-label` naming the team + set. The live
+"X : Y" tally is `matchSetSummary` (`@/domain/scoring`) over the rows whose both
+halves parse as non-negative integers — visibly labelled "(рахується
+автоматично)", never an input. `state.setErrors[N]` renders under set N (both
+inputs get `aria-invalid` / `aria-describedby`); `state.formError` renders above
+the submit button and `notify.error`s. Falling-edge-of-`pending` success effect
+(the `player-form.tsx` `useRef` technique) → `notify.success` +
+`router.refresh()` (the page re-renders read-only). Submit `disabled` + spinner
+while pending (EXPERIENCE — synchronous edit, no optimistic UI).
+
+The `match-schedule.tsx` row (Story 3.5) gained a `<Link>` to this screen —
+«Внести результат» when no result, else a `text-success` `CheckIcon` + «Результат:
+X:Y».

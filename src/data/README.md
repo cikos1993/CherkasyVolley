@@ -131,6 +131,19 @@ goes through a named function exported from here — `getPublicTournament`,
   `updateMany` scoped by `(tournamentId, matchId)` **and** `stage: "GROUP"` →
   `{ count }` (a mismatched pair or a playoff match writes nothing); never touches
   `SetScore`, so an already-recorded result is unaffected (AC 1).
+  **`getMatchForResult(tournamentId, matchId)` / `createMatchResult(tournamentId,
+  matchId, sets)` (Story 3.6)** — `getMatchForResult` is the match screen's read
+  (team names, stage, schedule, existing `SetScore` rows, the tournament's
+  `scoringPreset`/`type`/`discipline`), scoped by the `(tournamentId, matchId)`
+  pair. `createMatchResult` records a result in one `db.$transaction`: the match
+  must exist, belong to the tournament, be `stage: "GROUP"`, and have zero
+  `SetScore` rows (first-entry only — editing is Story 3.7); then `createMany`.
+  Returns `{ ok: true } | { ok: false; reason: "not_found" | "exists" }` — a
+  `P2002` from `@@unique([matchId, setNo])` (a concurrent second entry) is caught
+  via `errors.ts`'s `isUniqueViolation(err, SET_SCORE_NATURAL_KEY_INDEX)` and
+  reported as `"exists"`, not thrown. No score validation here — the caller
+  (`enterMatchResult`) has already run `src/domain/validation.ts`.
+  `SET_SCORE_NATURAL_KEY_INDEX` is that constraint's Postgres index name.
 
 The `Tournament`, `Team`, `TournamentEntry`, `Player`, `Group`, `GroupSlot`, `Match`
 and `SetScore` entities (schema landed across Story 2.1, 2.4, and 3.2, migrations

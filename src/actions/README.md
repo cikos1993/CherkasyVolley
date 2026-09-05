@@ -137,3 +137,15 @@ Actions are wired in their feature stories.
   (same "no state restriction" latitude as `players.ts`). The data reads the pages
   need stay imported from `@/data/matches` directly — a `"use server"` file exports
   only callable actions.
+  **`enterMatchResult(tournamentId, matchId, _prev, formData)` (Story 3.6)** — the
+  `MatchResultFormState` (`setErrors` / `formError`) shape. Narrow `requireAdmin()`
+  catch → `getMatchForResult` (not found / not `GROUP` / already has a result →
+  `formError`) → `parseSetsFromForm` (reads `home-N`/`away-N` into a contiguous
+  set list; a gap or a non-integer half → `formError`/`setErrors`) →
+  `validateMatchScore` (`src/domain/validation` — **the sole validator**; a
+  `"Партія N: …"`-prefixed message is mapped back to `setErrors[N]`, anything else
+  is a `formError`) → `createMatchResult` (`"exists"`/`"not_found"` →
+  `formError`) → `revalidatePath` (the public tournament route, the admin schedule
+  page, the match screen, and `/admin/tournaments/${id}` — the first result flips
+  `hasAnyGroupResult`, which the redraw button reads). First-entry only; editing
+  is Story 3.7.

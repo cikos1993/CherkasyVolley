@@ -53,7 +53,11 @@ schedule generation, playoff seeding and bracket advancement.
   won, both sides, always 3 sets. `computeStandings(entryIds, matches, preset)`
   — `played`/`wins`/`losses`/`points`/`setsWon`/`setsLost` per entry,
   aggregated fresh from `matches` every call (AD-4 — never stored). Ordering
-  is `tiebreak.ts`'s job, not this module's.
+  is `tiebreak.ts`'s job, not this module's. `matchSetSummary(sets)` (Story 3.6)
+  — the sets-won-per-side `{ home, away }` tally shown next to a match
+  ("3:1"), built on the same `homeWonSet` comparison `countSetsWon` uses; the
+  canonical helper every result surface (admin screen, schedule list, public
+  page) derives the number from, so it can't drift.
 
 - `tiebreak.ts` — group standings ordering (Story 3.1, FR-17). `orderStandings(rows,
   matches, preset, teamNames)` implements the chain points → head-to-head

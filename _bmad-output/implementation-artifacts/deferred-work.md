@@ -2,6 +2,13 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from / decided in: Story 3.6 implementation (2026-09-06)
+
+- **No action-level test for `enterMatchResult` beyond `scripts/verify-match-result.mts`.** Same class as every prior action (no `requireAdmin` / session-mock infra). `validateMatchScore` is exhaustively unit-tested (Story 3.1); untested is the `requireAdmin` gate, the `getMatchForResult` branches, the `parseSetsFromForm` gap/non-integer paths, and the `"Партія N:"` message-mapping.
+- **The `setErrors` mapping parses `validateMatchScore`'s message with `/^Партія (\d+): (.+)$/`.** A coupling point — if Story 3.1's message prefix ever changes, set-specific errors silently fall through to `formError` (degraded, not broken). A structured return from `validateMatchScore` (`{ ok: false; setNo?: number; message }`) would remove the regex; not done here to keep the Story 3.1 module untouched.
+- **"Таблиця групи перерахована" (AC 3) has no visible surface until Story 3.8.** Decided with the user (option A): 3.6 makes `getStandings` correct and calls `revalidatePath`; the «Таблиця» tab (hidden since the 3.5 review) is 3.8's to render. `verify-match-result.mts` is the only place the recompute is observable today.
+- **`createMatchResult`'s `_count`-check-then-`createMany` is not fully atomic against a concurrent first entry.** The `$transaction` narrows the window and the `@@unique([matchId, setNo])` catch turns the race into a clean `"exists"` rather than a partial write or a thrown error — same accepted-risk class as every other check-then-act in this codebase at 2–5-admin scale.
+
 ## Deferred from: code review of 3-5-match-scheduling (2026-09-06)
 
 _Implementation review (`bmad-code-review`, 4 layers) over `git diff b23c270..HEAD`. All 4 layers completed. 1 decision-needed, 8 patch, 4 deferred, 10 dismissed._
