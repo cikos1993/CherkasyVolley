@@ -1,6 +1,7 @@
 import type { TournamentState } from "@/generated/prisma/enums";
 
 import { db } from "@/data/client";
+import { Prisma } from "@/generated/prisma/client";
 import type { NewTournamentInput } from "@/domain/tournamentForm";
 
 /**
@@ -13,18 +14,31 @@ import type { NewTournamentInput } from "@/domain/tournamentForm";
  * of the former two fits a preview that must fail gracefully with `null`
  * rather than throw or redirect). The public list query filters
  * `state != DRAFT` and `discipline = CLASSIC` and lives in its own function.
+ * Includes the tournament's `Group` id (one per tournament, created
+ * alongside it — see `createTournamentRecord`) so callers like
+ * `drawTournament` don't need a second query to find it.
  */
 export function getTournamentForAdmin(id: string) {
-  return db.tournament.findUnique({ where: { id } });
+  return db.tournament.findUnique({
+    where: { id },
+    include: { group: { select: { id: true } } },
+  });
 }
 
 /**
  * The only writer of `Tournament.state`. The transition must already have been
  * validated (see `src/domain/tournamentState`) — this function performs no
- * checks. Do not add another function that writes `state`.
+ * checks. Do not add another function that writes `state`. `client` defaults
+ * to the shared `db` instance; pass a `Prisma.TransactionClient` (from
+ * `db.$transaction`) to write the state atomically alongside other writes —
+ * see `src/data/draw.ts`'s `saveDraw`.
  */
-export function setTournamentState(id: string, state: TournamentState) {
-  return db.tournament.update({ where: { id }, data: { state } });
+export function setTournamentState(
+  id: string,
+  state: TournamentState,
+  client: Prisma.TransactionClient | typeof db = db,
+) {
+  return client.tournament.update({ where: { id }, data: { state } });
 }
 
 /**

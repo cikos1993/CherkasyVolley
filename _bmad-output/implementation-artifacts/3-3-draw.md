@@ -1,5 +1,5 @@
 ---
-baseline_commit: d91463b
+baseline_commit: 02979c0933b5d2e877d23873aee91fe92551e3cf
 context:
   - _bmad-output/planning-artifacts/architecture/architecture-untitled-2026-09-02/ARCHITECTURE-SPINE.md
   - _bmad-output/planning-artifacts/epics.md
@@ -13,7 +13,7 @@ context:
 
 # Story 3.3: Draw
 
-Status: ready-for-dev
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -49,10 +49,10 @@ Translated from `epics.md` → Epic 3 → Story 3.3. The Ukrainian source is aut
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — `src/data/tournaments.ts` (UPDATE): `setTournamentState` gains an optional transaction client; `getTournamentForAdmin` gains `group.id`** (AC: 1, 2)
-  - [ ] `setTournamentState(id, state, client = db)` — `client` typed as the Prisma transaction-client type (same shape as `db`, minus the top-level `$transaction`/`$connect`/etc. methods); every existing call site (`transitionTournament`) is unaffected since the parameter defaults to `db`.
-  - [ ] `getTournamentForAdmin(id)` — add `group: { select: { id: true } }` to the query; existing callers reading only scalar fields are unaffected (Prisma widens the return type, doesn't narrow it).
-  - [ ] `typecheck`/`lint` clean; re-run `pnpm exec tsx scripts/verify-tournament-edit-delete.mts` (touches `getTournamentForAdmin`-adjacent code) to confirm no regression.
+- [x] **Task 1 — `src/data/tournaments.ts` (UPDATE): `setTournamentState` gains an optional transaction client; `getTournamentForAdmin` gains `group.id`** (AC: 1, 2)
+  - [x] `setTournamentState(id, state, client = db)` — `client` typed as the Prisma transaction-client type (same shape as `db`, minus the top-level `$transaction`/`$connect`/etc. methods); every existing call site (`transitionTournament`) is unaffected since the parameter defaults to `db`.
+  - [x] `getTournamentForAdmin(id)` — add `group: { select: { id: true } }` to the query; existing callers reading only scalar fields are unaffected (Prisma widens the return type, doesn't narrow it).
+  - [x] `typecheck`/`lint` clean; re-run `pnpm exec tsx scripts/verify-tournament-edit-delete.mts` (touches `getTournamentForAdmin`-adjacent code) to confirm no regression.
 - [ ] **Task 2 — `src/data/draw.ts` (NEW): `saveDraw`** (AC: 1, 2)
   - [ ] `saveDraw(tournamentId, groupId, entryIds, pairings): Promise<void>` — `pairings: { homeEntryId: string; awayEntryId: string }[]`. Inside one `db.$transaction`: `tx.groupSlot.createMany({ data: entryIds.map((entryId) => ({ groupId, entryId })) })`, `tx.match.createMany({ data: pairings.map((p) => ({ tournamentId, groupId, stage: "GROUP", ...p })) })`, then `setTournamentState(tournamentId, "GROUP_STAGE", tx)`.
   - [ ] Doc comment: performs no validation itself — the caller (`drawTournament`) must have already confirmed the precondition via `checkTransition`. Sole writer of a draw's initial data; never called again for the same tournament (Story 3.4's redraw is a separate, later data function that only replaces `Match` rows).
@@ -181,11 +181,17 @@ No `project-context.md`. Binding docs: `epics.md` (Story 3.3 AC, FR-11), `ARCHIT
 
 ### Agent Model Used
 
+claude-sonnet-5 (bmad-dev-story)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- Task 1: `setTournamentState` now accepts an optional `Prisma.TransactionClient | typeof db` third parameter (defaults to `db`); `getTournamentForAdmin` now includes `group: { select: { id: true } }`. `typecheck`/`lint` clean; `verify-tournament-edit-delete.mts` re-run with no regression.
+
 ### File List
+
+- `src/data/tournaments.ts` (UPDATE)
 
 ## Change Log
 
