@@ -16,6 +16,10 @@ export const NO_TEAMS = {
   description: "Ще немає заявлених команд.",
 } as const;
 
+export const NO_PLAYERS = {
+  description: "Ще немає гравців у складі.",
+} as const;
+
 // On a standings tab the "no results" state is a zero-filled table with an
 // inline row, not this box — see the Voice guide. This const is for other
 // contexts (e.g. an empty schedule tab).

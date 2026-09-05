@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 
 import { removePlayer } from "@/actions/players";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { EmptyState } from "@/components/empty-state";
 import { PlayerForm } from "@/components/player-form";
 import { Button } from "@/components/ui/button";
+import { NO_PLAYERS } from "@/lib/empty-states";
 import { notify } from "@/lib/notify";
+import { PLAYER_OPTIONAL_FIELDS } from "@/lib/player-labels";
 
 type Player = {
   id: string;
@@ -19,15 +22,6 @@ type Player = {
   height: string | null;
   weight: string | null;
 };
-
-const OPTIONAL_FIELDS: { name: keyof Player; label: string }[] = [
-  { name: "birthDate", label: "Дата народження" },
-  { name: "birthPlace", label: "Місце народження" },
-  { name: "sportRank", label: "Спортивний розряд" },
-  { name: "position", label: "Амплуа" },
-  { name: "height", label: "Зріст" },
-  { name: "weight", label: "Вага" },
-];
 
 function PlayerRow({
   tournamentId,
@@ -61,7 +55,7 @@ function PlayerRow({
       <div className="min-w-0">
         <p className="font-medium">{player.fullName}</p>
         <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-2 text-sm text-muted-foreground">
-          {OPTIONAL_FIELDS.filter(({ name }) => player[name] != null).map(({ name, label }) => (
+          {PLAYER_OPTIONAL_FIELDS.filter(({ name }) => player[name] != null).map(({ name, label }) => (
             <div key={name} className="contents">
               <dt>{label}:</dt>
               <dd>{player[name]}</dd>
@@ -104,7 +98,7 @@ export function Roster({
   return (
     <div className="grid gap-6">
       {players.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Ще немає гравців у складі.</p>
+        <EmptyState {...NO_PLAYERS} />
       ) : (
         <ul className="divide-y">
           {players.map((player) =>

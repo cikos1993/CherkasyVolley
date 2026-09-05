@@ -10,17 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FREE_TEXT_MAX, FULL_NAME_MAX, type PlayerField } from "@/domain/playerForm";
 import { notify } from "@/lib/notify";
+import { PLAYER_OPTIONAL_FIELDS } from "@/lib/player-labels";
 
 type FormValues = Record<PlayerField, string>;
-
-const OPTIONAL_FIELDS: { name: PlayerField; label: string }[] = [
-  { name: "birthDate", label: "Дата народження" },
-  { name: "birthPlace", label: "Місце народження" },
-  { name: "sportRank", label: "Спортивний розряд" },
-  { name: "position", label: "Амплуа" },
-  { name: "height", label: "Зріст" },
-  { name: "weight", label: "Вага" },
-];
 
 function emptyValues(): FormValues {
   return {
@@ -109,7 +101,7 @@ export function PlayerForm(props: PlayerFormProps) {
         ) : null}
       </div>
 
-      {OPTIONAL_FIELDS.map(({ name, label }) => (
+      {PLAYER_OPTIONAL_FIELDS.map(({ name, label }) => (
         <div key={name} className="grid gap-1.5">
           <Label htmlFor={name}>{label}</Label>
           <Input

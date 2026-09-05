@@ -6,10 +6,10 @@ import { toActionError, type ActionResult } from "@/actions/result";
 import { AdminRequiredError, requireAdmin } from "@/auth/requireAdmin";
 import { getEntryForAdmin } from "@/data/entries";
 import { createPlayer, deletePlayer, updatePlayer } from "@/data/players";
-import { validatePlayer, type PlayerField } from "@/domain/playerForm";
+import { validatePlayer, type FieldErrors } from "@/domain/playerForm";
 
 export type PlayerFormState = {
-  fieldErrors?: Partial<Record<PlayerField, string>>;
+  fieldErrors?: FieldErrors;
   formError?: string;
 };
 
@@ -82,7 +82,7 @@ export async function editPlayer(
 
   const { count } = await updatePlayer(entryId, playerId, parsed.value);
   if (count === 0) {
-    return { formError: "Гравця не знайдено." };
+    return { formError: "Гравця вже видалено." };
   }
 
   revalidatePath(`/admin/tournaments/${tournamentId}/entries/${entryId}`);

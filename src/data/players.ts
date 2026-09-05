@@ -1,7 +1,12 @@
 import { db } from "@/data/client";
 import type { PlayerInput } from "@/domain/playerForm";
 
-/** Every player on one entry's roster, ordered by name. */
+/**
+ * Every player on one entry's roster, ordered by name. Scoped by `entryId`
+ * alone — callers must verify the entry belongs to the intended tournament
+ * themselves (via `getEntryForAdmin`) before calling this, the same as every
+ * other `entryId`-only lookup in this module.
+ */
 export function listPlayersForEntry(entryId: string) {
   return db.player.findMany({ where: { entryId }, orderBy: { fullName: "asc" } });
 }

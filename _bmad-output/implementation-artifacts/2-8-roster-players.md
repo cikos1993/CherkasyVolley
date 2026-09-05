@@ -65,7 +65,7 @@ Translated from `epics.md` → Epic 2 → Story 2.8. The Ukrainian source is aut
   - [x] `listPlayersForEntry(entryId)`, `createPlayer(entryId, input)` (sole creator), `updatePlayer(entryId, playerId, input)` (sole updater, scoped `updateMany`), `deletePlayer(entryId, playerId)` (sole deleter, scoped `deleteMany`). `typecheck`/`lint` clean.
 - [x] **Task 4 — `src/actions/players.ts` (NEW): `addPlayer` / `editPlayer` / `removePlayer`** (AC: 1, 2, 3, 4)
   - [x] `addPlayer(tournamentId, entryId, _prev, formData)` — `requireAdmin` (narrowed to `AdminRequiredError`, matching `createTournament`/`createTeam`) → `getEntryForAdmin` (not found → `formError`) → `validatePlayer` → `!ok` → `{ fieldErrors }` → `createPlayer` → `revalidatePath` → `{}`.
-  - [x] `editPlayer(tournamentId, entryId, playerId, _prev, formData)` — same shape → `updatePlayer` (`count === 0` → `formError` "Гравця не знайдено.") → `revalidatePath` → `{}`.
+  - [x] `editPlayer(tournamentId, entryId, playerId, _prev, formData)` — same shape → `updatePlayer` (`count === 0` → `formError` "Гравця вже видалено." — aligned with `removePlayer`'s message during code review, see Review Findings) → `revalidatePath` → `{}`.
   - [x] `removePlayer(tournamentId, entryId, playerId)` — `ActionResult<undefined>` → `getEntryForAdmin` (not found → `NOT_FOUND`) → `deletePlayer` (`count === 0` → `NOT_FOUND`) → `revalidatePath` → `{ ok: true }`.
   - [x] No new `ActionErrorCode`. `typecheck`/`lint` clean.
 - [x] **Task 5 — `src/components/player-form.tsx` (NEW, Client Component)** (AC: 1, 2, 3, 4)
@@ -109,13 +109,13 @@ Implementation review 2026-09-05 (`bmad-code-review`, 4 layers: Blind Hunter, Ed
 
 #### Patch
 
-- [ ] [Review][Patch] **`getEntryForAdmin`'s cross-tournament scoping is never tested** — `scripts/verify-roster.mts`'s only cross-scoping checks vary `entryId` within one tournament; no script or test creates a second tournament and asserts `getEntryForAdmin(otherTournamentId, entryId)` returns `null`. Found independently by Blind Hunter and Verification Gap Reviewer. [scripts/verify-roster.mts, src/data/entries.ts:10]
-- [ ] [Review][Patch] `AGENTS.md`'s Story 2.8 bullet reads as if `deleteEntry`'s `(tournamentId, entryId)` scoping fix landed "along with" this story's work — it actually landed in Story 2.7's code review, before this story's `2c6517e` baseline; this story didn't touch `deleteEntry` [AGENTS.md]
-- [ ] [Review][Patch] `editPlayer`'s not-found message ("Гравця не знайдено.") diverges from `removePlayer`'s ("Гравця вже видалено.") for the identical `count === 0` race [src/actions/players.ts]
-- [ ] [Review][Patch] `PlayerFormState.fieldErrors` redeclares `Partial<Record<PlayerField, string>>` inline instead of importing the `FieldErrors` type already exported by `src/domain/playerForm.ts` [src/actions/players.ts:11]
-- [ ] [Review][Patch] Empty-roster state is a hand-written `<p>` instead of the project's own `EmptyState` + `empty-states.ts` convention every sibling list (e.g. `team-enrollment.tsx`'s `NO_TEAMS`) follows [src/components/roster.tsx]
-- [ ] [Review][Patch] The six optional-field Ukrainian labels are duplicated verbatim between `player-form.tsx` and `roster.tsx` with no shared source — a future rename would silently desync the form label from the display label [src/components/player-form.tsx, src/components/roster.tsx]
-- [ ] [Review][Patch] `listPlayersForEntry` has no tournament scoping and no doc comment warning future callers, unlike `updatePlayer`/`deletePlayer` which document the `(entryId, playerId)`-together discipline inline [src/data/players.ts:5]
+- [x] [Review][Patch] **`getEntryForAdmin`'s cross-tournament scoping is never tested** — `scripts/verify-roster.mts`'s only cross-scoping checks vary `entryId` within one tournament; no script or test creates a second tournament and asserts `getEntryForAdmin(otherTournamentId, entryId)` returns `null`. Found independently by Blind Hunter and Verification Gap Reviewer. [scripts/verify-roster.mts, src/data/entries.ts:10]
+- [x] [Review][Patch] `AGENTS.md`'s Story 2.8 bullet reads as if `deleteEntry`'s `(tournamentId, entryId)` scoping fix landed "along with" this story's work — it actually landed in Story 2.7's code review, before this story's `2c6517e` baseline; this story didn't touch `deleteEntry` [AGENTS.md]
+- [x] [Review][Patch] `editPlayer`'s not-found message ("Гравця не знайдено.") diverges from `removePlayer`'s ("Гравця вже видалено.") for the identical `count === 0` race [src/actions/players.ts]
+- [x] [Review][Patch] `PlayerFormState.fieldErrors` redeclares `Partial<Record<PlayerField, string>>` inline instead of importing the `FieldErrors` type already exported by `src/domain/playerForm.ts` [src/actions/players.ts:11]
+- [x] [Review][Patch] Empty-roster state is a hand-written `<p>` instead of the project's own `EmptyState` + `empty-states.ts` convention every sibling list (e.g. `team-enrollment.tsx`'s `NO_TEAMS`) follows [src/components/roster.tsx]
+- [x] [Review][Patch] The six optional-field Ukrainian labels are duplicated verbatim between `player-form.tsx` and `roster.tsx` with no shared source — a future rename would silently desync the form label from the display label [src/components/player-form.tsx, src/components/roster.tsx]
+- [x] [Review][Patch] `listPlayersForEntry` has no tournament scoping and no doc comment warning future callers, unlike `updatePlayer`/`deletePlayer` which document the `(entryId, playerId)`-together discipline inline [src/data/players.ts:5]
 
 #### Defer
 
@@ -278,6 +278,18 @@ claude-sonnet-5
 - `src/domain/README.md` · `src/data/README.md` · `src/actions/README.md` · `src/components/README.md` · `AGENTS.md`
 - `_bmad-output/implementation-artifacts/deferred-work.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+**Modified (review fix pass only)**
+- `scripts/verify-roster.mts` — second throwaway tournament + entry; asserts `getEntryForAdmin` rejects a real mismatched `(tournamentId, entryId)` pair across two different tournaments
+- `AGENTS.md` — Story 2.8 bullet reworded so it no longer implies this story touched `deleteEntry`
+- `src/actions/players.ts` — `editPlayer`'s not-found message aligned with `removePlayer`'s; `PlayerFormState.fieldErrors` now uses the domain's `FieldErrors` type instead of redeclaring it
+- `src/data/players.ts` — doc comment added to `listPlayersForEntry` on its `entryId`-only scoping
+- `src/components/roster.tsx` — empty-roster state now uses `EmptyState` + the new `NO_PLAYERS` constant; optional-field labels imported from the new shared module
+- `src/components/player-form.tsx` — optional-field labels imported from the new shared module
+- `src/lib/empty-states.ts` — `NO_PLAYERS` constant added
+
+**New (review fix pass only)**
+- `src/lib/player-labels.ts` — `PLAYER_OPTIONAL_FIELDS`, the shared label source for `player-form.tsx` and `roster.tsx`
 
 ## Change Log
 

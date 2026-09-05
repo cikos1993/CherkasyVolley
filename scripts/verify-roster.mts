@@ -1,16 +1,21 @@
 import { config } from "dotenv";
 config({ path: [".env.local", ".env"] });
 
-// Regression check for the roster (player) path (src/data/players.ts):
+// Regression check for the roster (player) path (src/data/players.ts) and
+// the entry-ownership gate it depends on (src/data/entries.ts's
+// getEntryForAdmin):
 //   pnpm exec tsx scripts/verify-roster.mts
-// Self-cleaning — creates a throwaway tournament, two teams and two entries,
-// exercises create/update/delete on one entry's roster, proves update/delete
-// scoped to the *other* entry's id are no-ops (the Story 2.7 lesson applied
-// to players), then tears everything down. Leaves the database as it found it.
+// Self-cleaning — creates two throwaway tournaments, three teams and three
+// entries, exercises create/update/delete on one entry's roster, proves
+// update/delete scoped to the *other* entry's id are no-ops (the Story 2.7
+// lesson applied to players), and proves getEntryForAdmin rejects a real
+// mismatched (tournamentId, entryId) pair across two different tournaments —
+// not just a mismatched entryId within one tournament — then tears
+// everything down. Leaves the database as it found it.
 
 const { db } = await import("../src/data/client");
 const { createTournamentRecord } = await import("../src/data/tournaments");
-const { createEntry, deleteEntry } = await import("../src/data/entries");
+const { createEntry, deleteEntry, getEntryForAdmin } = await import("../src/data/entries");
 const { listPlayersForEntry, createPlayer, updatePlayer, deletePlayer } = await import(
   "../src/data/players"
 );
@@ -24,8 +29,10 @@ function check(label: string, ok: boolean) {
 const stamp = Date.now();
 const teamIds: string[] = [];
 let tournamentId: string | null = null;
+let otherTournamentId: string | null = null;
 let entryId: string | null = null;
 let otherEntryId: string | null = null;
+let otherTournamentEntryId: string | null = null;
 
 try {
   ({ id: tournamentId } = await createTournamentRecord({
@@ -37,8 +44,17 @@ try {
     teamCount: 2,
     rounds: 1,
   }));
+  ({ id: otherTournamentId } = await createTournamentRecord({
+    discipline: "CLASSIC",
+    type: "CHAMPIONSHIP",
+    name: `__verify_roster_other__${stamp}`,
+    year: 2026,
+    scoringPreset: "CLASSIC",
+    teamCount: 2,
+    rounds: 1,
+  }));
 
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 3; i++) {
     const teamName = `__verify_roster_team_${i}__${stamp}`;
     const team = await db.team.create({
       data: { name: teamName, nameKey: teamName.toLowerCase() },
@@ -48,6 +64,25 @@ try {
 
   ({ id: entryId } = await createEntry(tournamentId, teamIds[0]));
   ({ id: otherEntryId } = await createEntry(tournamentId, teamIds[1]));
+  ({ id: otherTournamentEntryId } = await createEntry(otherTournamentId, teamIds[2]));
+
+  // The bug this closes (Story 2.7 lesson, one level up): getEntryForAdmin
+  // must reject a real mismatched (tournamentId, entryId) pair across two
+  // *different* tournaments — the failure mode a lone `entryId`-scoped test
+  // can't catch, since that entry genuinely exists, just under another
+  // tournament. Every player action gates on this function first.
+  check(
+    "getEntryForAdmin(tournamentId, otherTournamentEntryId) returns null — entry belongs to a different tournament",
+    (await getEntryForAdmin(tournamentId, otherTournamentEntryId)) === null,
+  );
+  check(
+    "getEntryForAdmin(otherTournamentId, entryId) returns null — same check, ids swapped",
+    (await getEntryForAdmin(otherTournamentId, entryId)) === null,
+  );
+  check(
+    "getEntryForAdmin(tournamentId, entryId) still returns the real entry",
+    (await getEntryForAdmin(tournamentId, entryId))?.id === entryId,
+  );
 
   const minimalInput = {
     fullName: "Мінімальний Гравець",
@@ -141,7 +176,13 @@ try {
 } finally {
   if (entryId) await deleteEntry(tournamentId!, entryId).catch(() => undefined);
   if (otherEntryId) await deleteEntry(tournamentId!, otherEntryId).catch(() => undefined);
+  if (otherTournamentEntryId) {
+    await deleteEntry(otherTournamentId!, otherTournamentEntryId).catch(() => undefined);
+  }
   if (tournamentId) await db.tournament.delete({ where: { id: tournamentId } }).catch(() => undefined);
+  if (otherTournamentId) {
+    await db.tournament.delete({ where: { id: otherTournamentId } }).catch(() => undefined);
+  }
   for (const teamId of teamIds) {
     await db.team.delete({ where: { id: teamId } }).catch(() => undefined);
   }
@@ -151,6 +192,12 @@ if (tournamentId) {
   check(
     "throwaway tournament deleted (cascades remaining entries + players)",
     (await db.tournament.findUnique({ where: { id: tournamentId } })) === null,
+  );
+}
+if (otherTournamentId) {
+  check(
+    "other throwaway tournament deleted",
+    (await db.tournament.findUnique({ where: { id: otherTournamentId } })) === null,
   );
 }
 for (const teamId of teamIds) {

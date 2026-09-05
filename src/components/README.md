@@ -178,7 +178,10 @@ where `action` is `addPlayer.bind(null, tournamentId, entryId)` or
 `editPlayer.bind(null, tournamentId, entryId, playerId)`. Fully controlled
 (`useState<FormValues>`, one `<Input>` per field, `fullName` required, the six
 optional fields share `FREE_TEXT_MAX` — the `tournament-form.tsx` UX-DR11
-pattern, single flat record instead of per-field `useState`).
+pattern, single flat record instead of per-field `useState`). Field labels
+come from `@/lib/player-labels`'s `PLAYER_OPTIONAL_FIELDS` — shared with
+`roster.tsx` since the code review found the same six labels duplicated
+verbatim between the two (a fix-pass patch, not part of the original story).
 
 Two effects, following the `tournament-form.tsx`/`team-form.tsx` split:
 `state.formError` → `notify.error`; a second effect keyed off the falling
@@ -206,12 +209,16 @@ precedent as `team-enrollment.tsx`).
 page (Story 2.8). A local `Player` type (not Prisma-imported, matching
 `team-enrollment.tsx`'s `Entry`/`Team` precedent). `PlayerRow` renders a
 player's `fullName` plus only the optional fields that are non-null
-(`OPTIONAL_FIELDS.filter(({ name }) => player[name] != null)` — nulls are
-omitted, not shown as empty), an "Редагувати" button, and a
+(`PLAYER_OPTIONAL_FIELDS.filter(({ name }) => player[name] != null)` — nulls
+are omitted, not shown as empty; the field list is shared with
+`player-form.tsx` via `@/lib/player-labels`), an "Редагувати" button, and a
 `ConfirmDialog`-gated "Видалити" button calling `removePlayer` (the
 `team-enrollment.tsx` remove-entry shape: `catch` → toast + `throw` on an
 unexpected failure, `{ ok: false }` → toast + `return false`, success →
 toast + `router.refresh()`). `editingPlayerId` (local `useState`) swaps one
 row for `<PlayerForm mode="edit">` in place; a `<PlayerForm mode="create">`
-is always rendered at the bottom. No roster-size cap or dedup UI — Story
-2.8's AC leaves "duplicate ПІБ allowed" as an intentional absence.
+is always rendered at the bottom. Empty roster → `<EmptyState {...NO_PLAYERS} />`
+(`@/lib/empty-states` — a fix-pass patch; the story originally shipped a
+hand-written `<p>`, bypassing this project's own empty-state convention). No
+roster-size cap or dedup UI — Story 2.8's AC leaves "duplicate ПІБ allowed"
+as an intentional absence.
