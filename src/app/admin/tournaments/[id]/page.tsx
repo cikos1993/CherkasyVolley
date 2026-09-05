@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { DeleteTournamentButton } from "@/components/tournament-actions";
+import { TeamEnrollment } from "@/components/team-enrollment";
 import { TournamentForm } from "@/components/tournament-form";
+import { listEntriesForTournament } from "@/data/entries";
+import { listTeams } from "@/data/teams";
 import { getTournamentForAdmin } from "@/data/tournaments";
 import { LABELS as STATE_LABELS } from "@/domain/tournamentState";
 import type { TournamentField } from "@/domain/tournamentForm";
@@ -19,8 +22,15 @@ export default async function AdminTournamentPage({
   params,
 }: PageProps<"/admin/tournaments/[id]">) {
   const { id } = await params;
-  const tournament = await getTournamentForAdmin(id);
+  const [tournament, teams, entries] = await Promise.all([
+    getTournamentForAdmin(id),
+    listTeams(),
+    listEntriesForTournament(id),
+  ]);
   if (!tournament) notFound();
+
+  const enrolledTeamIds = new Set(entries.map((entry) => entry.teamId));
+  const availableTeams = teams.filter((team) => !enrolledTeamIds.has(team.id));
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-8">
@@ -52,6 +62,19 @@ export default async function AdminTournamentPage({
           locked={tournament.state === "DRAFT" ? [] : LOCKED_OUTSIDE_DRAFT}
         />
       </div>
+
+      <section className="mt-10 border-t pt-6">
+        <h2 className="text-lg font-semibold">Команди</h2>
+        <div className="mt-4">
+          <TeamEnrollment
+            tournamentId={tournament.id}
+            state={tournament.state}
+            teamCount={tournament.teamCount}
+            entries={entries}
+            availableTeams={availableTeams}
+          />
+        </div>
+      </section>
 
       <div className="mt-10 border-t pt-6">
         <DeleteTournamentButton tournamentId={tournament.id} />

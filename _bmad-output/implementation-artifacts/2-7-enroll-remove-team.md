@@ -76,10 +76,10 @@ Translated from `epics.md` → Epic 2 → Story 2.7. The Ukrainian source is aut
   - [x] Empty entries (`entries.length === 0`) → `<EmptyState {...NO_TEAMS} />` — its first genuinely correct use site.
   - [x] **Fix during implementation:** guarded against a stale `selectedTeamId` surviving a `router.refresh()` that removes it from `availableTeams` (e.g. the just-enrolled team) — derived an `effectiveTeamId` that falls back to the current first available team instead of rendering a `<select>` with no matching `<option>`.
   - [x] `typecheck`/`lint` clean.
-- [ ] **Task 5 — `src/app/admin/tournaments/[id]/page.tsx` (UPDATE): the "Команди" section** (AC: 1, 2, 3)
-  - [ ] Fetch `listTeams()` and `listEntriesForTournament(id)` alongside `getTournamentForAdmin(id)` (parallel `Promise.all`). Compute `availableTeams` = teams whose `id` isn't in `entries.map(e => e.teamId)`.
-  - [ ] Insert `<section className="mt-10 border-t pt-6"><h2 className="text-lg font-semibold">Команди</h2><TeamEnrollment tournamentId={tournament.id} state={tournament.state} teamCount={tournament.teamCount} entries={entries} availableTeams={availableTeams} /></section>` **between** the edit form and the `DeleteTournamentButton` section (primary edit → participants → destructive delete, top to bottom).
-  - [ ] No change to the existing edit form, delete button, back-link, or `metadata`.
+- [x] **Task 5 — `src/app/admin/tournaments/[id]/page.tsx` (UPDATE): the "Команди" section** (AC: 1, 2, 3)
+  - [x] Fetches `listTeams()` and `listEntriesForTournament(id)` alongside `getTournamentForAdmin(id)` in one `Promise.all`. `availableTeams` computed via a `Set` of enrolled `teamId`s.
+  - [x] Inserted the "Команди" section between the edit form and the `DeleteTournamentButton` section (primary edit → participants → destructive delete).
+  - [x] Edit form, delete button, back-link, and `metadata` untouched. `typecheck`/`lint` clean.
 - [ ] **Task 6 — Docs**
   - [ ] `src/domain/README.md` — `teamEnrollment.ts` entry (`checkCanEnroll`, `checkCanRemoveEntry`).
   - [ ] `src/data/README.md` — new `entries.ts` module entry (`listEntriesForTournament`, `countTournamentEntries` — relocated, `createEntry`, `deleteEntry`, `TOURNAMENT_ENTRY_NATURAL_KEY_INDEX`); update the `tournaments.ts` entry to drop `countTournamentEntries`.
