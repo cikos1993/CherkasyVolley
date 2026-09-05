@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { computeStandings, matchPoints, type MatchResult, type SetScore } from "./scoring";
+import {
+  computeStandings,
+  matchPoints,
+  matchSetSummary,
+  type MatchResult,
+  type SetScore,
+} from "./scoring";
 
 function sets(...pairs: [number, number][]): SetScore[] {
   return pairs.map(([homePoints, awayPoints], index) => ({
@@ -9,6 +15,38 @@ function sets(...pairs: [number, number][]): SetScore[] {
     awayPoints,
   }));
 }
+
+describe("matchSetSummary", () => {
+  it("counts a 3:0 sweep", () => {
+    expect(matchSetSummary(sets([25, 20], [25, 18], [25, 22]))).toEqual({ home: 3, away: 0 });
+  });
+
+  it("counts a 3:1", () => {
+    expect(matchSetSummary(sets([25, 20], [20, 25], [25, 18], [25, 22]))).toEqual({
+      home: 3,
+      away: 1,
+    });
+  });
+
+  it("counts a 3:2 decider", () => {
+    expect(matchSetSummary(sets([25, 20], [20, 25], [25, 18], [20, 25], [15, 12]))).toEqual({
+      home: 3,
+      away: 2,
+    });
+  });
+
+  it("counts a 0:3 away sweep", () => {
+    expect(matchSetSummary(sets([20, 25], [18, 25], [22, 25]))).toEqual({ home: 0, away: 3 });
+  });
+
+  it("is 0:0 for an empty set list", () => {
+    expect(matchSetSummary([])).toEqual({ home: 0, away: 0 });
+  });
+
+  it("counts a CUSTOM 2:1", () => {
+    expect(matchSetSummary(sets([25, 20], [18, 25], [25, 22]))).toEqual({ home: 2, away: 1 });
+  });
+});
 
 describe("matchPoints — CLASSIC", () => {
   it("3:0 sweep — winner 3, loser 0", () => {

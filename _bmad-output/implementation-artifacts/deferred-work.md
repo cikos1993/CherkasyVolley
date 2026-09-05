@@ -8,18 +8,15 @@ _Implementation review (`bmad-code-review`, 4 layers) over `git diff b23c270..HE
 
 - **Redraw silently discards `scheduledAt`/`venueText`.** Story 3.4's `saveRedraw` deletes the whole `GROUP` calendar (per PRD FR-12 "видаляє попередній календар"), which now also throws away any dates/venues an admin entered via Story 3.5. The `RedrawTournamentButton` `ConfirmDialog` copy ("Поточний календар матчів буде видалено і згенеровано новий.") does not mention that schedule data is lost too. Candidate follow-up: enrich the confirm copy ("дату, час і зал матчів також буде втрачено").
 - **DST edge hours in `parseKyivDateTimeLocal`.** A nonexistent spring-forward local time (03:00–03:59 on the switch Sunday) silently resolves forward an hour; an ambiguous autumn fall-back time deterministically picks the later (EET) occurrence. Both are untested beyond "doesn't throw" and undocumented as product decisions. No admin flow reaches them (matches aren't scheduled at 03:00 on a DST Sunday). Same item was noted during implementation.
-- **`setSummary` shows a partial result as final.** The inline set-tally (`sets.filter(...).length`) returns a score whenever `sets.length > 0`, so a match with one set played renders "1:0" indistinguishably from a completed 3:0 on both the public «Розклад» tab and the admin editor. Story 3.6 owns the canonical helper and its `validateMatchScore` blocks a partial result from being persisted through the normal path — 3.6 must also make the summary render only for a complete match.
+- ~~**`setSummary` shows a partial result as final.**~~ **Addressed in Story 3.6** — the two inline reducers are replaced by the canonical `matchSetSummary` (`src/domain/scoring.ts`), and `enterMatchResult` persists a result only after `validateMatchScore` confirms the match is decided, so a persisted `sets.length > 0` group match is always complete. A partial score is now only reachable by a raw DB insert (same class as `getStandings`' documented trust).
 - **`TournamentTabs` is hardcoded to the `/classic` route tree** and lives in `src/components` with a discipline-neutral name. A future beach- or archive-tournament tabbed page would silently link into `/classic`. Parameterize (base path or discipline prop) when the second real consumer arrives — likely `/archive/[year]/[tournament]` (Story 4.7).
 
 ## Deferred from / decided in: Story 3.5 implementation (2026-09-06)
 
-- **The match result summary ("3:1") is an inline `setSummary` reducer duplicated in
-  two page files** (`src/app/classic/[tournament]/page.tsx`,
-  `src/app/admin/tournaments/[id]/schedule/page.tsx`). Deliberate — Story 3.6's AC
-  ("підсумковий рахунок у партіях («3:1») обчислюється й показується") owns the
-  canonical helper and should replace both call sites (likely a pure function in
-  `src/domain/scoring.ts` next to `matchPoints`). No sets can exist yet (3.6 not
-  shipped), so the tally is only exercised by `verify-match-schedule.mts`.
+- ~~**The match result summary ("3:1") is an inline `setSummary` reducer duplicated in
+  two page files.**~~ **Resolved in Story 3.6** — `matchSetSummary(sets)` in
+  `src/domain/scoring.ts` (built on the same `homeWonSet` comparison `countSetsWon`
+  uses); both page-level reducers now call it.
 - **`scheduleMatch` has no automated action-level test** beyond
   `scripts/verify-match-schedule.mts`. Same class as every prior action (no
   `requireAdmin` / session-mock infra). `validateMatchSchedule` is fully unit-tested;
