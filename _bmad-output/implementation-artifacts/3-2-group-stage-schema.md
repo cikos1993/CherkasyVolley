@@ -82,6 +82,33 @@ Translated from `epics.md` → Epic 3 → Story 3.2. The Ukrainian source is aut
   - [x] Real command output + notes captured in the Dev Agent Record.
 - [x] **Task 7 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
 
+### Review Findings
+
+Implementation review 2026-09-05 (`bmad-code-review`, 4 layers attempted) over `git diff 9e53089..HEAD`. **Verification Gap Reviewer and Acceptance Auditor failed** (session rate limit, resets 19:00 Europe/Kyiv) — findings below are from **Blind Hunter and Edge Case Hunter only**; the review is incomplete and should be re-run with all 4 layers once the limit resets, though the two completed layers already surfaced real, actionable issues. 0 decision-needed, 8 patch, 5 defer, 2 dismissed.
+
+#### Patch
+
+- [ ] [Review][Patch] **No `CHECK` requires a `GROUP`-stage match to have non-null `homeEntryId`/`awayEntryId`** — only `groupId` consistency is enforced. A future bug in Story 3.3's draw could silently create an incomplete `GROUP` match; `getStandings` would then silently filter it out rather than fail loudly. [prisma/schema.prisma, new migration]
+- [ ] [Review][Patch] **No index on `match.groupId`, `match.homeEntryId`, `match.awayEntryId`, or `group_slot.entryId`** — all four are `ON DELETE CASCADE` FKs; Postgres doesn't auto-index FK columns, so cascading deletes and future per-team match lookups need a sequential scan. [prisma/schema.prisma, new migration]
+- [ ] [Review][Patch] **No `CHECK` bounds `SetScore.setNo` to a sane range** — asymmetric with `homePoints`/`awayPoints`, which do get a DB-level bound as documented defense-in-depth. [prisma/schema.prisma, new migration]
+- [ ] [Review][Patch] **`GroupSlot` has `createdAt` but no `updatedAt`**, unlike every sibling model added in the same migration (`Match`, `SetScore`) and every other model in the schema. [prisma/schema.prisma, new migration]
+- [ ] [Review][Patch] **`getStandings`'s `sets` query has no `orderBy: { setNo: "asc" }`** — the returned order isn't guaranteed. Harmless today (`computeStandings`'s set-counting is order-independent), but cheap and correct to fix before a future consumer (e.g. a match detail page) relies on set order. [src/data/matches.ts]
+- [ ] [Review][Patch] **The verify script never tests `set_score_points_check`** — only the two `match_*` checks get a bad-insert test; a typo or logic error in the points-check SQL would go undetected by this story's own verification gate. [scripts/verify-group-stage-schema.mts]
+- [ ] [Review][Patch] **The verify script only exercises one standings scenario (the fully-tied 3-way stats cycle)** — the real Prisma-to-domain mapping is never exercised for the far more common "clear winner" case through the actual pipeline. [scripts/verify-group-stage-schema.mts]
+- [ ] [Review][Patch] **Two documentation inaccuracies in `AGENTS.md`**: the Story 3.2 bullet says "два нові raw-SQL CHECK" but the migration adds three (`match_group_stage_check`, `match_distinct_entries_check`, `set_score_points_check`); the Story 3.1 bullet still says "99 тестів," stale since Story 3.1's own code-review fix pass added 4 more tests (103 total) after that bullet was written. [AGENTS.md]
+
+#### Defer
+
+- [x] [Review][Defer] **`Match.homeEntryId`/`awayEntryId` cascade-delete when the referenced `TournamentEntry` is removed**, unlike the schema's established pattern of protecting historical/referenced rows with `Restrict` (e.g. `Team` can't be deleted while it has entries) [prisma/schema.prisma] — deferred: structurally unreachable today (`checkCanRemoveEntry`, Story 2.7, only allows entry removal in `DRAFT`, before any `Match` can exist), and changing to `Restrict` risks breaking the existing, tested Tournament-deletion cascade chain (`Match` also cascades directly from `Tournament`; interleaving a `Restrict` on the `TournamentEntry` edge needs careful analysis of Postgres's cascade-resolution order, not a routine fix)
+- [x] [Review][Defer] **Nothing enforces that `match.tournamentId` matches `group.tournamentId` when `groupId` is set** [prisma/schema.prisma] — deferred: not enforceable as a simple row-local `CHECK` (would need a trigger or exclusion constraint); structurally guaranteed by the only intended writer (Story 3.3's draw, which looks up the tournament's own `Group` before creating matches)
+- [x] [Review][Defer] **`getStandings` performs three sequential round trips instead of one nested query** [src/data/matches.ts] — deferred, perf nitpick at this project's scale, not a correctness issue
+- [x] [Review][Defer] **The verify script's post-teardown assertions sit outside the `try`/`finally`** — if one of those final queries itself throws, the script would exit without `db.$disconnect()` [scripts/verify-group-stage-schema.mts] — deferred, script robustness only, no production-code impact, low probability
+- [x] [Review][Defer] **`getStandings` has no defensive handling for a `Match` whose entry isn't in the group's current `GroupSlot` list** [src/data/matches.ts] — deferred, same class as Story 3.1's already-deferred "missing `teamNames` entry" item; documented assumption (Story 3.3's draw creates `GroupSlot` + `Match` together)
+
+#### Dismissed as noise / unreachable / out of scope (2)
+
+No `CHECK` blocks `homePoints === awayPoints` or bounds them to the preset's actual target — not practically enforceable as a portable row-local `CHECK`, since the valid target varies by tournament type and set number, neither of which `SetScore` itself stores; `validateSetScore` (Story 3.1) is necessarily the real, stateful gate · concern that `ARCHITECTURE-SPINE.md`'s "Дерево коду" section might need a `matches.ts` entry — checked: that section doesn't enumerate individual `src/data` files, nothing to update.
+
 ## Dev Notes
 
 ### What this story is / is NOT

@@ -25,6 +25,16 @@ _Implementation review (`bmad-code-review`, 4 layers) over `git diff 1b20a7a..HE
 - **`orderStandings`'s `teamNames` map has no guard for a missing entry.** Expected to be built from the same entries being ordered.
 - **The win-by-2-for-both-presets rationale could cite stronger PRD textual support** than the story currently argues (FR-5's own CUSTOM-target-score wording). Documentation-quality note, not a functional gap.
 
+## Deferred from: code review of 3-2-group-stage-schema (2026-09-05)
+
+_Implementation review (`bmad-code-review`) over `git diff 9e53089..HEAD`. **Only Blind Hunter and Edge Case Hunter completed — Verification Gap Reviewer and Acceptance Auditor failed on a session rate limit** and were not re-run; treat this review as partial, not the full 4-layer pass. 0 decision-needed, 8 patched, 5 deferred, 2 dismissed._
+
+- **`Match.homeEntryId`/`awayEntryId` cascade-delete instead of `Restrict`**, unlike `Team`'s protection while it has entries. Structurally unreachable today (`checkCanRemoveEntry` only allows removal in `DRAFT`, before any `Match` exists) — changing it needs careful analysis of Postgres's cascade-resolution order against the existing `Tournament`-deletion chain, not a routine fix.
+- **Nothing enforces `match.tournamentId === group.tournamentId` when `groupId` is set.** Not enforceable as a simple `CHECK`; structurally guaranteed by the only intended writer (Story 3.3's draw).
+- **`getStandings` performs three sequential round trips instead of one nested Prisma query.** Perf nitpick, not correctness, at this project's scale.
+- **The verify script's post-teardown assertions sit outside its `try`/`finally`** — a script robustness gap only, no production-code impact.
+- **`getStandings` has no defensive handling for a `Match` entry absent from the group's `GroupSlot` list.** Same class as Story 3.1's already-deferred "missing `teamNames` entry" item; documented assumption that Story 3.3's draw creates both together.
+
 ## Deferred from / decided in: Story 3.2 implementation (2026-09-05)
 
 - **No automated action-level test for `getStandings` beyond the verify script.** Same class of gap as every prior `src/data` function (no `requireAdmin`/session-mock infra) — though `getStandings` itself needs no admin gate, since it will be called from a public page (Story 3.8). Mitigated by `scripts/verify-group-stage-schema.mts` (the real DB round-trip) + code review.
