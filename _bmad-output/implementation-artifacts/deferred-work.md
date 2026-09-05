@@ -2,6 +2,13 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from / decided in: Story 2.8 implementation (2026-09-05)
+
+- **`addPlayer`/`editPlayer`/`removePlayer` have no automated action-level test.** Same class of gap as every prior action (no `requireAdmin`/session-mock infra). `validatePlayer` is exhaustively unit-tested (`src/domain/playerForm.test.ts`); untested is the `requireAdmin` gate, the `getEntryForAdmin` not-found path, and the `(entryId, playerId)`-scoped `count === 0` branches. Mitigated by `scripts/verify-roster.mts` (the real `src/data` round-trip, including the scoped-to-a-different-entry regression case) + code review.
+- **`player-form.tsx` / `roster.tsx` have no component-level test.** Same "no component-test toolchain" gap tracked since the 2-2 review.
+- **No roster-size cap.** SPEC/AC give no maximum player count; an admin can add an unbounded number of players to one entry. Not required by any AC — flag if a real max ever surfaces (e.g. from a federation rule).
+- **No public roster read yet.** `listPlayersForEntry` is admin-only in this story (`/admin/tournaments/[id]/entries/[entryId]`); whether/how a public tournament page shows team rosters is Story 2.9's decision.
+
 ## Deferred from: code review of 2-7-enroll-remove-team (2026-09-05)
 
 _Implementation review (`bmad-code-review`, 4 layers, all 4 independently converging on the same critical finding — see the Patch section applied in the story) over `git diff 42ec6e9..HEAD`. 7 patches applied, 3 items deferred, 5 dismissed._

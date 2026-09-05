@@ -91,8 +91,8 @@ Translated from `epics.md` → Epic 2 → Story 2.8. The Ukrainian source is aut
   - [x] `src/components/README.md` — `player-form.tsx` + `roster.tsx` entries.
   - [x] `AGENTS.md` — Stack-status bullet for Story 2.8.
   - [x] No `ARCHITECTURE-SPINE.md` / `EXPERIENCE.md` / `epics.md` / `SPEC.md` edit — the new route extends the documented `/admin/tournaments/**` prefix; no new invariant.
-- [ ] **Task 10 — `deferred-work.md` (UPDATE)**
-  - [ ] Add a **"Story 2.8 implementation"** section: `addPlayer`/`editPlayer`/`removePlayer` have no automated action-level test (same class as every prior action); `player-form.tsx`/`roster.tsx` untested at the component layer; no roster-size cap (SPEC gives none, not required); no public roster read yet (`listPlayersForEntry` is admin-only in this story — Story 2.9's decision).
+- [x] **Task 10 — `deferred-work.md` (UPDATE)**
+  - [x] Add a **"Story 2.8 implementation"** section: `addPlayer`/`editPlayer`/`removePlayer` have no automated action-level test (same class as every prior action); `player-form.tsx`/`roster.tsx` untested at the component layer; no roster-size cap (SPEC gives none, not required); no public roster read yet (`listPlayersForEntry` is admin-only in this story — Story 2.9's decision).
 - [ ] **Task 11 — Verification gate** (AC: all)
   - [ ] `pnpm test` (existing 4 domain files + the new `playerForm.test.ts`) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean.
   - [ ] Route table — `/admin/tournaments/[id]/entries/[entryId]` (NEW, `ƒ`) added; rest unchanged.
