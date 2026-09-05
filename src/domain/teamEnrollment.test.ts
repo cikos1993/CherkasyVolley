@@ -16,8 +16,11 @@ describe("checkCanEnroll", () => {
     }
   });
 
-  it("rejects at capacity and beyond", () => {
-    expect(checkCanEnroll("DRAFT", 6, 6).ok).toBe(false);
+  it("rejects at capacity and beyond, naming the limit", () => {
+    const atCapacity = checkCanEnroll("DRAFT", 6, 6);
+    expect(atCapacity.ok).toBe(false);
+    if (!atCapacity.ok) expect(atCapacity.message).toBe("Вже заявлено максимальну кількість команд (6).");
+
     expect(checkCanEnroll("DRAFT", 7, 6).ok).toBe(false);
   });
 

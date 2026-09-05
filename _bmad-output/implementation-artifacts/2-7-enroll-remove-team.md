@@ -17,7 +17,7 @@ context:
 
 # Story 2.7: Enroll and remove a team from a tournament
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -61,12 +61,12 @@ Translated from `epics.md` → Epic 2 → Story 2.7. The Ukrainian source is aut
   - [x] `listEntriesForTournament(tournamentId)` — joined `team: { id, name }` select, ordered by team name.
   - [x] `countTournamentEntries(tournamentId)` — moved from `src/data/tournaments.ts`.
   - [x] `createEntry(tournamentId, teamId)` — sole creator.
-  - [x] `deleteEntry(entryId)` — sole canceler; cascade handles `Player` removal.
+  - [x] `deleteEntry(tournamentId, entryId)` — sole canceler; cascade handles `Player` removal. **Revised in the code-review fix pass:** scoped by both ids together via `deleteMany({ where: { id: entryId, tournamentId } })`, not `delete({ where: { id: entryId } })` — the original single-id form let a mismatched `tournamentId`/`entryId` pair delete an entry belonging to a different tournament (see Review Findings). Returns `{ count }` (0 = no match) instead of throwing `P2025`.
   - [x] `TOURNAMENT_ENTRY_NATURAL_KEY_INDEX = "tournament_entry_tournamentId_teamId_key"` — matches the migration file verbatim.
   - [x] `src/data/tournaments.ts` — `countTournamentEntries` removed; `src/actions/tournaments.ts` imports it from `@/data/entries`. `typecheck`/`lint` clean.
 - [x] **Task 3 — `src/actions/entries.ts` (NEW): `enrollTeam` + `removeTeamEntry`** (AC: 1, 2, 3)
   - [x] `enrollTeam(tournamentId, teamId)` — `requireAdmin` → `getTournamentForAdmin` (not found → `NOT_FOUND`) → `checkCanEnroll` (not ok → `PRECONDITION_FAILED`) → `createEntry` (`P2002` → `PRECONDITION_FAILED` "вже заявлена") → `revalidatePath` → `{ ok: true }`.
-  - [x] `removeTeamEntry(tournamentId, entryId)` — `requireAdmin` → `getTournamentForAdmin` (not found → `NOT_FOUND`) → `checkCanRemoveEntry` (not ok → `PRECONDITION_FAILED`) → `deleteEntry` (`P2025` → `NOT_FOUND` "вже видалено") → `revalidatePath` → `{ ok: true }`.
+  - [x] `removeTeamEntry(tournamentId, entryId)` — `requireAdmin` → `getTournamentForAdmin` (not found → `NOT_FOUND`) → `checkCanRemoveEntry` (not ok → `PRECONDITION_FAILED`) → `deleteEntry(tournamentId, entryId)` (`count === 0` → `NOT_FOUND` "вже видалено" — covers both "already gone" and "belongs to a different tournament") → `revalidatePath` → `{ ok: true }`.
   - [x] No new `ActionErrorCode` — reuses `PRECONDITION_FAILED`/`NOT_FOUND`. `typecheck`/`lint` clean.
 - [x] **Task 4 — `src/components/team-enrollment.tsx` (NEW, Client Component)** (AC: 1, 2, 3)
   - [x] Props as specified: `tournamentId`, `state`, `teamCount`, `entries`, `availableTeams`.
@@ -99,6 +99,30 @@ Translated from `epics.md` → Epic 2 → Story 2.7. The Ukrainian source is aut
   - [x] **Browser walkthrough — not run** (no automated Google OAuth in this environment, same residual gap carried since Story 2.4). Coverage instead: `typecheck`/`lint`/`build` + the verify script (the real AC-1/AC-2/AC-3 check) + code review.
   - [x] Real command output captured in the Dev Agent Record.
 - [x] **Task 9 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
+
+### Review Findings
+
+Implementation review 2026-09-05 (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor) over `git diff 42ec6e9..HEAD`. **All 4 layers independently converged on the same critical finding.** 0 decision-needed, 7 patch, 3 defer, 5 dismissed.
+
+#### Patch
+
+- [x] [Review][Patch] **`removeTeamEntry` never verifies `entryId` belongs to `tournamentId`** — `deleteEntry(entryId)` deletes by id alone with no tournament scoping, so a `DRAFT` tournament's id paired with an `entryId` from a different, non-`DRAFT` tournament deletes that entry (and cascades its roster), bypassing the DRAFT-only cancellation guarantee AC 2/3 exist to provide. Found independently by all 4 review layers. [src/actions/entries.ts, src/data/entries.ts]
+- [x] [Review][Patch] `TeamEnrollment.enroll()` has no `try`/`catch` around its `enrollTeam` call inside `startTransition`, unlike `remove()` in the same file and the `GrantAdminButton` precedent it claims to follow — an unexpected rejection surfaces as an unhandled promise rejection instead of a toast [src/components/team-enrollment.tsx]
+- [x] [Review][Patch] The enroll `<select>` has no accessible name (no `<label>`/`aria-label`) — the only form control in this feature without one [src/components/team-enrollment.tsx]
+- [x] [Review][Patch] Copy inconsistency: `checkCanEnroll`'s capacity message uses "Уже", every sibling message in the same feature uses "вже" — two spellings of the same word within one feature [src/domain/teamEnrollment.ts]
+- [x] [Review][Patch] `teamEnrollment.test.ts`'s capacity-exceeded case only asserts `/[а-яіїєґ]/i`, not the actual message content, unlike the state-rejection case in the same file which asserts real text [src/domain/teamEnrollment.test.ts]
+- [x] [Review][Patch] Story's "Architecture compliance" AD-3 bullet lists `view → shell`/`shell → domain`/`shell → data` but omits that `team-enrollment.tsx` (View) calls `checkCanEnroll` (Domain) directly — a real `view → domain` function-call edge the section doesn't disclose [2-7-enroll-remove-team.md — Architecture compliance]
+- [x] [Review][Patch] `scripts/verify-team-enrollment.mts` proves nothing about the cross-tournament scoping bug above — extend it to demonstrate the fix once applied [scripts/verify-team-enrollment.mts]
+
+#### Defer
+
+- [x] [Review][Defer] `enrollTeam`'s capacity check is check-then-act (`countTournamentEntries` → `checkCanEnroll` → `createEntry`, no transaction) — concurrent enrollments near capacity can both pass and push the entry count past `teamCount` [src/actions/entries.ts] — deferred, same accepted-risk class as the already-deferred "No atomic transition" items on `transitionTournament`/`updateTournament` (2.3/2.5 reviews, "low at 2-5-admin scale"); `deferred-work.md`'s wording corrected so the "resolved" claim is scoped to the single-request case
+- [x] [Review][Defer] Neither action re-checks `tournament.state` at write time against a concurrent `transitionTournament` — same already-accepted TOCTOU class, now extended to `enrollTeam`/`removeTeamEntry` [src/actions/entries.ts]
+- [x] [Review][Defer] No visual capacity indicator (e.g. "3 / 8 заявлено") in the enroll section — polish, not required by any AC [src/components/team-enrollment.tsx]
+
+#### Dismissed as noise / unreachable / out of scope (5)
+
+`enrollTeam` has no `P2003` handling for a nonexistent `teamId` — unreachable today, since no team-delete action exists anywhere in the app, so a `teamId` the picker offers can never go stale mid-session · the `directoryEmpty` message can show when the tournament isn't `DRAFT` — unreachable given `tournamentState.ts`'s own `GROUP_STAGE` precondition (`entryCount === teamCount ≥ 4`) combined with this story's DRAFT-only-removal invariant: `entries.length` can never be `0` once a tournament has left `DRAFT` · `TournamentEntry.createdAt` not surfaced in the entries list — cosmetic, out of AC scope, Story 2.8 likely revisits this surface anyway · no visibility into a team's other tournament enrollments — explicitly not required · the `<select>` renders with zero `<option>`s when the directory is exhausted — cosmetic only (already disabled + captioned), no console warning or functional break at zero options.
 
 ## Dev Notes
 
@@ -135,7 +159,7 @@ Translated from `epics.md` → Epic 2 → Story 2.7. The Ukrainian source is aut
 ### Architecture compliance
 
 - **AD-1 / layers** — `team-enrollment.tsx`/the page section are View; `enrollTeam`/`removeTeamEntry` are Shell (`src/actions`); `listEntriesForTournament`/`countTournamentEntries`/`createEntry`/`deleteEntry` are Data; `checkCanEnroll`/`checkCanRemoveEntry` are Domain (pure). [ARCHITECTURE-SPINE.md#Design Paradigm]
-- **AD-3 — dependency direction.** `view → shell` (`team-enrollment.tsx` → `@/actions/entries`), `shell → domain` (`enrollTeam` → `@/domain/teamEnrollment`), `shell → data` (→ `@/data/entries`, `@/data/tournaments`, `@/data/errors`). No new `data → domain` edge — `src/data/entries.ts` takes no domain types (unlike `createTeamRecord`/`createTournamentRecord`, its inputs are plain `string`s).
+- **AD-3 — dependency direction.** `view → shell` (`team-enrollment.tsx` → `@/actions/entries`), `shell → domain` (`enrollTeam`/`removeTeamEntry` → `@/domain/teamEnrollment`), `shell → data` (→ `@/data/entries`, `@/data/tournaments`, `@/data/errors`). **Also `view → domain`, disclosed here explicitly** (found missing from this bullet in code review): `team-enrollment.tsx` calls `checkCanEnroll` directly, client-side, purely to disable the picker with a matching caption — the same UI-hint-not-authorization-boundary reasoning `tournament-form.tsx` already established for its `locked` prop, but this is the first time a view component calls a domain **function** (not just a type/const) — extends the previously-`type/const`-only exception (AGENTS.md's Story 2.4 open item) one step further. No new `data → domain` edge — `src/data/entries.ts` takes no domain types (unlike `createTeamRecord`/`createTournamentRecord`, its inputs are plain `string`s).
 - **AD-6 — every mutation is a Server Action under `requireAdmin()`.** Both `enrollTeam` and `removeTeamEntry` call it first. [ARCHITECTURE-SPINE.md#AD-6]
 - **AD-8 — `state` changes only via `transitionTournament`.** Neither new action touches `Tournament.state`; they only *read* it (via `getTournamentForAdmin`) to gate their own preconditions. [ARCHITECTURE-SPINE.md#AD-8]
 - **AD-11 — `src/data` is the sole Prisma owner.** All new Prisma access lives in `src/data/entries.ts`; the domain module and action never import Prisma. [ARCHITECTURE-SPINE.md#AD-11]
@@ -165,7 +189,7 @@ Translated from `epics.md` → Epic 2 → Story 2.7. The Ukrainian source is aut
 ### Testing requirements
 
 - **Unit (Vitest):** `src/domain/teamEnrollment.test.ts` — the deterministic core (state gate for both functions, the capacity boundary). This is the primary automated proof for AC 1/2/3's business rules — narrower than prior stories' gaps, since the exact class of "untested action-embedded logic" finding from Stories 2.4/2.5's reviews is closed by construction this time.
-- **Not unit-tested (no infra, same class as every prior action):** `enrollTeam`/`removeTeamEntry` themselves (the `requireAdmin` gate, the `P2002`/`P2025` catches, the DB writes). Gate = `typecheck` + `lint` + the **DB round-trip script** (`verify-team-enrollment.mts`) + code review.
+- **Not unit-tested (no infra, same class as every prior action):** `enrollTeam`/`removeTeamEntry` themselves (the `requireAdmin` gate, the `P2002` catch, the DB writes). Gate = `typecheck` + `lint` + the **DB round-trip script** (`verify-team-enrollment.mts`, which after the code-review fix pass also proves the `(tournamentId, entryId)` scoping) + code review.
 - **Regression:** `pnpm test` (4 files after this story), route table unchanged, import-boundary greps clean, `verify-tournament-create.mts`/`verify-tournament-edit-delete.mts`/`verify-team-create.mts` re-run unchanged (proving the `countTournamentEntries` relocation didn't regress `transitionTournament`).
 
 ### Previous story intelligence
@@ -249,6 +273,14 @@ claude-sonnet-5
 - `_bmad-output/implementation-artifacts/deferred-work.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
+**Modified (review fix pass only)**
+- `src/data/entries.ts` — `deleteEntry` now takes `(tournamentId, entryId)` and uses `deleteMany` scoped by both, closing the cross-tournament deletion bug
+- `src/actions/entries.ts` — `removeTeamEntry` passes both ids to `deleteEntry`, checks `count === 0` for not-found instead of catching `P2025`; `isRecordNotFound` import removed (no longer used)
+- `scripts/verify-team-enrollment.mts` — proves the scoping fix (a second throwaway tournament, a mismatched-pair delete attempt)
+- `src/components/team-enrollment.tsx` — `enroll()` wrapped in `try`/`catch`; `<select>` gets `aria-label`
+- `src/domain/teamEnrollment.ts` — "Уже" → "Вже" (copy consistency)
+- `src/domain/teamEnrollment.test.ts` — capacity-exceeded case now asserts message content
+
 ## Change Log
 
 | Date | Change |
@@ -261,4 +293,6 @@ claude-sonnet-5
 | 2026-09-05 | Task 5 — `/admin/tournaments/[id]`: new "Команди" section. |
 | 2026-09-05 | Task 6 — README + `AGENTS.md` updates; fixed a Story 2.6 doc-placement bug. |
 | 2026-09-05 | Task 7 — `deferred-work.md`: resolved the capacity-check item, new "Story 2.7 implementation" section. |
+| 2026-09-05 | Task 8/9 — verification gate green; new `scripts/verify-team-enrollment.mts` (10/10). All four verify scripts re-run together, no regression. Status → review. |
+| 2026-09-05 | `bmad-code-review` (4 layers) over `git diff 42ec6e9..HEAD`. **All 4 layers independently converged on the same critical finding.** 0 decision-needed, 7 patch, 3 defer, 5 dismissed. Fixed: **`removeTeamEntry`/`deleteEntry` now scope the delete by `(tournamentId, entryId)` together via `deleteMany`** — the original single-id `delete` let a mismatched pair cancel an entry belonging to a different, non-`DRAFT` tournament, defeating the DRAFT-only cancellation guarantee this story exists to provide; `verify-team-enrollment.mts` extended (13/13) with a second throwaway tournament proving the fix. Also fixed: `enroll()` now wraps its call in `try`/`catch` (matches `remove()`/`GrantAdminButton`); the enroll `<select>` gets an `aria-label`; "Уже"/"вже" copy inconsistency resolved; the capacity-exceeded domain test now asserts message content; the story's own AD-3 bullet updated to disclose the `view → domain` function-call edge it had omitted. 3 items added to `deferred-work.md` (the capacity check's check-then-act race under concurrency — `deferred-work.md`'s "resolved" wording narrowed to the single-request case; the same TOCTOU class extended to these two new actions; no visual capacity indicator — all deliberately left as-is, matching precedents already accepted for `transitionTournament`/`updateTournament`). Gate re-run clean: `test` 59/59, `typecheck`, `lint`, `build`; all four verify scripts green (13/13, 15/15, 5/5, 13/13). Status → done. |
 | 2026-09-05 | Task 8 — verification gate green; new `scripts/verify-team-enrollment.mts` (10/10). All four verify scripts re-run together, no regression. |

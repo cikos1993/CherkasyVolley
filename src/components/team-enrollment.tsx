@@ -51,12 +51,16 @@ export function TeamEnrollment({
   function enroll() {
     if (!effectiveTeamId) return;
     startTransition(async () => {
-      const res = await enrollTeam(tournamentId, effectiveTeamId);
-      if (res.ok) {
-        notify.success("Команду заявлено");
-        router.refresh();
-      } else {
-        notify.error(res.message);
+      try {
+        const res = await enrollTeam(tournamentId, effectiveTeamId);
+        if (res.ok) {
+          notify.success("Команду заявлено");
+          router.refresh();
+        } else {
+          notify.error(res.message);
+        }
+      } catch {
+        notify.error("Не вдалося заявити команду. Спробуйте ще раз.");
       }
     });
   }
@@ -87,6 +91,7 @@ export function TeamEnrollment({
       ) : (
         <div className="flex items-end gap-3">
           <select
+            aria-label="Команда для заявки"
             className={selectClassName}
             value={effectiveTeamId}
             onChange={(event) => setSelectedTeamId(event.target.value)}

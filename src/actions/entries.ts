@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { toActionError, type ActionResult } from "@/actions/result";
 import { requireAdmin } from "@/auth/requireAdmin";
-import { isRecordNotFound, isUniqueViolation } from "@/data/errors";
+import { isUniqueViolation } from "@/data/errors";
 import {
   countTournamentEntries,
   createEntry,
@@ -70,11 +70,14 @@ export async function removeTeamEntry(
       return { ok: false, code: "PRECONDITION_FAILED", message: check.message };
     }
 
-    await deleteEntry(entryId);
-  } catch (error) {
-    if (isRecordNotFound(error)) {
+    // `deleteEntry` is scoped by (tournamentId, entryId) together — a
+    // mismatched pair (e.g. an entryId belonging to a different tournament)
+    // deletes nothing rather than deleting the wrong tournament's entry.
+    const { count } = await deleteEntry(tournamentId, entryId);
+    if (count === 0) {
       return { ok: false, code: "NOT_FOUND", message: "Заявку вже видалено." };
     }
+  } catch (error) {
     return toActionError(error);
   }
 

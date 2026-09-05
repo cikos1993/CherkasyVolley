@@ -18,7 +18,7 @@ export function checkCanEnroll(
     return { ok: false, message: "Заявити команду можна лише у стані «Чернетка»." };
   }
   if (currentEntryCount >= teamCount) {
-    return { ok: false, message: `Уже заявлено максимальну кількість команд (${teamCount}).` };
+    return { ok: false, message: `Вже заявлено максимальну кількість команд (${teamCount}).` };
   }
   return { ok: true };
 }

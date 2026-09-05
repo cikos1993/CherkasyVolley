@@ -24,12 +24,16 @@ export function createEntry(tournamentId: string, teamId: string): Promise<{ id:
 }
 
 /**
- * The only canceler of a `TournamentEntry`. Cascades away its `Player`
- * roster (schema-level `onDelete: Cascade`, Story 2.1) — no separate
- * cleanup needed.
+ * The only canceler of a `TournamentEntry`. Scoped by `tournamentId` **and**
+ * `entryId` — `deleteMany` (not `delete`, which only accepts a unique where)
+ * so a mismatched pair (an `entryId` from a different tournament) deletes
+ * nothing instead of deleting the wrong tournament's entry. Returns
+ * `{ count: 0 }` when no row matched (already gone, or the ids don't pair up)
+ * — the caller maps that to a "not found" result. Cascades away the `Player`
+ * roster (schema-level `onDelete: Cascade`, Story 2.1) when it does match.
  */
-export function deleteEntry(entryId: string) {
-  return db.tournamentEntry.delete({ where: { id: entryId } });
+export function deleteEntry(tournamentId: string, entryId: string) {
+  return db.tournamentEntry.deleteMany({ where: { id: entryId, tournamentId } });
 }
 
 /** The Postgres index backing `TournamentEntry`'s `@@unique([tournamentId, teamId])`. */
