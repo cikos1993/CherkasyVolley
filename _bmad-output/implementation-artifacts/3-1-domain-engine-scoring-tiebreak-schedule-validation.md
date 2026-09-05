@@ -12,7 +12,7 @@ context:
 
 # Story 3.1: Domain engine — scoring, tiebreak, schedule, validation
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -70,12 +70,12 @@ Translated from `epics.md` → Epic 3 → Story 3.1. The Ukrainian source is aut
   - [x] No `ARCHITECTURE-SPINE.md` edit — this story implements AD-2/AD-4/NFR-3 exactly as already specified, no new invariant.
 - [x] **Task 6 — `deferred-work.md` (UPDATE)**
   - [x] New "Story 3.1 implementation" section: no from-empty integration test yet (no `src/data`/`Match`/`SetScore` schema until Story 3.2 — this story is 100% unit-testable in isolation, unlike every prior story); the win-by-2-applies-to-both-presets decision flagged as a judgment call worth revisiting if a real regulation ever states otherwise; the no-home/away-swap decision flagged the same way.
-- [ ] **Task 7 — Verification gate** (AC: all)
-  - [ ] `pnpm test` — 4 new domain files (this story adds no component/action/page code, so this is the *entire* verification surface); `pnpm typecheck` · `pnpm lint` clean. No `pnpm build` needed (no new route, no route-table check) — still run once to confirm nothing broke.
-  - [ ] Import-boundary greps: confirm `src/domain/{scoring,tiebreak,schedule,validation}.ts` import nothing from `next`, `@prisma/client`/`@/generated/prisma`, `react`, or any other `src/` layer.
-  - [ ] No verify script needed — nothing touches the database. This is the first story since 1.3 with zero `src/data` involvement.
-  - [ ] Real command output + notes captured in the Dev Agent Record.
-- [ ] **Task 8 — Commit(s)** — one commit + `git push origin main` per completed task. No `build` gate to wait on (no new route), but still run it once at the end per the verification gate.
+- [x] **Task 7 — Verification gate** (AC: all)
+  - [x] `pnpm test` — 9 files, 99/99 (this story adds no component/action/page code, so this is the *entire* verification surface); `pnpm typecheck` · `pnpm lint` clean; `pnpm build` clean, route table unchanged (confirmed — no new route this story).
+  - [x] Import-boundary greps: `src/domain/{scoring,tiebreak,schedule,validation}.ts` import only each other (type-only, same-layer) — nothing from `next`, Prisma, `react`, or any other `src/` layer. `schedule.ts` has no imports at all.
+  - [x] No verify script needed — nothing touches the database. First story since 1.3 with zero `src/data` involvement.
+  - [x] Real command output + notes captured in the Dev Agent Record.
+- [x] **Task 8 — Commit(s)** — one commit + `git push origin main` per completed task. No `build` gate to wait on (no new route), but still run it once at the end per the verification gate.
 
 ## Dev Notes
 
@@ -153,14 +153,52 @@ No `project-context.md`. Binding docs: `epics.md` (Story 3.1 AC), `prd.md` (FR-5
 
 ### Agent Model Used
 
+claude-sonnet-5
+
 ### Debug Log References
+
+**Task 1/2 — verified by hand that the circle-method schedule and the tiebreak chain fixtures were mathematically correct before trusting the test run.** Worked out the 4-team and 5-team round-robin pairings and bye distribution by hand (see the story's own reasoning), and separately hand-traced the 2-team, 3-team-dominant, and 3-way-cycle tiebreak fixtures' point/set totals before writing the assertions — both matched the test run on the first try, no debugging needed.
+
+**Task 2 — first test-file draft left exploratory dead code in place (`void` no-ops from abandoned fixture attempts) and was rewritten before committing.** Caught by re-reading the file before running tests; the committed version has no scratch work, only the fixtures that are actually asserted on.
+
+**Task 4 — `validateMatchScore`'s CLASSIC early-stop check needed care around index-based "is this the last set" logic** (`isDecided && !isLastSet`) rather than a simpler running-tally check, since a set that decides the match must be exactly the final element of the array, not just any set after which the tally happens to reach 3 — got this right on the first implementation, verified via the "4th set after a 3:0 sweep" test case.
 
 ### Completion Notes List
 
+- **Task 1:** `src/domain/scoring.ts` (NEW) — `matchPoints` (CLASSIC 3/0 or 2/1, CUSTOM 1pt/set), `computeStandings` (fresh aggregation, AD-4). 10 Vitest cases.
+- **Task 2:** `src/domain/tiebreak.ts` (NEW) — `orderStandings`, the FR-17 chain via a recursive tied-group resolver (points → mini-table → sets won → name). 4 Vitest cases including a genuine 3-way stats cycle.
+- **Task 3:** `src/domain/schedule.ts` (NEW) — `generateSchedule`, circle-method round-robin with bye handling and an injectable shuffle. 4 Vitest cases (4/5/6 teams, single/double round).
+- **Task 4:** `src/domain/validation.ts` (NEW) — `targetScore`, `validateSetScore`, `validateMatchScore`. 13 Vitest cases.
+- **Task 5:** README updates in `src/domain` + `AGENTS.md`.
+- **Task 6:** `deferred-work.md` — new "Story 3.1 implementation" section (3 items: no integration test yet, two judgment-call decisions flagged for future revisit).
+- **Task 7:** `pnpm test` 9/9 files (99/99) · `typecheck` · `lint` · `build` (route table unchanged) — all clean. No verify script needed (zero `src/data` involvement, the first such story since 1.3).
+
 ### File List
+
+**New**
+- `src/domain/scoring.ts`
+- `src/domain/scoring.test.ts`
+- `src/domain/tiebreak.ts`
+- `src/domain/tiebreak.test.ts`
+- `src/domain/schedule.ts`
+- `src/domain/schedule.test.ts`
+- `src/domain/validation.ts`
+- `src/domain/validation.test.ts`
+
+**Modified**
+- `src/domain/README.md` · `AGENTS.md`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ## Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-05 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
+| 2026-09-05 | Task 1 — `src/domain/scoring.ts`: `matchPoints`, `computeStandings` + 10 Vitest cases. `bmad-dev-story`. |
+| 2026-09-05 | Task 2 — `src/domain/tiebreak.ts`: `orderStandings` (points → mini-table → sets won → name) + 4 Vitest cases. |
+| 2026-09-05 | Task 3 — `src/domain/schedule.ts`: `generateSchedule` (circle method, bye handling) + 4 Vitest cases. |
+| 2026-09-05 | Task 4 — `src/domain/validation.ts`: `targetScore`/`validateSetScore`/`validateMatchScore` + 13 Vitest cases. |
+| 2026-09-05 | Task 5 — README + `AGENTS.md` updates. |
+| 2026-09-05 | Task 6 — `deferred-work.md`: new "Story 3.1 implementation" section. |
+| 2026-09-05 | Task 7/8 — verification gate green (`test` 99/99, `typecheck`, `lint`, `build`). No verify script needed — zero `src/data` involvement. Status → review. |
