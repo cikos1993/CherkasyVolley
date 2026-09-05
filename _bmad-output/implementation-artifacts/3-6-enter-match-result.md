@@ -79,16 +79,16 @@ PRD §4.6 (`prd.md`, in context) restates the same and adds precision:
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — `src/domain/scoring.ts` (UPDATE): `matchSetSummary`** (AC: 2)
-  - [ ] `export function matchSetSummary(sets: SetScore[]): { home: number; away: number }` — counts sets won per side via the same `homeWonSet` comparison `countSetsWon` uses (refactor `countSetsWon` to delegate, or export a thin wrapper — do not duplicate the loop). Pure.
-  - [ ] `src/domain/scoring.test.ts` — cases: 3:0, 3:1, 3:2, 0:3, an empty array → `{ home: 0, away: 0 }`, a `CUSTOM` 2:1.
-  - [ ] `pnpm test` green; `typecheck`/`lint` clean.
+- [x] **Task 1 — `src/domain/scoring.ts` (UPDATE): `matchSetSummary`** (AC: 2)
+  - [x] `matchSetSummary(sets): { home: number; away: number }` — counts via `homeWonSet`; `countSetsWon` refactored to delegate (no duplicated loop).
+  - [x] `src/domain/scoring.test.ts` — 6 cases (3:0, 3:1, 3:2, 0:3, empty, CUSTOM 2:1).
+  - [x] `pnpm test` 131/131; `typecheck`/`lint` clean.
 
-- [ ] **Task 2 — replace the inline `setSummary` reducers** (AC: 2)
-  - [ ] `src/app/classic/[tournament]/page.tsx` — delete the local `setSummary` function; use `matchSetSummary(match.sets)` → `${s.home}:${s.away}` (only when `match.sets.length > 0`, unchanged).
-  - [ ] `src/app/admin/tournaments/[id]/schedule/page.tsx` — same.
-  - [ ] Update `deferred-work.md`: mark the "inline `setSummary` duplicated in two page files" item (Story 3.5 section) resolved.
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 2 — replace the inline `setSummary` reducers** (AC: 2)
+  - [x] `src/app/classic/[tournament]/page.tsx` — local reducer → `formatResult` calling `matchSetSummary` (renamed to avoid shadowing the `resultSummary` field).
+  - [x] `src/app/admin/tournaments/[id]/schedule/page.tsx` — same.
+  - [x] `deferred-work.md` — both "inline `setSummary`" items marked resolved.
+  - [x] `typecheck`/`lint` clean.
 
 - [ ] **Task 3 — `src/data/matches.ts` (UPDATE): `getMatchForResult` + `createMatchResult`** (AC: 1, 3)
   - [ ] `getMatchForResult(tournamentId: string, matchId: string)` — `db.match.findFirst({ where: { id: matchId, tournamentId }, select: { id, stage, scheduledAt, homeEntry: { select: { team: { select: { name: true } } } }, awayEntry: { select: { team: { select: { name: true } } } }, sets: { select: { setNo: true, homePoints: true, awayPoints: true }, orderBy: { setNo: "asc" } }, tournament: { select: { scoringPreset: true, type: true, discipline: true } } } })`. Scoped by the `(tournamentId, matchId)` pair (the `getEntryForAdmin` discipline). Returns `null` on a mismatch.
@@ -276,11 +276,22 @@ No `project-context.md`. Binding docs: `epics.md` (Story 3.6 AC, FR-15), `prd.md
 
 ### Agent Model Used
 
+claude-sonnet-5 (bmad-dev-story)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- Task 1: `matchSetSummary(sets)` added to `src/domain/scoring.ts`; `countSetsWon` now delegates to it (single loop). `scoring.test.ts` +6 cases → `pnpm test` 131/131.
+- Task 2: the two inline `setSummary` reducers (`classic/[tournament]/page.tsx`, `admin/tournaments/[id]/schedule/page.tsx`) replaced by a local `formatResult` wrapper over `matchSetSummary` (renamed from `setSummary` to avoid shadowing the `resultSummary` VM field). Both `deferred-work.md` entries marked resolved.
+
 ### File List
+
+- `src/domain/scoring.ts` (UPDATE)
+- `src/domain/scoring.test.ts` (UPDATE)
+- `src/app/classic/[tournament]/page.tsx` (UPDATE)
+- `src/app/admin/tournaments/[id]/schedule/page.tsx` (UPDATE)
+- `_bmad-output/implementation-artifacts/deferred-work.md` (UPDATE)
 
 ## Change Log
 

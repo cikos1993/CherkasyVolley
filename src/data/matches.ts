@@ -1,4 +1,5 @@
 import { db } from "@/data/client";
+import { isUniqueViolation } from "@/data/errors";
 import { Prisma } from "@/generated/prisma/client";
 import type { MatchScheduleInput } from "@/domain/matchSchedule";
 import { computeStandings, type MatchResult } from "@/domain/scoring";
@@ -132,4 +133,67 @@ export async function hasAnyGroupResult(
     select: { id: true },
   });
   return setScore !== null;
+}
+
+/** The Postgres index backing `SetScore`'s `@@unique([matchId, setNo])`. */
+export const SET_SCORE_NATURAL_KEY_INDEX = "set_score_matchId_setNo_key";
+
+/**
+ * One match with the two team names, its stage/schedule, any existing
+ * `SetScore` rows, and the tournament's scoring preset / type / discipline —
+ * everything the match screen (`/admin/tournaments/[id]/matches/[matchId]`)
+ * and `enterMatchResult` need. Scoped by the `(tournamentId, matchId)` pair;
+ * `null` when they don't match (the `getEntryForAdmin` discipline).
+ */
+export function getMatchForResult(tournamentId: string, matchId: string) {
+  return db.match.findFirst({
+    where: { id: matchId, tournamentId },
+    select: {
+      id: true,
+      stage: true,
+      scheduledAt: true,
+      homeEntry: { select: { team: { select: { name: true } } } },
+      awayEntry: { select: { team: { select: { name: true } } } },
+      sets: {
+        select: { setNo: true, homePoints: true, awayPoints: true },
+        orderBy: { setNo: "asc" },
+      },
+      tournament: { select: { scoringPreset: true, type: true, discipline: true } },
+    },
+  });
+}
+
+/**
+ * Records a group match's result. One transaction: the match must exist,
+ * belong to `tournamentId`, be `stage: "GROUP"`, and have **no** `SetScore`
+ * rows yet — this is first-entry only (editing is Story 3.7). The caller
+ * (`enterMatchResult`) has already validated `sets` through
+ * `src/domain/validation.ts`; this function performs no score validation. A
+ * concurrent second entry that races past the `_count` check trips
+ * `@@unique([matchId, setNo])` inside the transaction and is reported as
+ * `"exists"`, not thrown.
+ */
+export async function createMatchResult(
+  tournamentId: string,
+  matchId: string,
+  sets: { setNo: number; homePoints: number; awayPoints: number }[],
+): Promise<{ ok: true } | { ok: false; reason: "not_found" | "exists" }> {
+  try {
+    return await db.$transaction(async (tx) => {
+      const match = await tx.match.findFirst({
+        where: { id: matchId, tournamentId, stage: "GROUP" },
+        select: { id: true, _count: { select: { sets: true } } },
+      });
+      if (!match) return { ok: false as const, reason: "not_found" as const };
+      if (match._count.sets > 0) return { ok: false as const, reason: "exists" as const };
+
+      await tx.setScore.createMany({ data: sets.map((set) => ({ ...set, matchId })) });
+      return { ok: true as const };
+    });
+  } catch (error) {
+    if (isUniqueViolation(error, SET_SCORE_NATURAL_KEY_INDEX)) {
+      return { ok: false, reason: "exists" };
+    }
+    throw error;
+  }
 }
