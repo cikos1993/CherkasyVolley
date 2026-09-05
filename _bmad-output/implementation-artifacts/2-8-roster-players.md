@@ -59,8 +59,8 @@ Translated from `epics.md` → Epic 2 → Story 2.8. The Ukrainian source is aut
   - [x] `validatePlayer(raw)` — trims every field; collects every failing field at once.
   - [x] `src/domain/playerForm.test.ts` — 9 tests: all-filled, name-only (others null), whitespace-only optional → null, exact-max accepted, empty/whitespace `fullName` rejected (message content asserted), over-max `fullName` (message content asserted), each optional field over max independently, multi-error, Ukrainian message assertion.
   - [x] `pnpm test` → 5 files, 68/68.
-- [ ] **Task 2 — `src/data/entries.ts` (UPDATE): `getEntryForAdmin`** (AC: 1, 2, 3, 4)
-  - [ ] `getEntryForAdmin(tournamentId: string, entryId: string)` — `db.tournamentEntry.findFirst({ where: { id: entryId, tournamentId }, select: { id: true, teamId: true, team: { select: { id: true, name: true } } } })`. Returns `null` when the ids don't pair up (wrong tournament, or the entry doesn't exist) — the page's `notFound()` gate and every player action call this first, never a bare `db.tournamentEntry.findUnique({ where: { id: entryId } })`.
+- [x] **Task 2 — `src/data/entries.ts` (UPDATE): `getEntryForAdmin`** (AC: 1, 2, 3, 4)
+  - [x] `getEntryForAdmin(tournamentId, entryId)` — scoped `findFirst`, returns `null` when the ids don't pair up. `typecheck`/`lint` clean.
 - [ ] **Task 3 — `src/data/players.ts` (NEW)** (AC: 1, 2, 3, 4)
   - [ ] `listPlayersForEntry(entryId: string)` — `db.player.findMany({ where: { entryId }, orderBy: { fullName: "asc" } })`.
   - [ ] `createPlayer(entryId: string, input: PlayerInput): Promise<{ id: string }>` — **the sole creator** — `db.player.create({ data: { entryId, ...input }, select: { id: true } })`.

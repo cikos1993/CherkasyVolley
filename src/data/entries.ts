@@ -1,6 +1,20 @@
 import { db } from "@/data/client";
 
 /**
+ * A single entry, scoped by `(tournamentId, entryId)` together — never look
+ * up an entry by `entryId` alone (see `deleteEntry`'s own note; the Story 2.7
+ * code review found exactly that shape leaking a cross-tournament bug).
+ * Returns `null` when the ids don't pair up, so callers get one gate for both
+ * "doesn't exist" and "belongs to a different tournament".
+ */
+export function getEntryForAdmin(tournamentId: string, entryId: string) {
+  return db.tournamentEntry.findFirst({
+    where: { id: entryId, tournamentId },
+    select: { id: true, teamId: true, team: { select: { id: true, name: true } } },
+  });
+}
+
+/**
  * Every entry in a tournament, with its team's id/name joined in. Admin read
  * — the only caller so far is the tournament management page, already
  * gated by `requireAdminPage()`.
