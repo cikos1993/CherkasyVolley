@@ -74,12 +74,12 @@ Translated from `epics.md` → Epic 3 → Story 3.2. The Ukrainian source is aut
   - [x] No `ARCHITECTURE-SPINE.md` edit — AD-4/AD-5/AD-11 are implemented exactly as already specified.
 - [x] **Task 5 — `deferred-work.md` (UPDATE)**
   - [x] New "Story 3.2 implementation" section: no automated action-level test for `getStandings` beyond the verify script (Task 6) — same class as every prior `src/data` function; `GroupSlot`'s "no seed/position field" decision flagged for revisit if a future story needs manual reseeding beyond the `needsManualSeed` display flag; the `homeEntryId`/`awayEntryId` nullability (needed for Epic 4, unused by this story) flagged so Epic 4's bracket story doesn't have to rediscover why it's already nullable.
-- [ ] **Task 6 — Verification gate** (AC: all)
-  - [ ] `pnpm test` unchanged (no new `src/domain` module this story — reuses Story 3.1's engine as-is) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean (no new route).
-  - [ ] Import-boundary greps: `src/data/matches.ts` is the only new Prisma-client import site; confirm it's under `src/data/**`.
-  - [ ] `scripts/verify-group-stage-schema.mts` (NEW, self-cleaning): create a throwaway tournament + 3 entered teams, manually seat all 3 into the tournament's `Group` via `GroupSlot` (simulating what Story 3.3's draw will later automate) → create a few `GROUP`-stage `Match` rows + `SetScore`s by hand (a small round-robin, reusing `generateSchedule`/fixture shapes from Story 3.1's own tests for realism) → call `getStandings(tournamentId)` → assert it returns the correctly ordered table matching a hand-computed expectation → assert the two new `CHECK` constraints reject a bad insert each (a `GROUP` match with `groupId: null`, and a match with `homeEntryId === awayEntryId`) → full teardown.
-  - [ ] Re-run all six prior verify scripts — no regression.
-  - [ ] Real command output + notes captured in the Dev Agent Record.
+- [x] **Task 6 — Verification gate** (AC: all)
+  - [x] `pnpm test` unchanged — 9 files, 103/103 (no new `src/domain` module this story — reuses Story 3.1's engine as-is) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean, route table unchanged.
+  - [x] Import-boundary greps: `src/data/matches.ts` is the only new Prisma-client import site, confirmed under `src/data/**`; no other new import site found.
+  - [x] `scripts/verify-group-stage-schema.mts` (NEW, self-cleaning) — 11/11 checks passed: throwaway tournament + 3 entered teams seated into the `Group` via `GroupSlot`, a hand-built 3-way stats-cycle round-robin (reusing Story 3.1's exact `tiebreak.test.ts` fixture) run through `getStandings`, confirming the real DB-backed pipeline reproduces the same order/points/needsManualSeed result as the pure domain test; a pre-draw tournament (no `GroupSlot` rows) returns `[]`; both new `CHECK` constraints (`match_group_stage_check`, `match_distinct_entries_check`) confirmed rejecting a bad insert each.
+  - [x] Re-ran all six prior verify scripts (`verify-tournament-create.mts`, `verify-tournament-edit-delete.mts`, `verify-team-create.mts`, `verify-team-enrollment.mts`, `verify-roster.mts`, `verify-public-tournament.mts`) — 13/13, 15/15, 5/5, 12/12, 19/19, 12/12, no regression.
+  - [x] Real command output + notes captured in the Dev Agent Record.
 - [ ] **Task 7 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
 
 ## Dev Notes
