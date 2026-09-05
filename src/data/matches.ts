@@ -64,3 +64,16 @@ export async function getStandings(tournamentId: string): Promise<OrderedStandin
   const rows = computeStandings(entryIds, matches, tournament.scoringPreset);
   return orderStandings(rows, matches, tournament.scoringPreset, teamNames);
 }
+
+/**
+ * Whether any `GROUP`-stage match of this tournament has a recorded set
+ * score yet. The sole read backing `checkCanRedraw`'s (Story 3.4) "no
+ * results yet" gate — once true, a redraw must be refused.
+ */
+export async function hasAnyGroupResult(tournamentId: string): Promise<boolean> {
+  const setScore = await db.setScore.findFirst({
+    where: { match: { tournamentId, stage: "GROUP" } },
+    select: { id: true },
+  });
+  return setScore !== null;
+}
