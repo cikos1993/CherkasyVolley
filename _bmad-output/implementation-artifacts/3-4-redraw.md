@@ -67,10 +67,10 @@ PRD FR-12 (`prd.md` §4.4, cited in the story's context) adds two checkable cons
   - [x] `redrawTournament(tournamentId): Promise<ActionResult<undefined>>` — `requireAdmin()` → `getTournamentForAdmin` (not found, or no `group` → `NOT_FOUND`) → `hasAnyGroupResult(tournamentId)` → `checkCanRedraw(tournament.state, hasResults)` (not ok → `{ ok: false, code: "PRECONDITION_FAILED", message: check.message }`) → `listGroupEntryIds(tournament.group.id)` → `defaultShuffle` (`src/domain/schedule`) → `generateSchedule(shuffled, tournament.rounds)` → map to pairings (drop `round`/`tour`, same as `drawTournament`) → `saveRedraw(tournamentId, tournament.group.id, pairings)` → `revalidatePath` (discipline route, `/admin/tournaments/${tournamentId}`; **not** `/admin/tournaments` — `state` doesn't change, so the list page's displayed state is already correct) → `{ ok: true, data: undefined }`.
   - [x] Add `"PRECONDITION_FAILED"` reuse (already an `ActionErrorCode` — no new code needed).
   - [x] `typecheck`/`lint` clean.
-- [ ] **Task 5 — `src/components/tournament-actions.tsx` (UPDATE): `RedrawTournamentButton`** (AC: 1, 2)
-  - [ ] `RedrawTournamentButton({ tournamentId, state, hasResults })` — `ConfirmDialog` wrapping a call to `redrawTournament`, `DeleteTournamentButton`'s exact shape (`onConfirm` returns `false`/throws on failure so the dialog stays open, per `ConfirmDialog`'s own contract; success toasts and calls `router.refresh()` instead of `router.push` — this story stays on the same page, unlike delete's navigate-away). `title="Пережеребкувати?"`, `description` matching `EXPERIENCE.md`'s destructive-confirmation voice (a direct-speech sentence naming the consequence, e.g. "Поточний календар матчів буде видалено і згенеровано новий."), `confirmLabel="Пережеребкувати"`, `destructive`.
-  - [ ] Disabled + captioned via `checkCanRedraw(state, hasResults)` (`src/domain/redraw`) computed in the component — the same `view → domain` edge already established by `checkCanEnroll`/`checkTransition`.
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 5 — `src/components/tournament-actions.tsx` (UPDATE): `RedrawTournamentButton`** (AC: 1, 2)
+  - [x] `RedrawTournamentButton({ tournamentId, state, hasResults })` — `ConfirmDialog` wrapping a call to `redrawTournament`, `DeleteTournamentButton`'s exact shape (`onConfirm` returns `false`/throws on failure so the dialog stays open, per `ConfirmDialog`'s own contract; success toasts and calls `router.refresh()` instead of `router.push` — this story stays on the same page, unlike delete's navigate-away). `title="Пережеребкувати?"`, `description` matching `EXPERIENCE.md`'s destructive-confirmation voice (a direct-speech sentence naming the consequence, e.g. "Поточний календар матчів буде видалено і згенеровано новий."), `confirmLabel="Пережеребкувати"`, `destructive`.
+  - [x] Disabled + captioned via `checkCanRedraw(state, hasResults)` (`src/domain/redraw`) computed in the component — the same `view → domain` edge already established by `checkCanEnroll`/`checkTransition`.
+  - [x] `typecheck`/`lint` clean.
 - [ ] **Task 6 — `src/app/admin/tournaments/[id]/page.tsx` (UPDATE): render the redraw button** (AC: 1, 2)
   - [ ] Fetch `hasResults` via `hasAnyGroupResult(tournament.id)` alongside the existing `Promise.all` reads.
   - [ ] New section, gated `tournament.state === "GROUP_STAGE"` (mirrors the existing `DRAFT`-gated draw section — mutually exclusive, both under a "Жеребкування" heading), rendering `<RedrawTournamentButton tournamentId={tournament.id} state={tournament.state} hasResults={hasResults} />`.
@@ -203,6 +203,7 @@ claude-sonnet-5 (bmad-dev-story)
 - Task 2: `hasAnyGroupResult(tournamentId)` added to `src/data/matches.ts` alongside `getStandings`. `typecheck`/`lint` clean.
 - Task 3: `listGroupEntryIds(groupId)` and `saveRedraw(tournamentId, groupId, pairings)` added to `src/data/draw.ts` alongside `saveDraw`. `typecheck`/`lint` clean.
 - Task 4: `redrawTournament(tournamentId)` added to `src/actions/draw.ts` alongside `drawTournament` — reuses `checkCanRedraw`, `defaultShuffle`, `generateSchedule`, `saveRedraw`. `typecheck`/`lint` clean.
+- Task 5: `RedrawTournamentButton` added to `src/components/tournament-actions.tsx` — `ConfirmDialog` (destructive), disabled trigger + caption via `checkCanRedraw`, `router.refresh()` on success. `typecheck`/`lint` clean.
 
 ### File List
 
@@ -211,6 +212,7 @@ claude-sonnet-5 (bmad-dev-story)
 - `src/data/matches.ts` (UPDATE)
 - `src/data/draw.ts` (UPDATE)
 - `src/actions/draw.ts` (UPDATE)
+- `src/components/tournament-actions.tsx` (UPDATE)
 
 ## Change Log
 

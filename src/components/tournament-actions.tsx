@@ -4,10 +4,11 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2Icon } from "lucide-react";
 
-import { drawTournament } from "@/actions/draw";
+import { drawTournament, redrawTournament } from "@/actions/draw";
 import { deleteTournament } from "@/actions/tournaments";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
+import { checkCanRedraw } from "@/domain/redraw";
 import { checkTransition, type TournamentState } from "@/domain/tournamentState";
 import { notify } from "@/lib/notify";
 
@@ -78,6 +79,52 @@ export function DrawTournamentButton({
         {pending ? <Loader2Icon className="animate-spin" /> : null}
         Провести жеребкування
       </Button>
+      {!check.ok ? <p className="text-xs text-muted-foreground">{check.message}</p> : null}
+    </div>
+  );
+}
+
+export function RedrawTournamentButton({
+  tournamentId,
+  state,
+  hasResults,
+}: {
+  tournamentId: string;
+  state: TournamentState;
+  hasResults: boolean;
+}) {
+  const router = useRouter();
+
+  const check = checkCanRedraw(state, hasResults);
+
+  async function redraw(): Promise<boolean | void> {
+    const res = await redrawTournament(tournamentId).catch((): null => {
+      notify.error("Не вдалося пережеребкувати. Спробуйте ще раз.");
+      return null;
+    });
+    if (res === null) throw new Error("redraw request failed");
+    if (!res.ok) {
+      notify.error(res.message);
+      return false;
+    }
+    notify.success("Пережеребкування проведено");
+    router.refresh();
+  }
+
+  return (
+    <div className="grid gap-2">
+      <ConfirmDialog
+        trigger={
+          <Button variant="destructive" disabled={!check.ok}>
+            Пережеребкувати
+          </Button>
+        }
+        title="Пережеребкувати?"
+        description="Поточний календар матчів буде видалено і згенеровано новий."
+        confirmLabel="Пережеребкувати"
+        destructive
+        onConfirm={redraw}
+      />
       {!check.ok ? <p className="text-xs text-muted-foreground">{check.message}</p> : null}
     </div>
   );
