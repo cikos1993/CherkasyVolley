@@ -18,7 +18,7 @@ context:
 
 # Story 2.8: Team roster — players
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -307,3 +307,4 @@ claude-sonnet-5
 | 2026-09-05 | Task 9 — README + `AGENTS.md` updates; fixed a stale Story 2.7 doc line (`removeTeamEntry`'s `P2025` mapping) in `src/actions/README.md`. |
 | 2026-09-05 | Task 10 — `deferred-work.md`: new "Story 2.8 implementation" section. |
 | 2026-09-05 | Task 11/12 — verification gate green; new `scripts/verify-roster.mts` (15/15), including the direct regression test for the Story 2.7 lesson applied to players. All five verify scripts re-run together, no regression. Status → review. |
+| 2026-09-05 | `bmad-code-review` (4 layers) over `git diff 2c6517e..HEAD`. **Blind Hunter and Verification Gap Reviewer independently converged** on the same finding — `getEntryForAdmin`'s cross-tournament scoping (the story's own central claim) was untested. 0 decision-needed, 7 patch, 8 defer, 5 dismissed. Fixed: `verify-roster.mts` extended with a second throwaway tournament proving `getEntryForAdmin` rejects a real mismatched `(tournamentId, entryId)` pair; `AGENTS.md` wording corrected (didn't touch `deleteEntry`); `editPlayer`/`removePlayer` not-found messages aligned; `PlayerFormState.fieldErrors` reuses the domain `FieldErrors` type; `roster.tsx`'s empty state now uses `EmptyState` + new `NO_PLAYERS`; the six optional-field labels consolidated into `src/lib/player-labels.ts`; `listPlayersForEntry` got a scoping doc comment. 8 items added to `deferred-work.md` (whitespace normalization, height/weight unit hints, edit-target-switch data loss, tournament name not shown on the roster page, no roster-size minimum, the action-layer-only ownership check, roster order untested, `editPlayer`'s formError not auto-closing the form). Gate re-run clean: `test` 68/68, `typecheck`, `lint`, `build`; all five verify scripts green (13/13, 15/15, 5/5, 12/12, 19/19). Status → done. |
