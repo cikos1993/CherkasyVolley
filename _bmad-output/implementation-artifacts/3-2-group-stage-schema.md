@@ -60,11 +60,11 @@ Translated from `epics.md` → Epic 3 → Story 3.2. The Ukrainian source is aut
   - [x] `Tournament` gains a `matches Match[]` back-relation.
   - [x] `TournamentEntry` gains `groupSlots GroupSlot[]`, `homeMatches Match[] @relation("MatchHomeEntry")`, `awayMatches Match[] @relation("MatchAwayEntry")` back-relations.
   - [x] `pnpm exec prisma format` + `pnpm exec prisma generate` clean; `typecheck`/`lint` clean.
-- [ ] **Task 2 — Migration (fallback technique, non-interactive tool)** (AC: 1, 2)
-  - [ ] Pre-flight: `pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` → review the generated SQL.
-  - [ ] Hand-write `prisma/migrations/<timestamp>_group_stage_schema/migration.sql` from that diff, verbatim plus the three `CHECK` constraints from Notes on AC interpretation appended at the end (matching Story 2.4's migration file's own append style).
-  - [ ] `pnpm exec prisma migrate deploy` (non-interactive-safe) against the `dev` Neon branch.
-  - [ ] Verify: `pnpm exec prisma migrate status` clean; `pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` prints "empty migration" (schema and DB agree, `CHECK`s excluded from drift detection as already established).
+- [x] **Task 2 — Migration (fallback technique, non-interactive tool)** (AC: 1, 2)
+  - [x] Pre-flight: `pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` → reviewed the generated SQL.
+  - [x] Hand-wrote `prisma/migrations/20260905125839_group_stage_schema/migration.sql` from that diff, verbatim plus the three `CHECK` constraints from Notes on AC interpretation appended at the end (matching Story 2.4's migration file's own append style).
+  - [x] `pnpm exec prisma migrate deploy` (non-interactive-safe) against the `dev` Neon branch — applied cleanly.
+  - [x] Verify: `pnpm exec prisma migrate status` → "Database schema is up to date!"; `pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` → "This is an empty migration." (schema and DB agree, `CHECK`s excluded from drift detection as already established).
 - [ ] **Task 3 — `src/data/matches.ts` (NEW): `getStandings`** (AC: 1, 2)
   - [ ] `getStandings(tournamentId: string): Promise<OrderedStandingsRow[]>` (the `src/domain/tiebreak.ts` return type) — resolves the tournament's `Group` → its `GroupSlot`s (with each slot's `TournamentEntry.team.name` for the `teamNames` map) → every `GROUP`-stage `Match` for the tournament with its `SetScore`s (mapped into `src/domain/scoring.ts`'s `MatchResult` shape) → `computeStandings` → `orderStandings` (both from `src/domain`, the tournament's `scoringPreset` read alongside). Returns `[]` if the group has no slots yet (pre-draw).
   - [ ] Doc comment: the sole `src/data → src/domain` **value** import for standings — pure computation only, no write, no storage (AD-4).
