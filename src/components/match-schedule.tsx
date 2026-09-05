@@ -2,7 +2,8 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2Icon } from "lucide-react";
+import Link from "next/link";
+import { CheckIcon, Loader2Icon } from "lucide-react";
 
 import { scheduleMatch, type MatchScheduleFormState } from "@/actions/matches";
 import { Button } from "@/components/ui/button";
@@ -51,10 +52,9 @@ function MatchScheduleRow({ tournamentId, match }: { tournamentId: string; match
   const datetimeId = `sched-${match.id}`;
   const venueFieldId = `venue-${match.id}`;
 
-  const meta = [
+  const scheduleMeta = [
     match.scheduledAtDisplay ?? "час не визначено",
     match.venueText || null,
-    match.resultSummary ? `рахунок ${match.resultSummary}` : null,
   ].filter(Boolean);
 
   return (
@@ -63,7 +63,22 @@ function MatchScheduleRow({ tournamentId, match }: { tournamentId: string; match
         <span className="font-medium">
           {match.homeTeam} — {match.awayTeam}
         </span>
-        <span className="text-sm text-muted-foreground">{meta.join(" · ")}</span>
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <span>{scheduleMeta.join(" · ")}</span>
+          <Link
+            href={`/admin/tournaments/${tournamentId}/matches/${match.id}`}
+            className="underline underline-offset-4"
+          >
+            {match.resultSummary ? (
+              <span className="inline-flex items-center gap-1 text-success">
+                <CheckIcon className="size-4" aria-hidden />
+                Результат: {match.resultSummary}
+              </span>
+            ) : (
+              "Внести результат"
+            )}
+          </Link>
+        </span>
       </div>
 
       <form
