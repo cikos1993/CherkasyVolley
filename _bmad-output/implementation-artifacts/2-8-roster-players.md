@@ -103,6 +103,35 @@ Translated from `epics.md` → Epic 2 → Story 2.8. The Ukrainian source is aut
   - [x] Real command output + notes captured in the Dev Agent Record.
 - [x] **Task 12 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
 
+### Review Findings
+
+Implementation review 2026-09-05 (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor) over `git diff 2c6517e..HEAD`. **Blind Hunter and Verification Gap Reviewer independently converged on the same finding** (the story's own central risk area — cross-tournament scoping — is unverified). 0 decision-needed, 7 patch, 8 defer, 5 dismissed.
+
+#### Patch
+
+- [ ] [Review][Patch] **`getEntryForAdmin`'s cross-tournament scoping is never tested** — `scripts/verify-roster.mts`'s only cross-scoping checks vary `entryId` within one tournament; no script or test creates a second tournament and asserts `getEntryForAdmin(otherTournamentId, entryId)` returns `null`. Found independently by Blind Hunter and Verification Gap Reviewer. [scripts/verify-roster.mts, src/data/entries.ts:10]
+- [ ] [Review][Patch] `AGENTS.md`'s Story 2.8 bullet reads as if `deleteEntry`'s `(tournamentId, entryId)` scoping fix landed "along with" this story's work — it actually landed in Story 2.7's code review, before this story's `2c6517e` baseline; this story didn't touch `deleteEntry` [AGENTS.md]
+- [ ] [Review][Patch] `editPlayer`'s not-found message ("Гравця не знайдено.") diverges from `removePlayer`'s ("Гравця вже видалено.") for the identical `count === 0` race [src/actions/players.ts]
+- [ ] [Review][Patch] `PlayerFormState.fieldErrors` redeclares `Partial<Record<PlayerField, string>>` inline instead of importing the `FieldErrors` type already exported by `src/domain/playerForm.ts` [src/actions/players.ts:11]
+- [ ] [Review][Patch] Empty-roster state is a hand-written `<p>` instead of the project's own `EmptyState` + `empty-states.ts` convention every sibling list (e.g. `team-enrollment.tsx`'s `NO_TEAMS`) follows [src/components/roster.tsx]
+- [ ] [Review][Patch] The six optional-field Ukrainian labels are duplicated verbatim between `player-form.tsx` and `roster.tsx` with no shared source — a future rename would silently desync the form label from the display label [src/components/player-form.tsx, src/components/roster.tsx]
+- [ ] [Review][Patch] `listPlayersForEntry` has no tournament scoping and no doc comment warning future callers, unlike `updatePlayer`/`deletePlayer` which document the `(entryId, playerId)`-together discipline inline [src/data/players.ts:5]
+
+#### Defer
+
+- [x] [Review][Defer] `Player.fullName` is trimmed at the ends only, no internal-whitespace collapse (unlike `Team.name`'s `normalizeTeamName`) [src/domain/playerForm.ts] — deferred, pre-existing: `fullName` has no uniqueness constraint (AC 3 explicitly allows duplicates), so unlike `Team.name`'s `nameKey` there is no correctness stake in normalization, only cosmetic consistency
+- [x] [Review][Defer] `height`/`weight` are unlabeled free text with no unit hint or numeric `inputMode` [src/components/player-form.tsx] — deferred, pre-existing: Story 2.1 decided all six optional fields are free text; UX polish, not required by any AC
+- [x] [Review][Defer] Switching the in-place edit target mid-edit (clicking "Редагувати" on a different row) silently discards unsaved typing with no warning [src/components/roster.tsx] — deferred, minor UX gap, no persisted data loss, not required by any AC
+- [x] [Review][Defer] The roster page shows only the team name, not the tournament name — hard to distinguish across browser tabs with several tournaments open [src/app/admin/tournaments/[id]/entries/[entryId]/page.tsx] — deferred, cosmetic polish
+- [x] [Review][Defer] No minimum roster size — nothing stops a tournament progressing past `DRAFT` with zero-player entries [src/actions/players.ts] — deferred, out of this story's scope; SPEC gives no roster minimum, and any such precondition belongs with Epic 3's draw action, which already owns the `DRAFT → GROUP_STAGE` preconditions
+- [x] [Review][Defer] Tournament-ownership scoping for player writes lives only in the action's call order (`getEntryForAdmin` before `updatePlayer`/`deletePlayer`), not re-enforced at the `players.ts` data layer itself [src/data/players.ts] — deferred, accepted design tradeoff: `Player` belongs to `TournamentEntry`, not directly to `Tournament`, so a single ownership check at the action layer (reused by all three actions) avoids a 3-way join in every data-layer call; the concrete verification gap this creates is the patched item above, not a code defect
+- [x] [Review][Defer] No test asserts `listPlayersForEntry`'s documented `fullName`-ascending order [scripts/verify-roster.mts] — deferred, low-value test gap, same class as every other "no action-level test" item already tracked
+- [x] [Review][Defer] `editPlayer`'s `formError` path (e.g. the player was deleted concurrently, `count === 0`) doesn't auto-close the edit form — it stays open referencing a gone player until the admin clicks "Скасувати" [src/components/player-form.tsx] — deferred, rare race at this project's admin-only scale, same class as other accepted concurrency gaps
+
+#### Dismissed as noise / unreachable / out of scope (5)
+
+`sportRank`/`position` left as free text rather than enums — explicit, already-documented design decision (Story 2.1), not a gap this diff introduces · the create-form's clear-on-success reference-equality check (`current === submitted.current`) is "fragile to future changes" — true, but it's the exact established pattern already shipped in `team-form.tsx`/`tournament-form.tsx`, not something this diff worsens · `addPlayer`/`editPlayer`'s `createPlayer`/`updatePlayer` calls aren't wrapped in their own `try`/`catch` — matches the exact already-accepted, already-tracked pattern (`createTournament`/`updateTournament`'s "Prisma errors escape the try/catch", deferred since the 2.3/2.5 reviews), not new to this story · `validatePlayer`'s `trimmed()` would coerce a non-string `FormDataEntryValue` (a `File`) via `String(raw)` — unreachable in practice, since the form has no file input field and the route is `requireAdmin()`-gated · the new admin route isn't reflected in `EXPERIENCE.md`'s Information Architecture tree — consistent with prior precedent (Story 2.7's own "Команди" section addition wasn't separately itemized there either), and the story's own Dev Notes already document and justify the decision explicitly.
+
 ## Dev Notes
 
 ### What this story is / is NOT

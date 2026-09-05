@@ -2,6 +2,19 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from: code review of 2-8-roster-players (2026-09-05)
+
+_Implementation review (`bmad-code-review`, 4 layers) over `git diff 2c6517e..HEAD`. Blind Hunter and Verification Gap Reviewer independently converged on the same finding (patched — see the story file's Review Findings). 0 decision-needed, 7 patched, 8 deferred, 5 dismissed._
+
+- **`Player.fullName` has no internal-whitespace collapse**, unlike `Team.name`'s `normalizeTeamName`. No correctness stake — `fullName` has no uniqueness constraint (AC 3 explicitly allows duplicates) — so this is cosmetic consistency only, not a dedup-integrity issue like `Team.name`'s.
+- **`height`/`weight` are unlabeled free text with no unit hint or numeric `inputMode`.** Story 2.1 decided all six optional fields are free text; a real UX affordance for these two specifically (since they're unambiguously numeric measurements) is polish, not required by any AC.
+- **Switching the in-place edit target mid-edit silently discards unsaved typing.** Clicking "Редагувати" on a different roster row while one is already mid-edit unmounts the open `PlayerForm` with no dirty-check or confirmation. No persisted data loss, not required by any AC.
+- **The roster page shows only the team name, not the tournament name.** An admin with several tournaments open across browser tabs can't tell rosters apart from the page alone.
+- **No minimum roster size.** Nothing stops a tournament progressing past `DRAFT` with zero-player entries. SPEC gives no roster minimum; any such precondition belongs with Epic 3's draw action, which already owns the `DRAFT → GROUP_STAGE` preconditions.
+- **Tournament-ownership scoping for player writes lives only in the action's call order, not the data layer.** `updatePlayer`/`deletePlayer` (`src/data/players.ts`) scope only by `(entryId, playerId)`; the tournament-ownership check happens once, earlier, via `getEntryForAdmin` in each Server Action. Accepted tradeoff — `Player` belongs to `TournamentEntry`, not directly to `Tournament`, so a single check reused by all three actions avoids a 3-way join in every data-layer call. (The concrete risk this created — the scoping was untested — is patched in this review, not deferred.)
+- **No test asserts `listPlayersForEntry`'s documented `fullName`-ascending order.** Low-value test gap, same class as every other "no action-level test" item already tracked below.
+- **`editPlayer`'s `formError` path doesn't auto-close the edit form.** If a player is deleted concurrently (`count === 0`), the edit form stays open referencing a gone player until the admin manually clicks "Скасувати". Rare race at this project's admin-only scale, same class as other accepted concurrency gaps.
+
 ## Deferred from / decided in: Story 2.8 implementation (2026-09-05)
 
 - **`addPlayer`/`editPlayer`/`removePlayer` have no automated action-level test.** Same class of gap as every prior action (no `requireAdmin`/session-mock infra). `validatePlayer` is exhaustively unit-tested (`src/domain/playerForm.test.ts`); untested is the `requireAdmin` gate, the `getEntryForAdmin` not-found path, and the `(entryId, playerId)`-scoped `count === 0` branches. Mitigated by `scripts/verify-roster.mts` (the real `src/data` round-trip, including the scoped-to-a-different-entry regression case) + code review.
