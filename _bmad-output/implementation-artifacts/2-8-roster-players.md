@@ -61,11 +61,8 @@ Translated from `epics.md` → Epic 2 → Story 2.8. The Ukrainian source is aut
   - [x] `pnpm test` → 5 files, 68/68.
 - [x] **Task 2 — `src/data/entries.ts` (UPDATE): `getEntryForAdmin`** (AC: 1, 2, 3, 4)
   - [x] `getEntryForAdmin(tournamentId, entryId)` — scoped `findFirst`, returns `null` when the ids don't pair up. `typecheck`/`lint` clean.
-- [ ] **Task 3 — `src/data/players.ts` (NEW)** (AC: 1, 2, 3, 4)
-  - [ ] `listPlayersForEntry(entryId: string)` — `db.player.findMany({ where: { entryId }, orderBy: { fullName: "asc" } })`.
-  - [ ] `createPlayer(entryId: string, input: PlayerInput): Promise<{ id: string }>` — **the sole creator** — `db.player.create({ data: { entryId, ...input }, select: { id: true } })`.
-  - [ ] `updatePlayer(entryId: string, playerId: string, input: PlayerInput)` — **the sole updater**, scoped by both ids (Task 2's lesson, applied here too): `db.player.updateMany({ where: { id: playerId, entryId }, data: input })`. Returns `{ count }`.
-  - [ ] `deletePlayer(entryId: string, playerId: string)` — **the sole deleter**, same scoping: `db.player.deleteMany({ where: { id: playerId, entryId } })`. Returns `{ count }`.
+- [x] **Task 3 — `src/data/players.ts` (NEW)** (AC: 1, 2, 3, 4)
+  - [x] `listPlayersForEntry(entryId)`, `createPlayer(entryId, input)` (sole creator), `updatePlayer(entryId, playerId, input)` (sole updater, scoped `updateMany`), `deletePlayer(entryId, playerId)` (sole deleter, scoped `deleteMany`). `typecheck`/`lint` clean.
 - [ ] **Task 4 — `src/actions/players.ts` (NEW): `addPlayer` / `editPlayer` / `removePlayer`** (AC: 1, 2, 3, 4)
   - [ ] `export type PlayerFormState = { fieldErrors?: Partial<Record<PlayerField, string>>; formError?: string };`
   - [ ] `addPlayer(tournamentId: string, entryId: string, _prev: PlayerFormState, formData: FormData): Promise<PlayerFormState>` — `requireAdmin()` → `getEntryForAdmin(tournamentId, entryId)` (not found → `formError` "Заявку не знайдено.") → `validatePlayer(raw)` (from `formData`) → `!ok` → `{ fieldErrors }` → `createPlayer(entryId, value)` → `revalidatePath(\`/admin/tournaments/${tournamentId}/entries/${entryId}\`)` → `{}` (no redirect — stays on the roster page, list updates in place, the `createTeam`/Story 2.6 pattern).
