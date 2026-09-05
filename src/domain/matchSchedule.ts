@@ -11,6 +11,8 @@
  * keeps external dependencies to a minimum).
  */
 
+import { YEAR_MAX, YEAR_MIN } from "./tournamentForm";
+
 export const VENUE_TEXT_MAX = 120;
 
 type RawValue = FormDataEntryValue | null | undefined;
@@ -90,6 +92,9 @@ export function parseKyivDateTimeLocal(raw: string | null | undefined): ParsedSc
 
   if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59 || second > 59) {
     return { ok: false, error: "Некоректна дата або час." };
+  }
+  if (year < YEAR_MIN || year > YEAR_MAX) {
+    return { ok: false, error: `Рік має бути від ${YEAR_MIN} до ${YEAR_MAX}.` };
   }
 
   const naiveUtc = Date.UTC(year, month - 1, day, hour, minute, second);

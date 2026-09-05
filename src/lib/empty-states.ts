@@ -20,6 +20,12 @@ export const NO_PLAYERS = {
   description: "Ще немає гравців у складі.",
 } as const;
 
+// Shown on the Розклад / Таблиця tabs before a tournament is drawn (EXPERIENCE.md
+// States table). Reachable via the admin draft-preview fallback.
+export const GROUP_NOT_DRAWN = {
+  description: "Групу буде сформовано після жеребкування.",
+} as const;
+
 // On a standings tab the "no results" state is a zero-filled table with an
 // inline row, not this box — see the Voice guide. This const is for other
 // contexts (e.g. an empty schedule tab).

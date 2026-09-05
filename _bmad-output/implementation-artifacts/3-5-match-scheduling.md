@@ -17,7 +17,7 @@ context:
 
 # Story 3.5: Розклад матчів
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -149,6 +149,34 @@ PRD §4.5 (`prd.md`, cited in context) makes the same three consequences explici
   _Residual (not a blocking subtask — matches every prior admin-touching story 2.5–3.4):_ a manual signed-in browser pass was not performed in this session (no auth session available to the tooling; the dev Neon branch is also empty, so there is no seeded tournament to view). Mitigated by `verify-match-schedule.mts` (22 assertions through the real data layer) + `matchSchedule.test.ts` (17) + the full build/typecheck/lint/test gate. Recommended with code review: on `/admin/tournaments/[id]/schedule` set a date/time/venue → success toast + persists on reload; `/classic/[id]?tab=schedule` in a private window → scheduled match shows the Kyiv-local time, unscheduled shows «час не визначено», tab reachable with no session.
 
 - [x] **Task 14 — Commit(s)** — one commit + `git push origin main` per completed task group. `build`/`typecheck`/`lint`/`test` gated each.
+
+### Review Findings
+
+_Code review (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Verification Gap Reviewer, Acceptance Auditor) over `git diff b23c270..HEAD`. All 4 layers completed. 1 decision-needed (→ patch), 9 patch, 4 defer, 10 dismissed._
+
+#### Patch
+
+- [x] [Review][Patch] Tab order + default tab contradict DESIGN.md §176 / EXPERIENCE.md IA `[src/components/tournament-tabs.tsx:5-16]` — spec orders the chips "Таблиця · Розклад · Команди · Плейоф" with **standings** the default in `GROUP_STAGE`+; the code has "Команди · Розклад · Таблиця · Плейоф" / `teams` default, and "Таблиця" is a live chip leading only to a placeholder. **Decision (user, option 1): pragmatic interim** — keep "Команди" first + default for now, and **hide the "Таблиця" chip** like "Плейоф" (no dead link) until Story 3.8 wires real standings content; Story 3.8 restores the spec order + state-dependent default. Documented as a temporary deviation in the story + `deferred-work.md`.
+
+_All 9 patches applied in the review-fix pass. `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 125/125, `verify-match-schedule.mts` (24 assertions) + affected prior verify scripts green._
+
+#### Patch (from review layers)
+
+- [x] [Review][Patch] `revalidatePath` hardcodes `/classic/${id}` for the tournament-detail route regardless of discipline — `[src/actions/draw.ts:65, src/actions/matches.ts scheduleMatch]` — inconsistent with the `discipline === "BEACH" ? "/beach" : "/classic"` branch one line above in `draw.ts`. Unreachable in v1 (no BEACH create path) but a latent bug and a one-line consistency fix.
+- [x] [Review][Patch] `scheduledAt` has no year/range sanity bound — `[src/domain/matchSchedule.ts parseKyivDateTimeLocal, src/components/match-schedule.tsx]` — any 4-digit year that survives the calendar roll-check is accepted; `Tournament.year` has a 2000–2100 CHECK, `Match.scheduledAt` has nothing, and the `datetime-local` input has no `min`/`max`. An admin can schedule a match in 2087 with no friction. Fix: reject a year outside 2000–2100 (mirror `tournamentForm.ts`'s `YEAR_MIN`/`YEAR_MAX`) + add `min`/`max` to the input.
+- [x] [Review][Patch] Empty / pre-draw schedule + tab-placeholder copy doesn't match EXPERIENCE.md's specified string — `[src/components/public-schedule.tsx, src/app/admin/tournaments/[id]/schedule/page.tsx, src/app/classic/[tournament]/page.tsx]` — EXPERIENCE.md line 106 specifies "Групу буде сформовано після жеребкування" for the pre-draw Таблиця/Розклад tabs; the code uses ad-hoc strings. Reachable via the admin draft-preview fallback. Centralize in `src/lib/empty-states.ts` (project convention).
+- [x] [Review][Patch] `scripts/verify-match-schedule.mts` — weak / vacuous assertions — `[scripts/verify-match-schedule.mts]` — the ordering check schedules only one match so it can't distinguish `asc` from `desc`; "every listed match is stage GROUP" actually checks entry presence, not `stage`; "no match leaks" reduces to `length === 6` (the `m.id !== undefined` conjunct is vacuous); the `stage: "GROUP"` scope on `updateMatchSchedule` is never exercised (no playoff `Match` is ever created); `const check = checkTransition(...)` shadows the `check()` helper. Fix: schedule a 2nd match earlier and assert relative order; create a `SEMIFINAL` match and assert `updateMatchSchedule` → `count: 0`; make the stage assertion real; rename the shadow.
+- [x] [Review][Patch] `AGENTS.md` "Running and verifying" section not updated with `scripts/verify-match-schedule.mts` — `[AGENTS.md]` — every prior verify script has a bullet there; this one is undiscoverable for the next contributor.
+- [x] [Review][Patch] Per-row "Зберегти" form has no accessible name tying it to the match — `[src/components/match-schedule.tsx]` — a screen-reader user tabbing the schedule editor hears "Зберегти" N times with no context. Fix: `aria-label` on the `<form>` with the two team names. (UX-DR13 holds a11y as a hard floor.)
+- [x] [Review][Patch] `updateMatchSchedule` redefines its input shape inline instead of importing `MatchScheduleInput` from `@/domain/matchSchedule` — `[src/data/matches.ts]` — `data → domain` type-only imports are sanctioned; the two shapes must otherwise stay in lockstep by hand.
+- [x] [Review][Patch] `MatchScheduleRow` controlled inputs never re-sync from props after `router.refresh()` — `[src/components/match-schedule.tsx]` — after a save (or a concurrent edit by another admin) the header meta line updates from fresh props but the input keeps stale local state (e.g. pre-trim venue text). Fix: add `updatedAt` to the `listGroupMatchesForTournament` select and `key` each row on it (the `tournament-form.tsx` precedent).
+
+#### Defer
+
+- [x] [Review][Defer] Redraw silently discards `scheduledAt`/`venueText`; the `RedrawTournamentButton` confirm copy doesn't mention schedule loss `[src/data/draw.ts saveRedraw, src/components/tournament-actions.tsx]` — deferred, pre-existing (Story 3.4 decided to delete the full calendar per PRD FR-12; that code is not in this change). Story 3.5 makes it more consequential — a follow-up could enrich the confirm dialog copy.
+- [x] [Review][Defer] DST nonexistent-hour (spring) silently shifts forward; ambiguous fall-back-hour resolution undocumented/untested `[src/domain/matchSchedule.ts]` — deferred, already recorded in the Story 3.5 section of `deferred-work.md` during implementation.
+- [x] [Review][Defer] `setSummary` renders a partial (in-progress) match's set tally as a final score `[src/app/classic/[tournament]/page.tsx, src/app/admin/tournaments/[id]/schedule/page.tsx]` — deferred, Story 3.6 owns the canonical helper (already in `deferred-work.md`); 3.6's `validateMatchScore` also blocks a partial result from being persisted through the normal path.
+- [x] [Review][Defer] `TournamentTabs` hardcodes `/classic/${id}` in every chip and has a discipline-neutral name/location `[src/components/tournament-tabs.tsx]` — deferred, v1 is CLASSIC-only and there is no second caller; the project's convention is not to parameterize until the second real consumer. Note for whoever builds `/archive/[year]/[tournament]`.
 
 ## What this story is / is NOT
 
@@ -286,6 +314,7 @@ claude-sonnet-5 (bmad-dev-story)
 - Tasks 5–10: admin editor (`match-schedule.tsx`, per-row `useActionState` form), read-only `public-schedule.tsx`, `tournament-tabs.tsx` (server, `?tab=` chips + `normalizeTournamentTab`), public page rewired to render the active tab panel (schedule panel new), new admin route `/admin/tournaments/[id]/schedule`, "Розклад" link on the admin tournament page. Result summary is an inline `setSummary` tally duplicated in both page files (deliberate — Story 3.6 owns the canonical helper; noted in deferred-work). `pnpm build` clean (new route registered), `typecheck`/`lint` clean, `pnpm test` 124/124.
 - Tasks 11–12: READMEs (`domain`/`data`/`actions`/`components`), `AGENTS.md` Stack-status bullet, `deferred-work.md` (new Story 3.5 section + two carried items marked resolved).
 - Task 13: `scripts/verify-match-schedule.mts` (NEW) — 22 assertions green (write lands, cross-tournament pair writes nothing, clear-to-null, `SetScore` survives a reschedule, list scoping + ordering). All 10 prior verify scripts re-run — exit 0, no regression. Full gate (`build`/`typecheck`/`lint`/`test`) green. No Prisma-client import outside `src/data`. Manual browser pass is the documented residual gate (no session / empty dev DB) — see the task note.
+- Review-fix pass (`bmad-code-review`, 4 layers): 9 patches applied — (1) "Таблиця" chip hidden like "Плейоф" until Story 3.8 (`TournamentTabs` gains `showStandings`; page passes `false` + reassigns `?tab=standings` → teams; dead standings panel removed); (2) `drawTournament`/`redrawTournament`/`scheduleMatch` revalidate the discipline-correct public root; (3) `parseKyivDateTimeLocal` rejects a year outside 2000–2100 (`YEAR_MIN`/`YEAR_MAX` from `tournamentForm`), `datetime-local` input gets `min`/`max`; (4) `GROUP_NOT_DRAWN` const in `empty-states.ts` with EXPERIENCE.md's exact copy, used by `public-schedule.tsx` + the admin DRAFT branch; (5) `verify-match-schedule.mts` — real ordering assertion (two matches at different times), a `SEMIFINAL` match proving the `stage:"GROUP"` scope, vacuous checks removed, `check` shadow renamed → 24 assertions; (6) `AGENTS.md` "Running and verifying" bullet; (7) `aria-label` on each schedule row's `<form>`; (8) `updateMatchSchedule` takes `MatchScheduleInput` from domain; (9) `MatchScheduleRow` keyed on `match.updatedAt` so a save remounts it with server-canonical values. `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 125/125, verify scripts green.
 
 ### File List
 
@@ -307,6 +336,7 @@ claude-sonnet-5 (bmad-dev-story)
 - `AGENTS.md` (UPDATE)
 - `_bmad-output/implementation-artifacts/deferred-work.md` (UPDATE)
 - `scripts/verify-match-schedule.mts` (NEW)
+- `src/lib/empty-states.ts` (UPDATE — review fix: `GROUP_NOT_DRAWN`)
 
 ## Change Log
 
@@ -315,3 +345,4 @@ claude-sonnet-5 (bmad-dev-story)
 | 2026-09-06 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-06 | Open questions resolved by the user ("роби як вважаєш"): dedicated admin route (not inline section); `?tab=` query param (not sub-routes); pre-draw admin schedule page shows a friendly line, not `notFound()`; `teamCount` min 4 is not a 3.5 concern. |
 | 2026-09-06 | Implementation complete (`bmad-dev-story`) — all 14 tasks done. `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 124/124 (17 new), `scripts/verify-match-schedule.mts` (22 assertions) + all 10 prior verify scripts pass. Two carried deferred items closed (public-route revalidation; the deferred `?tab=` tab component). Status: review. |
+| 2026-09-06 | Code review (`bmad-code-review`, 4 layers) — 1 decision-needed (resolved → patch), 9 patches applied, 4 deferred, 10 dismissed. "Таблиця" tab hidden until Story 3.8; discipline-correct revalidation; year bound on `scheduledAt`; EXPERIENCE.md empty-state copy; stronger verify assertions; a11y `aria-label`s; row re-sync on save. All checks green post-fix. Status: done. |

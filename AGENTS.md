@@ -33,6 +33,7 @@ shadcn/ui + Tailwind, хостинг Vercel. Планування живе в `_
 - `pnpm typecheck` (`tsc --noEmit`) — офлайн-перевірка типів (`next build` тепер потребує БД). Після додавання **нового маршруту** `tsc` падає на `PageProps<"/new/route">` / `LayoutProps<…>`, доки `next build` (або `next dev`) не перегенерує `.next/types` — спочатку `pnpm build`, потім `typecheck` зелений.
 - `pnpm exec tsx scripts/verify-admin-roles.mts` — регрес-перевірка шару ролей (`src/data/users.ts`): гілки `not_found` / `last_admin` / ідемпотентність. Не руйнівна (адмінів не знімає).
 - `pnpm exec tsx scripts/verify-tournament-create.mts` — регрес-перевірка створення турніру (`src/data/tournaments.ts`): `state = DRAFT`, рівно одна `Group`, збережений пресет, дубль → `P2002`. Само-прибиральний (створює й видаляє тимчасовий турнір; лишає БД як була).
+- `pnpm exec tsx scripts/verify-match-schedule.mts` — регрес-перевірка розкладу матчів (`src/data/matches.ts`): `updateMatchSchedule` скоупиться за `(tournamentId, matchId, stage:"GROUP")` (крос-турнірна пара й `SEMIFINAL`-матч → `count 0`), внесений `SetScore` переживає перепланування, `listGroupMatchesForTournament` віддає лише `GROUP`-матчі в хронологічному порядку. Само-прибиральний (два тимчасові турніри, повний teardown).
 
 ## Conventions that differ from defaults
 

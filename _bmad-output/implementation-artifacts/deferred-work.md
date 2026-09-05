@@ -2,6 +2,15 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from: code review of 3-5-match-scheduling (2026-09-06)
+
+_Implementation review (`bmad-code-review`, 4 layers) over `git diff b23c270..HEAD`. All 4 layers completed. 1 decision-needed, 8 patch, 4 deferred, 10 dismissed._
+
+- **Redraw silently discards `scheduledAt`/`venueText`.** Story 3.4's `saveRedraw` deletes the whole `GROUP` calendar (per PRD FR-12 "видаляє попередній календар"), which now also throws away any dates/venues an admin entered via Story 3.5. The `RedrawTournamentButton` `ConfirmDialog` copy ("Поточний календар матчів буде видалено і згенеровано новий.") does not mention that schedule data is lost too. Candidate follow-up: enrich the confirm copy ("дату, час і зал матчів також буде втрачено").
+- **DST edge hours in `parseKyivDateTimeLocal`.** A nonexistent spring-forward local time (03:00–03:59 on the switch Sunday) silently resolves forward an hour; an ambiguous autumn fall-back time deterministically picks the later (EET) occurrence. Both are untested beyond "doesn't throw" and undocumented as product decisions. No admin flow reaches them (matches aren't scheduled at 03:00 on a DST Sunday). Same item was noted during implementation.
+- **`setSummary` shows a partial result as final.** The inline set-tally (`sets.filter(...).length`) returns a score whenever `sets.length > 0`, so a match with one set played renders "1:0" indistinguishably from a completed 3:0 on both the public «Розклад» tab and the admin editor. Story 3.6 owns the canonical helper and its `validateMatchScore` blocks a partial result from being persisted through the normal path — 3.6 must also make the summary render only for a complete match.
+- **`TournamentTabs` is hardcoded to the `/classic` route tree** and lives in `src/components` with a discipline-neutral name. A future beach- or archive-tournament tabbed page would silently link into `/classic`. Parameterize (base path or discipline prop) when the second real consumer arrives — likely `/archive/[year]/[tournament]` (Story 4.7).
+
 ## Deferred from / decided in: Story 3.5 implementation (2026-09-06)
 
 - **The match result summary ("3:1") is an inline `setSummary` reducer duplicated in

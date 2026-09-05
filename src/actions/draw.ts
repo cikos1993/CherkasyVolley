@@ -60,9 +60,10 @@ export async function drawTournament(tournamentId: string): Promise<ActionResult
 
     await saveDraw(tournamentId, tournament.group.id, shuffledEntryIds, pairings);
 
-    revalidatePath(tournament.discipline === "BEACH" ? "/beach" : "/classic");
+    const publicRoot = tournament.discipline === "BEACH" ? "/beach" : "/classic";
+    revalidatePath(publicRoot);
     // The public tournament page renders the match calendar on its Розклад tab.
-    revalidatePath(`/classic/${tournamentId}`);
+    revalidatePath(`${publicRoot}/${tournamentId}`);
     revalidatePath(`/admin/tournaments/${tournamentId}`);
     revalidatePath("/admin/tournaments");
 
@@ -108,9 +109,10 @@ export async function redrawTournament(tournamentId: string): Promise<ActionResu
 
     await saveRedraw(tournamentId, tournament.group.id, pairings);
 
-    revalidatePath(tournament.discipline === "BEACH" ? "/beach" : "/classic");
+    const publicRoot = tournament.discipline === "BEACH" ? "/beach" : "/classic";
+    revalidatePath(publicRoot);
     // The public tournament page renders the match calendar on its Розклад tab.
-    revalidatePath(`/classic/${tournamentId}`);
+    revalidatePath(`${publicRoot}/${tournamentId}`);
     revalidatePath(`/admin/tournaments/${tournamentId}`);
 
     return { ok: true, data: undefined };

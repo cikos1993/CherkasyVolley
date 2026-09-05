@@ -1,3 +1,5 @@
+import { GROUP_NOT_DRAWN } from "@/lib/empty-states";
+
 type MatchRow = {
   id: string;
   homeTeam: string;
@@ -9,11 +11,7 @@ type MatchRow = {
 
 export function PublicSchedule({ matches }: { matches: MatchRow[] }) {
   if (matches.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Розклад матчів зʼявиться після жеребкування.
-      </p>
-    );
+    return <p className="text-sm text-muted-foreground">{GROUP_NOT_DRAWN.description}</p>;
   }
 
   return (

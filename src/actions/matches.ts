@@ -45,6 +45,6 @@ export async function scheduleMatch(
   }
 
   revalidatePath(`/admin/tournaments/${tournamentId}/schedule`);
-  revalidatePath(`/classic/${tournamentId}`);
+  revalidatePath(`/${tournament.discipline === "BEACH" ? "beach" : "classic"}/${tournamentId}`);
   return {};
 }

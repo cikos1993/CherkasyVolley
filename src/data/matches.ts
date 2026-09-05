@@ -1,5 +1,6 @@
 import { db } from "@/data/client";
 import { Prisma } from "@/generated/prisma/client";
+import type { MatchScheduleInput } from "@/domain/matchSchedule";
 import { computeStandings, type MatchResult } from "@/domain/scoring";
 import { orderStandings, type OrderedStandingsRow } from "@/domain/tiebreak";
 
@@ -83,6 +84,7 @@ export function listGroupMatchesForTournament(tournamentId: string) {
       id: true,
       scheduledAt: true,
       venueText: true,
+      updatedAt: true,
       homeEntry: { select: { team: { select: { name: true } } } },
       awayEntry: { select: { team: { select: { name: true } } } },
       sets: {
@@ -104,7 +106,7 @@ export function listGroupMatchesForTournament(tournamentId: string) {
 export function updateMatchSchedule(
   tournamentId: string,
   matchId: string,
-  input: { scheduledAt: Date | null; venueText: string | null },
+  input: MatchScheduleInput,
 ) {
   return db.match.updateMany({
     where: { id: matchId, tournamentId, stage: "GROUP" },

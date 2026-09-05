@@ -11,8 +11,13 @@ import { Label } from "@/components/ui/label";
 import { VENUE_TEXT_MAX } from "@/domain/matchSchedule";
 import { notify } from "@/lib/notify";
 
+// UI hint only — `validateMatchSchedule` is the real year guard (2000–2100).
+const DATETIME_MIN = "2000-01-01T00:00";
+const DATETIME_MAX = "2100-12-31T23:59";
+
 type MatchRow = {
   id: string;
+  updatedAt: number;
   homeTeam: string;
   awayTeam: string;
   scheduledAtLocal: string;
@@ -63,6 +68,7 @@ function MatchScheduleRow({ tournamentId, match }: { tournamentId: string; match
 
       <form
         action={formAction}
+        aria-label={`Розклад матчу: ${match.homeTeam} — ${match.awayTeam}`}
         className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
       >
         <div className="grid gap-1.5">
@@ -71,6 +77,8 @@ function MatchScheduleRow({ tournamentId, match }: { tournamentId: string; match
             id={datetimeId}
             name="scheduledAt"
             type="datetime-local"
+            min={DATETIME_MIN}
+            max={DATETIME_MAX}
             value={scheduledAt}
             onChange={(event) => setScheduledAt(event.target.value)}
             aria-invalid={Boolean(state.fieldErrors?.scheduledAt)}
@@ -124,7 +132,11 @@ export function MatchScheduleList({
   return (
     <ul className="divide-y">
       {matches.map((match) => (
-        <MatchScheduleRow key={match.id} tournamentId={tournamentId} match={match} />
+        <MatchScheduleRow
+          key={`${match.id}-${match.updatedAt}`}
+          tournamentId={tournamentId}
+          match={match}
+        />
       ))}
     </ul>
   );

@@ -38,7 +38,11 @@ export default async function PublicTournamentPage({
 
   const { tab } = await searchParams;
   const showPlayoff = tournament.state === "PLAYOFF" || tournament.state === "COMPLETED";
+  // The Таблиця panel is Story 3.8; until then its chip is hidden (like Плейоф
+  // below PLAYOFF) and a direct ?tab=standings falls back to Команди.
+  const showStandings = false;
   let activeTab = normalizeTournamentTab(tab);
+  if (activeTab === "standings" && !showStandings) activeTab = "teams";
   if (activeTab === "playoff" && !showPlayoff) activeTab = "teams";
 
   const entries = activeTab === "teams" ? await listEntriesForTournament(id) : [];
@@ -64,7 +68,12 @@ export default async function PublicTournamentPage({
         <StatusBadge state={tournament.state} />
       </div>
 
-      <TournamentTabs tournamentId={id} active={activeTab} showPlayoff={showPlayoff} />
+      <TournamentTabs
+        tournamentId={id}
+        active={activeTab}
+        showStandings={showStandings}
+        showPlayoff={showPlayoff}
+      />
 
       <div className="mt-6">
         {activeTab === "teams" ? (
@@ -87,12 +96,6 @@ export default async function PublicTournamentPage({
         ) : null}
 
         {activeTab === "schedule" ? <PublicSchedule matches={matches} /> : null}
-
-        {activeTab === "standings" ? (
-          <p className="text-sm text-muted-foreground">
-            Турнірна таблиця зʼявиться в наступному оновленні.
-          </p>
-        ) : null}
 
         {activeTab === "playoff" ? (
           <p className="text-sm text-muted-foreground">

@@ -5,6 +5,7 @@ import { MatchScheduleList } from "@/components/match-schedule";
 import { listGroupMatchesForTournament } from "@/data/matches";
 import { getTournamentForAdmin } from "@/data/tournaments";
 import { formatKyivDateTime, toKyivDateTimeLocalValue } from "@/domain/matchSchedule";
+import { GROUP_NOT_DRAWN } from "@/lib/empty-states";
 
 export const metadata = { title: "Розклад" };
 
@@ -40,13 +41,14 @@ export default async function AdminTournamentSchedulePage({
       <main className="mx-auto w-full max-w-3xl px-4 py-8">
         {backLink}
         <h1 className="mt-3 text-2xl font-bold">Розклад</h1>
-        <p className="mt-4 text-sm text-muted-foreground">Розклад зʼявиться після жеребкування.</p>
+        <p className="mt-4 text-sm text-muted-foreground">{GROUP_NOT_DRAWN.description}</p>
       </main>
     );
   }
 
   const matches = (await listGroupMatchesForTournament(id)).map((match) => ({
     id: match.id,
+    updatedAt: match.updatedAt.getTime(),
     homeTeam: match.homeEntry?.team.name ?? "—",
     awayTeam: match.awayEntry?.team.name ?? "—",
     scheduledAtLocal: match.scheduledAt ? toKyivDateTimeLocalValue(match.scheduledAt) : "",

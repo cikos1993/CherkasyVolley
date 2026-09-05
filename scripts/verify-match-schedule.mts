@@ -51,8 +51,11 @@ async function drawThrowawayTournament(suffix: string): Promise<string> {
 
   const tournament = await getTournamentForAdmin(tournamentId);
   if (!tournament?.group) throw new Error("throwaway tournament has no group");
-  const check = checkTransition(tournament.state, "GROUP_STAGE", { entryCount: 4, teamCount: 4 });
-  if (!check.ok) throw new Error("throwaway draw precondition failed");
+  const transitionCheck = checkTransition(tournament.state, "GROUP_STAGE", {
+    entryCount: 4,
+    teamCount: 4,
+  });
+  if (!transitionCheck.ok) throw new Error("throwaway draw precondition failed");
 
   const shuffled = defaultShuffle(entryIds);
   const pairings = generateSchedule(shuffled, 1).map(({ homeEntryId, awayEntryId }) => ({
@@ -125,13 +128,43 @@ try {
     setAfterReschedule?.homePoints === 25 && setAfterReschedule?.awayPoints === 20,
   );
 
-  // One match scheduled, the rest not — scheduled must sort first.
+  // Schedule a second match to an EARLIER instant than targetId, so the list
+  // order actually distinguishes asc from desc (with one scheduled match,
+  // nulls-last alone would satisfy either direction).
+  const earlierId = matches[1].id;
+  const earlier = new Date("2026-06-10T08:00:00.000Z");
+  await updateMatchSchedule(tournamentId, earlierId, { scheduledAt: earlier, venueText: null });
+
   const ordered = await listGroupMatchesForTournament(tournamentId);
-  check("every listed match is stage GROUP", ordered.every((m) => m.homeEntry && m.awayEntry));
-  check("the scheduled match sorts before the unscheduled ones", ordered[0].id === targetId);
+  const earlierPos = ordered.findIndex((m) => m.id === earlierId);
+  const targetPos = ordered.findIndex((m) => m.id === targetId);
+  check("earlier-scheduled match precedes the later one", earlierPos === 0 && earlierPos < targetPos);
   check(
-    "no match from the other tournament leaks into the list",
-    ordered.every((m) => m.id !== undefined) && ordered.length === 6,
+    "both scheduled matches precede every unscheduled one",
+    ordered.slice(0, 2).every((m) => m.scheduledAt !== null) &&
+      ordered.slice(2).every((m) => m.scheduledAt === null),
+  );
+
+  // A SEMIFINAL match on the same tournament must be invisible to the GROUP read
+  // and immune to the GROUP-scoped write.
+  const semifinal = await db.match.create({
+    data: { tournamentId, stage: "SEMIFINAL", groupId: null, homeEntryId: null, awayEntryId: null },
+  });
+  const playoffWrite = await updateMatchSchedule(tournamentId, semifinal.id, {
+    scheduledAt: earlier,
+    venueText: "не має спрацювати",
+  });
+  check("updateMatchSchedule refuses a non-GROUP match (count 0)", playoffWrite.count === 0);
+  const semifinalAfter = await db.match.findUniqueOrThrow({ where: { id: semifinal.id } });
+  check(
+    "the SEMIFINAL match is untouched by the GROUP-scoped write",
+    semifinalAfter.scheduledAt === null && semifinalAfter.venueText === null,
+  );
+
+  const withPlayoff = await listGroupMatchesForTournament(tournamentId);
+  check(
+    "listGroupMatchesForTournament still returns only the 6 GROUP matches",
+    withPlayoff.length === 6 && !withPlayoff.some((m) => m.id === semifinal.id),
   );
 } finally {
   for (const tournamentId of tournamentIds) {

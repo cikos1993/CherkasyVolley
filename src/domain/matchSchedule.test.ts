@@ -71,6 +71,12 @@ describe("parseKyivDateTimeLocal", () => {
   it("rejects an impossible calendar date", () => {
     expect(parseKyivDateTimeLocal("2026-02-30T10:00").ok).toBe(false);
   });
+
+  it("rejects a year outside the plausible tournament range", () => {
+    expect(parseKyivDateTimeLocal("1999-06-13T11:00").ok).toBe(false);
+    expect(parseKyivDateTimeLocal("2101-06-13T11:00").ok).toBe(false);
+    expect(parseKyivDateTimeLocal("9999-06-13T11:00").ok).toBe(false);
+  });
 });
 
 describe("toKyivDateTimeLocalValue", () => {

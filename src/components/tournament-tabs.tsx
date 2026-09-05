@@ -18,13 +18,18 @@ export function normalizeTournamentTab(raw: string | string[] | undefined): Tour
 export function TournamentTabs({
   tournamentId,
   active,
+  showStandings,
   showPlayoff,
 }: {
   tournamentId: string;
   active: TournamentTabKey;
+  showStandings: boolean;
   showPlayoff: boolean;
 }) {
-  const tabs = TABS.filter((tab) => tab.key !== "playoff" || showPlayoff);
+  const tabs = TABS.filter(
+    (tab) =>
+      (tab.key !== "standings" || showStandings) && (tab.key !== "playoff" || showPlayoff),
+  );
 
   return (
     <div className="mt-6 flex gap-2 overflow-x-auto">
