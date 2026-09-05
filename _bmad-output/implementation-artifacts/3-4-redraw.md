@@ -14,7 +14,7 @@ context:
 
 # Story 3.4: Redraw
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -83,13 +83,13 @@ PRD FR-12 (`prd.md` §4.4, cited in the story's context) adds two checkable cons
   - [x] `AGENTS.md` — Stack-status bullet for Story 3.4.
 - [x] **Task 8 — `deferred-work.md` (UPDATE)**
   - [x] New "Story 3.4 implementation" section: no automated action-level test for `redrawTournament` beyond the verify script; no atomic guard against two concurrent redraws (same accepted-risk class as `drawTournament`'s already-deferred TOCTOU item — lower stakes here given the explicit `ConfirmDialog`).
-- [ ] **Task 9 — Verification gate** (AC: all)
-  - [ ] `pnpm test` (new `redraw.test.ts` cases included) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean (no new route).
-  - [ ] Import-boundary grep: no new Prisma-client import site outside `src/data/**`.
-  - [ ] `scripts/verify-redraw.mts` (NEW, self-cleaning): create a throwaway `DRAFT` tournament with `teamCount = 4`, enter 4 teams, draw it (via the same direct `checkTransition`/`generateSchedule`/`saveDraw` sequence `verify-draw.mts` uses) → assert `checkCanRedraw("GROUP_STAGE", false).ok` → capture the original `Match` ids → run the redraw pipeline (`listGroupEntryIds` → shuffle → `generateSchedule` → `saveRedraw`) → assert: the original `Match` ids are all gone; a fresh set of `Match` rows exists with the same count (`C(4,2) × rounds`), all `stage: "GROUP"`, `groupId` set, both entries set; `GroupSlot` rows are **unchanged** (same 4 rows, same entry ids — redraw never touches seating); `Tournament.state` is still `GROUP_STAGE` → create one `SetScore` on one of the new matches → assert `hasAnyGroupResult(tournamentId)` is now `true` and `checkCanRedraw("GROUP_STAGE", true).ok` is `false` → full teardown.
-  - [ ] Re-run all 8 prior verify scripts — no regression.
-  - [ ] Real command output + notes captured in the Dev Agent Record.
-- [ ] **Task 10 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
+- [x] **Task 9 — Verification gate** (AC: all)
+  - [x] `pnpm test` (new `redraw.test.ts` cases included) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean (no new route).
+  - [x] Import-boundary grep: no new Prisma-client import site outside `src/data/**`.
+  - [x] `scripts/verify-redraw.mts` (NEW, self-cleaning): create a throwaway `DRAFT` tournament with `teamCount = 4`, enter 4 teams, draw it (via the same direct `checkTransition`/`generateSchedule`/`saveDraw` sequence `verify-draw.mts` uses) → assert `checkCanRedraw("GROUP_STAGE", false).ok` → capture the original `Match` ids → run the redraw pipeline (`listGroupEntryIds` → shuffle → `generateSchedule` → `saveRedraw`) → assert: the original `Match` ids are all gone; a fresh set of `Match` rows exists with the same count (`C(4,2) × rounds`), all `stage: "GROUP"`, `groupId` set, both entries set; `GroupSlot` rows are **unchanged** (same 4 rows, same entry ids — redraw never touches seating); `Tournament.state` is still `GROUP_STAGE` → create one `SetScore` on one of the new matches → assert `hasAnyGroupResult(tournamentId)` is now `true` and `checkCanRedraw("GROUP_STAGE", true).ok` is `false` → full teardown.
+  - [x] Re-run all 8 prior verify scripts — no regression.
+  - [x] Real command output + notes captured in the Dev Agent Record.
+- [x] **Task 10 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
 
 ## Dev Notes
 
@@ -206,6 +206,7 @@ claude-sonnet-5 (bmad-dev-story)
 - Task 5: `RedrawTournamentButton` added to `src/components/tournament-actions.tsx` — `ConfirmDialog` (destructive), disabled trigger + caption via `checkCanRedraw`, `router.refresh()` on success. `typecheck`/`lint` clean.
 - Task 6: `/admin/tournaments/[id]` fetches `hasResults` via `hasAnyGroupResult` and renders a `GROUP_STAGE`-gated redraw section (sibling to the existing `DRAFT`-gated draw section). `typecheck`/`lint` clean.
 - Tasks 7-8: updated `src/domain/README.md`, `src/data/README.md`, `src/actions/README.md`, `src/components/README.md`, `AGENTS.md` (Stack-status bullet), and `deferred-work.md` (new Story 3.4 section).
+- Task 9: `pnpm test` 107/107, `pnpm typecheck`/`pnpm lint` clean, `pnpm build` clean (no new route). Import-boundary grep confirms no new Prisma-client import site outside `src/data/**`. New `scripts/verify-redraw.mts` — all 16 assertions pass (redraw allowed pre-result, correct match count before/after, old match ids gone, `GroupSlot` untouched, `Tournament.state` unchanged, `hasAnyGroupResult` flips true after a result, `checkCanRedraw` then refuses, full teardown). Re-ran all 9 prior verify scripts (`verify-admin-roles`, `verify-tournament-create`, `verify-tournament-edit-delete`, `verify-team-create`, `verify-team-enrollment`, `verify-roster`, `verify-public-tournament`, `verify-group-stage-schema`, `verify-draw`) — no regression.
 
 ### File List
 
@@ -222,9 +223,11 @@ claude-sonnet-5 (bmad-dev-story)
 - `src/components/README.md` (UPDATE)
 - `AGENTS.md` (UPDATE)
 - `_bmad-output/implementation-artifacts/deferred-work.md` (UPDATE)
+- `scripts/verify-redraw.mts` (NEW)
 
 ## Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-05 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
+| 2026-09-05 | Implementation complete (`bmad-dev-story`) — all 10 tasks done, `pnpm test`/`typecheck`/`lint`/`build` clean, all 9 verify scripts (8 prior + new `verify-redraw.mts`) pass. Status: review. |
