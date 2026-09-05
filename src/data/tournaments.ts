@@ -4,9 +4,15 @@ import { db } from "@/data/client";
 import type { NewTournamentInput } from "@/domain/tournamentForm";
 
 /**
- * Reads a tournament by id including drafts. Call only from an admin-guarded
- * path — the public list query filters `state != DRAFT` and `discipline = CLASSIC`
- * and lives in its own function.
+ * Reads a tournament by id including drafts, and with **no discipline
+ * filter** — callers that need one must apply it themselves (see
+ * `src/app/classic/_lib/resolve-tournament.ts`'s admin-preview fallback).
+ * Call only from an admin-checked path: either a Server Action under
+ * `requireAdmin()`/`requireAdminPage()`, or a read-only page-level preview
+ * gated by an inline `user?.isAdmin` check via `getSessionUser()` (neither
+ * of the former two fits a preview that must fail gracefully with `null`
+ * rather than throw or redirect). The public list query filters
+ * `state != DRAFT` and `discipline = CLASSIC` and lives in its own function.
  */
 export function getTournamentForAdmin(id: string) {
   return db.tournament.findUnique({ where: { id } });

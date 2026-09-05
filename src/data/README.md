@@ -2,7 +2,7 @@
 
 The only place in `src/` where the generated Prisma client
 (`@/generated/prisma/client`) may be imported. Every read and write of every entity
-goes through a named function exported from here — `getPublicTournaments`,
+goes through a named function exported from here — `getPublicTournament`,
 `saveMatchResult`, and so on. There is one owner and one writer per entity.
 
 ## Modules

@@ -2,25 +2,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PublicRoster } from "@/components/public-roster";
-import { getSessionUser } from "@/auth/requireAdmin";
 import { getEntryByTeam } from "@/data/entries";
 import { listPlayersForEntry } from "@/data/players";
-import { getPublicTournament, getTournamentForAdmin } from "@/data/tournaments";
-
-async function resolveTournament(id: string) {
-  const tournament = await getPublicTournament(id);
-  if (tournament) return tournament;
-
-  const user = await getSessionUser();
-  if (!user?.isAdmin) return null;
-
-  return getTournamentForAdmin(id);
-}
+import { resolveTournament } from "../../../_lib/resolve-tournament";
 
 export async function generateMetadata({
   params,
 }: PageProps<"/classic/[tournament]/teams/[team]">) {
   const { tournament: tournamentId, team: teamId } = await params;
+
+  const tournament = await resolveTournament(tournamentId);
+  if (!tournament) return { title: "Склад команди" };
+
   const entry = await getEntryByTeam(tournamentId, teamId);
   return { title: entry?.team.name ?? "Склад команди" };
 }

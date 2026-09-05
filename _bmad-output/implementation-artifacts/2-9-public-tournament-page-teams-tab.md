@@ -107,11 +107,11 @@ Implementation review 2026-09-05 (`bmad-code-review`, 4 layers: Blind Hunter, Ed
 
 #### Patch
 
-- [ ] [Review][Patch] **The admin-preview fallback (`getTournamentForAdmin`) has no `discipline` filter** — an admin signed in and visiting `/classic/[id]` (or `.../teams/[team]`) with the id of a `BEACH` tournament (any state) would have it rendered under the `CLASSIC`-only `/classic` route tree, violating AD-9. Found independently by **all 4 review layers**. [src/app/classic/[tournament]/page.tsx, src/app/classic/[tournament]/teams/[team]/page.tsx]
-- [ ] [Review][Patch] **`teams/[team]/page.tsx`'s `generateMetadata` calls `getEntryByTeam` directly, with no tournament-visibility check at all** — the real team name leaks into the page `<title>` for any anonymous visitor, even for a `DRAFT` or wrong-discipline tournament, while the page body correctly 404s. The sibling tournament page's `generateMetadata` does call the visibility check first; this one doesn't. [src/app/classic/[tournament]/teams/[team]/page.tsx]
-- [ ] [Review][Patch] **`resolveTournament` is duplicated verbatim across both new page files** — a fix to the discipline bug above risks being applied to only one copy. Extract into a shared helper. [src/app/classic/[tournament]/page.tsx, src/app/classic/[tournament]/teams/[team]/page.tsx]
-- [ ] [Review][Patch] **`getTournamentForAdmin`'s doc comment ("call only from an admin-guarded path") is now stale** — it has a new caller (the shared `resolveTournament` helper) gated by an inline `user?.isAdmin` check via `getSessionUser()`, not `requireAdmin()`/`requireAdminPage()` (neither fits: one throws, one redirects — this call site needs a graceful `null`). [src/data/tournaments.ts]
-- [ ] [Review][Patch] `src/data/README.md`'s illustrative top-of-file sentence still names a placeholder `getPublicTournaments` (plural) that near-misses the two real functions this story introduces (`getPublicTournament` singular, `listPublicTournaments`) — confusing. [src/data/README.md]
+- [x] [Review][Patch] **The admin-preview fallback (`getTournamentForAdmin`) has no `discipline` filter** — an admin signed in and visiting `/classic/[id]` (or `.../teams/[team]`) with the id of a `BEACH` tournament (any state) would have it rendered under the `CLASSIC`-only `/classic` route tree, violating AD-9. Found independently by **all 4 review layers**. [src/app/classic/[tournament]/page.tsx, src/app/classic/[tournament]/teams/[team]/page.tsx]
+- [x] [Review][Patch] **`teams/[team]/page.tsx`'s `generateMetadata` calls `getEntryByTeam` directly, with no tournament-visibility check at all** — the real team name leaks into the page `<title>` for any anonymous visitor, even for a `DRAFT` or wrong-discipline tournament, while the page body correctly 404s. The sibling tournament page's `generateMetadata` does call the visibility check first; this one doesn't. [src/app/classic/[tournament]/teams/[team]/page.tsx]
+- [x] [Review][Patch] **`resolveTournament` is duplicated verbatim across both new page files** — a fix to the discipline bug above risks being applied to only one copy. Extract into a shared helper. [src/app/classic/[tournament]/page.tsx, src/app/classic/[tournament]/teams/[team]/page.tsx]
+- [x] [Review][Patch] **`getTournamentForAdmin`'s doc comment ("call only from an admin-guarded path") is now stale** — it has a new caller (the shared `resolveTournament` helper) gated by an inline `user?.isAdmin` check via `getSessionUser()`, not `requireAdmin()`/`requireAdminPage()` (neither fits: one throws, one redirects — this call site needs a graceful `null`). [src/data/tournaments.ts]
+- [x] [Review][Patch] `src/data/README.md`'s illustrative top-of-file sentence still names a placeholder `getPublicTournaments` (plural) that near-misses the two real functions this story introduces (`getPublicTournament` singular, `listPublicTournaments`) — confusing. [src/data/README.md]
 
 #### Defer
 
@@ -240,6 +240,8 @@ claude-sonnet-5
 
 **Task 10 — story's own Dev Notes overstated one precedent.** The story predicted `verify-tournament-edit-delete.mts` already used `setTournamentState` to force a non-`DRAFT` state for test setup; it doesn't (checked — that script never touches `state`). `verify-public-tournament.mts` calls `setTournamentState` directly instead, which is simply the correct existing function for this — no issue, just noting the prediction didn't hold.
 
+**Code review — the actual gap in the admin-preview design: `getTournamentForAdmin` has no discipline filter, and the story's own "AD-9 satisfied" claim only checked the two public functions, never the fallback path these two pages actually exercise.** Found independently by all 4 review layers — the strongest convergence this project has seen. Fixed by extracting the duplicated `resolveTournament` into `src/app/classic/_lib/resolve-tournament.ts` and adding `fallback?.discipline === "CLASSIC" ? fallback : null` after the `getTournamentForAdmin` call. Verified live: seeded a throwaway `BEACH` tournament, confirmed via the same signed-in admin Chrome session that `/classic/<beachId>` now 404s (pre-fix it would have rendered). Also fixed while in the area: `teams/[team]/page.tsx`'s `generateMetadata` called `getEntryByTeam` with no visibility check at all, leaking a `DRAFT` tournament's real team name into `<title>` for anonymous visitors — now calls `resolveTournament` first, matching the sibling page's existing pattern.
+
 ### Completion Notes List
 
 - **Task 1:** `src/data/tournaments.ts` (UPDATE) — `getPublicTournament(id)`, `listPublicTournaments()`, both filtering `state != DRAFT` and `discipline = CLASSIC` unconditionally (AD-7/AD-9). First public reads in the codebase.
@@ -269,6 +271,16 @@ claude-sonnet-5
 - `src/data/README.md` · `src/components/README.md` · `AGENTS.md`
 - `_bmad-output/implementation-artifacts/deferred-work.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+**New (review fix pass only)**
+- `src/app/classic/_lib/resolve-tournament.ts` — the shared `resolveTournament` helper, now with a `discipline === "CLASSIC"` check on the admin-preview fallback
+
+**Modified (review fix pass only)**
+- `src/app/classic/[tournament]/page.tsx` — `resolveTournament` extracted to the shared helper
+- `src/app/classic/[tournament]/teams/[team]/page.tsx` — same extraction; `generateMetadata` now calls `resolveTournament` before `getEntryByTeam`, closing the team-name metadata leak
+- `src/data/tournaments.ts` — `getTournamentForAdmin`'s doc comment corrected (no discipline filter, new caller, why `requireAdmin`/`requireAdminPage` don't fit)
+- `src/data/README.md` — placeholder `getPublicTournaments` (plural) corrected to `getPublicTournament`
+- `eslint.config.mjs` — the `src/components/**` auth-restriction comment corrected to acknowledge `/admin/layout.tsx` and `/classic/**`'s fallback as sanctioned `src/app/**` → `@/auth` call sites
 
 ## Change Log
 

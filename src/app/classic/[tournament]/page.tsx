@@ -3,22 +3,11 @@ import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/empty-state";
 import { StatusBadge } from "@/components/status-badge";
-import { getSessionUser } from "@/auth/requireAdmin";
 import { listEntriesForTournament } from "@/data/entries";
-import { getPublicTournament, getTournamentForAdmin } from "@/data/tournaments";
 import { NO_TEAMS } from "@/lib/empty-states";
+import { resolveTournament } from "../_lib/resolve-tournament";
 
 const STUB_TABS = ["Розклад", "Таблиця", "Плейоф"];
-
-async function resolveTournament(id: string) {
-  const tournament = await getPublicTournament(id);
-  if (tournament) return tournament;
-
-  const user = await getSessionUser();
-  if (!user?.isAdmin) return null;
-
-  return getTournamentForAdmin(id);
-}
 
 export async function generateMetadata({ params }: PageProps<"/classic/[tournament]">) {
   const { tournament: id } = await params;

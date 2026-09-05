@@ -180,8 +180,10 @@ const eslintConfig = defineConfig([
   },
 
   // Components are pure view — they reach auth only through the browser client
-  // (`@/lib/auth-client`), never the server instance. The `/api/auth/[...all]`
-  // route handler is the one sanctioned view→auth import (transport, not a view).
+  // (`@/lib/auth-client`), never the server instance. This block only scopes
+  // `src/components/**`; `src/app/**` may still import `@/auth` directly — the
+  // `/api/auth/[...all]` route handler, `/admin/layout.tsx`'s access gate, and
+  // `/classic/**`'s admin-preview fallback all do.
   {
     files: [`src/components/${SRC}`],
     rules: {
