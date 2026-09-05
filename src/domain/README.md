@@ -31,6 +31,14 @@ schedule generation, playoff seeding and bracket advancement.
   `validateNewTeam(raw)` which returns a typed `NewTeamInput` (`name` +
   `nameKey`, both derived together) or a per-field error.
 
+- `teamEnrollment.ts` — preconditions for enrolling/canceling a team's
+  `TournamentEntry` (Story 2.7). `checkCanEnroll(state, currentEntryCount,
+  teamCount)` — `DRAFT`-only and under-capacity (state checked first);
+  `checkCanRemoveEntry(state)` — `DRAFT`-only. Both pure, called from
+  `enrollTeam`/`removeTeamEntry` (`src/actions/entries.ts`) rather than left as
+  inline action logic — the same shape as `tournamentForm.ts`'s
+  `resolveGroupStageFields`.
+
 The Vitest runner (`pnpm test`) was added alongside the first module.
 
 **May import:** other `src/domain` modules, the standard library, pure npm utilities.

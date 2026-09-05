@@ -113,16 +113,6 @@ come back in `state.fieldErrors` (wired to the control via `aria-invalid` /
 name) fires `notify.error`, keyed on the whole `state` object so two identical
 error strings in a row both toast.
 
-## `team-form.tsx`
-
-The add-team form — one controlled field (`name`), the same UX-DR11 rationale
-as `tournament-form.tsx` but simpler (a single `useState<string>`, not a
-`FormValues` record). No redirect on success; instead a second effect, keyed
-off the falling edge of `pending` (a `useRef`, never fires on mount — the same
-technique as `tournament-form.tsx`'s edit-mode success effect), clears the
-field, fires `notify.success`, and calls `router.refresh()` so the list below
-picks up the newly revalidated data.
-
 **Edit mode** additionally takes `tournamentId`, `initial` (a `FormValues`
 seed), and `locked` (a `TournamentField[]` — the fields to render `disabled`,
 with a "Змінити можна лише в стані «Чернетка»." caption; `[id]/page.tsx` passes
@@ -135,9 +125,41 @@ the component on `tournament.updatedAt.getTime()` so a successful save (which
 bumps `updatedAt` and revalidates the page) remounts the form with the
 server-canonical — e.g. trimmed — values instead of leaving stale local state.
 
+## `team-form.tsx`
+
+The add-team form — one controlled field (`name`), the same UX-DR11 rationale
+as `tournament-form.tsx` but simpler (a single `useState<string>`, not a
+`FormValues` record). No redirect on success; instead a second effect, keyed
+off the falling edge of `pending` (a `useRef`, never fires on mount — the same
+technique as `tournament-form.tsx`'s edit-mode success effect), clears the
+field, fires `notify.success`, and calls `router.refresh()` so the list below
+picks up the newly revalidated data.
+
 ## `tournament-actions.tsx`
 
 `DeleteTournamentButton({ tournamentId })` — a `ConfirmDialog` wrapping
 `deleteTournament`, same shape as `RevokeAdminButton` (`admin-role-controls.tsx`):
 a thrown/rejected call or `{ ok: false }` toasts the error and returns `false`
 (dialog stays open); success toasts and `router.push("/admin/tournaments")`.
+
+## `team-enrollment.tsx`
+
+`TeamEnrollment({ tournamentId, state, teamCount, entries, availableTeams })`
+— the "Команди" section on `/admin/tournaments/[id]` (Story 2.7). Two halves:
+
+- **Enroll** — a native `<select>` of `availableTeams` + a `Button`
+  ("Заявити"), `useTransition` + a direct call to `enrollTeam` (the
+  `GrantAdminButton` pattern — no `useActionState`, since a single-value
+  picker isn't a multi-field form). Disabled via
+  `checkCanEnroll(state, entries.length, teamCount)` — called client-side
+  purely for the UI hint; the server re-checks independently. Derives an
+  `effectiveTeamId` (falls back to the current first `availableTeams` entry)
+  rather than trusting the raw `useState` value directly, so a
+  `router.refresh()` that removes the selected team from the list (e.g. the
+  one just enrolled) can't leave the `<select>` pointing at a nonexistent
+  `<option>`.
+- **Entries list** — team name + (state `"DRAFT"` only) a `ConfirmDialog`-gated
+  "Зняти" button calling `removeTeamEntry`, same shape as
+  `DeleteTournamentButton`. Empty list → `<EmptyState {...NO_TEAMS} />` — the
+  first context in the codebase where `NO_TEAMS`'s copy ("Ще немає заявлених
+  команд.") is actually the right one (`src/lib/empty-states.ts`).

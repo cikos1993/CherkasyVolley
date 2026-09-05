@@ -23,7 +23,7 @@ goes through a named function exported from here — `getPublicTournaments`,
   `requireAdmin()`.
 - `tournaments.ts` — `getTournamentForAdmin(id)` (admin read, drafts included;
   called only under `requireAdmin()`), `listTournamentsForAdmin()` (admin read,
-  every tournament, for `/admin/tournaments`), `countTournamentEntries(tournamentId)`,
+  every tournament, for `/admin/tournaments`),
   `setTournamentState(id, state)` — **the sole writer of `Tournament.state`**,
   called only from `transitionTournament` after the transition is validated in
   `src/domain/tournamentState` (AD-8; no other function writes `state`) —
@@ -46,6 +46,16 @@ goes through a named function exported from here — `getPublicTournaments`,
   `data → domain` import — `createTeamRecord` never re-derives `nameKey` itself).
   `TEAM_NAME_KEY_INDEX` is the Postgres index name backing `nameKey @unique`,
   used with `errors.ts`'s `isUniqueViolation`.
+- `entries.ts` — `listEntriesForTournament(tournamentId)` (admin read, joined
+  `team: { id, name }`), `countTournamentEntries(tournamentId)` (**moved here
+  from `tournaments.ts`, Story 2.7** — entry-owned, not tournament-owned;
+  `transitionTournament`'s `DRAFT → GROUP_STAGE` precondition is still its only
+  caller), `createEntry(tournamentId, teamId)` — **the sole creator of a
+  `TournamentEntry`** — and `deleteEntry(entryId)` — **the sole canceler**;
+  relies on the schema's `Player.entryId onDelete: Cascade` to remove the
+  roster, no explicit cleanup code. `TOURNAMENT_ENTRY_NATURAL_KEY_INDEX` is the
+  Postgres index name backing `@@unique([tournamentId, teamId])`, used with
+  `errors.ts`'s `isUniqueViolation`.
 
 The `Tournament`, `Team`, `TournamentEntry` and `Player` entities (schema landed in
 Story 2.1, migration `20260903174727_tournament_schema`) are owned here too; their

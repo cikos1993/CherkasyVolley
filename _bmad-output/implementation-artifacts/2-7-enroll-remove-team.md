@@ -80,13 +80,13 @@ Translated from `epics.md` → Epic 2 → Story 2.7. The Ukrainian source is aut
   - [x] Fetches `listTeams()` and `listEntriesForTournament(id)` alongside `getTournamentForAdmin(id)` in one `Promise.all`. `availableTeams` computed via a `Set` of enrolled `teamId`s.
   - [x] Inserted the "Команди" section between the edit form and the `DeleteTournamentButton` section (primary edit → participants → destructive delete).
   - [x] Edit form, delete button, back-link, and `metadata` untouched. `typecheck`/`lint` clean.
-- [ ] **Task 6 — Docs**
-  - [ ] `src/domain/README.md` — `teamEnrollment.ts` entry (`checkCanEnroll`, `checkCanRemoveEntry`).
-  - [ ] `src/data/README.md` — new `entries.ts` module entry (`listEntriesForTournament`, `countTournamentEntries` — relocated, `createEntry`, `deleteEntry`, `TOURNAMENT_ENTRY_NATURAL_KEY_INDEX`); update the `tournaments.ts` entry to drop `countTournamentEntries`.
-  - [ ] `src/actions/README.md` — `entries.ts` entry (`enrollTeam`, `removeTeamEntry` — `ActionResult` shape, preconditions via `teamEnrollment.ts`).
-  - [ ] `src/components/README.md` — `team-enrollment.tsx` entry (enroll picker + entries list, `useTransition` pattern, the one legitimate `NO_TEAMS` use site).
-  - [ ] `AGENTS.md` — Stack-status bullet for Story 2.7.
-  - [ ] No `ARCHITECTURE-SPINE.md` / `EXPERIENCE.md` / `epics.md` / `SPEC.md` edit — no new invariant, no new route.
+- [x] **Task 6 — Docs**
+  - [x] `src/domain/README.md` — `teamEnrollment.ts` entry.
+  - [x] `src/data/README.md` — new `entries.ts` entry; `tournaments.ts` entry no longer lists `countTournamentEntries`.
+  - [x] `src/actions/README.md` — `entries.ts` entry.
+  - [x] `src/components/README.md` — `team-enrollment.tsx` entry. **Also fixed a pre-existing Story 2.6 doc bug found while editing:** the "Edit mode" paragraph describing `tournament-form.tsx`'s edit mode was nested under the `## team-form.tsx` header instead of `## tournament-form.tsx` — moved to the correct section.
+  - [x] `AGENTS.md` — Stack-status bullet for Story 2.7.
+  - [x] No `ARCHITECTURE-SPINE.md` / `EXPERIENCE.md` / `epics.md` / `SPEC.md` edit.
 - [ ] **Task 7 — `deferred-work.md` (UPDATE)**
   - [ ] Mark **resolved**: 2-1-review "`TournamentEntry` count vs `Tournament.teamCount`" (this story's `checkCanEnroll` capacity check).
   - [ ] Add a **"Story 2.7 implementation"** section: `enrollTeam`/`removeTeamEntry` have no automated action-level test (same class of gap as every prior action; the domain preconditions **are** unit-tested this time, narrowing what's actually untested to the `requireAdmin` gate and the DB round-trip); `team-enrollment.tsx` untested at the component layer; no UI yet for "field full" vs "team already enrolled" visual distinction beyond the toast message (both currently surface identically as a `notify.error`).

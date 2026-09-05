@@ -66,3 +66,14 @@ Actions are wired in their feature stories.
   (`fieldErrors` / `formError`), the same shape family as `CreateTournamentState`.
   `P2002` (via `@/data/errors`'s `isUniqueViolation`) → "Команда з такою назвою
   вже існує.".
+- `entries.ts` — `enrollTeam(tournamentId, teamId)` / `removeTeamEntry(tournamentId,
+  entryId)`: `ActionResult<undefined>`, the `admin-roles.ts` shape (not
+  `useActionState` — a single-value picker/button, not a multi-field form).
+  Both: `requireAdmin()` → `getTournamentForAdmin` (not found → `NOT_FOUND`) →
+  the matching pure precondition from `src/domain/teamEnrollment`
+  (`checkCanEnroll` / `checkCanRemoveEntry`; not ok → `PRECONDITION_FAILED`) →
+  the write (`createEntry` / `deleteEntry`) → `revalidatePath`. `enrollTeam`
+  additionally maps a `P2002` (via `@/data/errors`'s `isUniqueViolation`) to
+  "Ця команда вже заявлена в цей турнір."; `removeTeamEntry` maps `P2025` to
+  `NOT_FOUND` "Заявку вже видалено.". No new `ActionErrorCode` — both reuse
+  `PRECONDITION_FAILED`/`NOT_FOUND` (Story 2.3).
