@@ -5,9 +5,11 @@ import { revalidatePath } from "next/cache";
 import { toActionError, type ActionResult } from "@/actions/result";
 import { requireAdmin } from "@/auth/requireAdmin";
 import { listEntriesForTournament } from "@/data/entries";
-import { saveDraw } from "@/data/draw";
+import { hasAnyGroupResult } from "@/data/matches";
+import { listGroupEntryIds, saveDraw, saveRedraw } from "@/data/draw";
 import { getTournamentForAdmin } from "@/data/tournaments";
 import { checkTransition } from "@/domain/tournamentState";
+import { checkCanRedraw } from "@/domain/redraw";
 import { defaultShuffle, generateSchedule } from "@/domain/schedule";
 
 /**
@@ -61,6 +63,51 @@ export async function drawTournament(tournamentId: string): Promise<ActionResult
     revalidatePath(tournament.discipline === "BEACH" ? "/beach" : "/classic");
     revalidatePath(`/admin/tournaments/${tournamentId}`);
     revalidatePath("/admin/tournaments");
+
+    return { ok: true, data: undefined };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+/**
+ * Re-runs the draw for an already-drawn tournament: deletes the current
+ * `GROUP`-stage `Match` calendar and generates a new one from the same
+ * seated entries (`GroupSlot` — never re-read from `TournamentEntry`, and
+ * never itself modified). Gated by `checkCanRedraw`, not `checkTransition` —
+ * `Tournament.state` doesn't change here.
+ */
+export async function redrawTournament(tournamentId: string): Promise<ActionResult<undefined>> {
+  try {
+    await requireAdmin();
+
+    const tournament = await getTournamentForAdmin(tournamentId);
+    if (!tournament) {
+      return { ok: false, code: "NOT_FOUND", message: "Турнір не знайдено." };
+    }
+    if (!tournament.group) {
+      return { ok: false, code: "NOT_FOUND", message: "Групу турніру не знайдено." };
+    }
+
+    const hasResults = await hasAnyGroupResult(tournamentId);
+    const check = checkCanRedraw(tournament.state, hasResults);
+    if (!check.ok) {
+      return { ok: false, code: "PRECONDITION_FAILED", message: check.message };
+    }
+
+    const entryIds = await listGroupEntryIds(tournament.group.id);
+    const shuffledEntryIds = defaultShuffle(entryIds);
+
+    const schedule = generateSchedule(shuffledEntryIds, tournament.rounds);
+    const pairings = schedule.map(({ homeEntryId, awayEntryId }) => ({
+      homeEntryId,
+      awayEntryId,
+    }));
+
+    await saveRedraw(tournamentId, tournament.group.id, pairings);
+
+    revalidatePath(tournament.discipline === "BEACH" ? "/beach" : "/classic");
+    revalidatePath(`/admin/tournaments/${tournamentId}`);
 
     return { ok: true, data: undefined };
   } catch (error) {

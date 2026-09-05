@@ -63,10 +63,10 @@ PRD FR-12 (`prd.md` §4.4, cited in the story's context) adds two checkable cons
   - [x] `listGroupEntryIds(groupId: string): Promise<string[]>` — `db.groupSlot.findMany({ where: { groupId }, select: { entryId: true } })`, mapped to the id array.
   - [x] `saveRedraw(tournamentId: string, groupId: string, pairings: DrawPairing[]): Promise<void>` — one `db.$transaction`: `tx.match.deleteMany({ where: { tournamentId, stage: "GROUP" } })` (cascades away any `SetScore`, though the precondition guarantees none exist) → `tx.match.createMany({ data: pairings.map((p) => ({ tournamentId, groupId, stage: "GROUP", ...p })) })`. Doc comment: performs no validation itself, same convention as `saveDraw`; never seats/unseats `GroupSlot`; the caller (`redrawTournament`) must already have confirmed `checkCanRedraw`.
   - [x] `typecheck`/`lint` clean.
-- [ ] **Task 4 — `src/actions/draw.ts` (UPDATE): `redrawTournament`** (AC: 1, 2)
-  - [ ] `redrawTournament(tournamentId): Promise<ActionResult<undefined>>` — `requireAdmin()` → `getTournamentForAdmin` (not found, or no `group` → `NOT_FOUND`) → `hasAnyGroupResult(tournamentId)` → `checkCanRedraw(tournament.state, hasResults)` (not ok → `{ ok: false, code: "PRECONDITION_FAILED", message: check.message }`) → `listGroupEntryIds(tournament.group.id)` → `defaultShuffle` (`src/domain/schedule`) → `generateSchedule(shuffled, tournament.rounds)` → map to pairings (drop `round`/`tour`, same as `drawTournament`) → `saveRedraw(tournamentId, tournament.group.id, pairings)` → `revalidatePath` (discipline route, `/admin/tournaments/${tournamentId}`; **not** `/admin/tournaments` — `state` doesn't change, so the list page's displayed state is already correct) → `{ ok: true, data: undefined }`.
-  - [ ] Add `"PRECONDITION_FAILED"` reuse (already an `ActionErrorCode` — no new code needed).
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 4 — `src/actions/draw.ts` (UPDATE): `redrawTournament`** (AC: 1, 2)
+  - [x] `redrawTournament(tournamentId): Promise<ActionResult<undefined>>` — `requireAdmin()` → `getTournamentForAdmin` (not found, or no `group` → `NOT_FOUND`) → `hasAnyGroupResult(tournamentId)` → `checkCanRedraw(tournament.state, hasResults)` (not ok → `{ ok: false, code: "PRECONDITION_FAILED", message: check.message }`) → `listGroupEntryIds(tournament.group.id)` → `defaultShuffle` (`src/domain/schedule`) → `generateSchedule(shuffled, tournament.rounds)` → map to pairings (drop `round`/`tour`, same as `drawTournament`) → `saveRedraw(tournamentId, tournament.group.id, pairings)` → `revalidatePath` (discipline route, `/admin/tournaments/${tournamentId}`; **not** `/admin/tournaments` — `state` doesn't change, so the list page's displayed state is already correct) → `{ ok: true, data: undefined }`.
+  - [x] Add `"PRECONDITION_FAILED"` reuse (already an `ActionErrorCode` — no new code needed).
+  - [x] `typecheck`/`lint` clean.
 - [ ] **Task 5 — `src/components/tournament-actions.tsx` (UPDATE): `RedrawTournamentButton`** (AC: 1, 2)
   - [ ] `RedrawTournamentButton({ tournamentId, state, hasResults })` — `ConfirmDialog` wrapping a call to `redrawTournament`, `DeleteTournamentButton`'s exact shape (`onConfirm` returns `false`/throws on failure so the dialog stays open, per `ConfirmDialog`'s own contract; success toasts and calls `router.refresh()` instead of `router.push` — this story stays on the same page, unlike delete's navigate-away). `title="Пережеребкувати?"`, `description` matching `EXPERIENCE.md`'s destructive-confirmation voice (a direct-speech sentence naming the consequence, e.g. "Поточний календар матчів буде видалено і згенеровано новий."), `confirmLabel="Пережеребкувати"`, `destructive`.
   - [ ] Disabled + captioned via `checkCanRedraw(state, hasResults)` (`src/domain/redraw`) computed in the component — the same `view → domain` edge already established by `checkCanEnroll`/`checkTransition`.
@@ -202,6 +202,7 @@ claude-sonnet-5 (bmad-dev-story)
 - Task 1: `src/domain/redraw.ts` created with `checkCanRedraw(state, hasResults)`, mirroring `checkCanEnroll`/`checkCanRemoveEntry`'s shape. `src/domain/redraw.test.ts` — 4 tests (allow, reject-wrong-state, reject-has-results, state-checked-first). `pnpm test` 107/107; `typecheck`/`lint` clean.
 - Task 2: `hasAnyGroupResult(tournamentId)` added to `src/data/matches.ts` alongside `getStandings`. `typecheck`/`lint` clean.
 - Task 3: `listGroupEntryIds(groupId)` and `saveRedraw(tournamentId, groupId, pairings)` added to `src/data/draw.ts` alongside `saveDraw`. `typecheck`/`lint` clean.
+- Task 4: `redrawTournament(tournamentId)` added to `src/actions/draw.ts` alongside `drawTournament` — reuses `checkCanRedraw`, `defaultShuffle`, `generateSchedule`, `saveRedraw`. `typecheck`/`lint` clean.
 
 ### File List
 
@@ -209,6 +210,7 @@ claude-sonnet-5 (bmad-dev-story)
 - `src/domain/redraw.test.ts` (NEW)
 - `src/data/matches.ts` (UPDATE)
 - `src/data/draw.ts` (UPDATE)
+- `src/actions/draw.ts` (UPDATE)
 
 ## Change Log
 
