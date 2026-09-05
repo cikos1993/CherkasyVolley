@@ -69,14 +69,14 @@ Translated from `epics.md` → Epic 3 → Story 3.3. The Ukrainian source is aut
   - [x] New section (below "Команди", above the delete button) rendering `<DrawTournamentButton tournamentId={tournament.id} state={tournament.state} entryCount={entries.length} teamCount={tournament.teamCount} />` — only `entries.length` is new data the page needs to pass down; `entries` itself is already fetched here (Story 2.7).
   - [x] No changes to `tournament-form.tsx`'s or `team-enrollment.tsx`'s own logic — their existing state-based locks already do the right thing once `router.refresh()` picks up `GROUP_STAGE` (see Notes).
   - [x] `typecheck`/`lint` clean.
-- [ ] **Task 6 — Docs**
-  - [ ] `src/data/README.md` — `tournaments.ts`'s entry notes `setTournamentState`'s new transaction-client parameter; new `draw.ts` entry.
-  - [ ] `src/actions/README.md` — new `draw.ts` entry (`drawTournament`).
-  - [ ] `src/components/README.md` — `DrawTournamentButton` entry (extend the existing `tournament-actions.tsx` section).
-  - [ ] `AGENTS.md` — Stack-status bullet for Story 3.3.
-  - [ ] `deferred-work.md`'s Story 2.3-review AD-8-wording item — note that this story is the first "окрема Server Action" per transition AD-8 originally described, without resolving the spine-wording tension itself (still an open item, just partially addressed in practice).
-- [ ] **Task 7 — `deferred-work.md` (UPDATE)**
-  - [ ] New "Story 3.3 implementation" section: no automated action-level test for `drawTournament` beyond the verify script (Task 8); the transaction's atomicity is asserted by the verify script but not stress-tested under real concurrency (same accepted-risk class as every other TOCTOU item already tracked); `generateSchedule`'s default `Math.random`-based shuffle means the draw's actual pairing order is non-deterministic in production — expected and desired (FR-11's "випадковий порядок"), noted so a future reader doesn't mistake it for a bug.
+- [x] **Task 6 — Docs**
+  - [x] `src/data/README.md` — `tournaments.ts`'s entry notes `setTournamentState`'s new transaction-client parameter; new `draw.ts` entry.
+  - [x] `src/actions/README.md` — new `draw.ts` entry (`drawTournament`).
+  - [x] `src/components/README.md` — `DrawTournamentButton` entry (extend the existing `tournament-actions.tsx` section).
+  - [x] `AGENTS.md` — Stack-status bullet for Story 3.3.
+  - [x] `deferred-work.md`'s Story 2.3-review AD-8-wording item — note that this story is the first "окрема Server Action" per transition AD-8 originally described, without resolving the spine-wording tension itself (still an open item, just partially addressed in practice).
+- [x] **Task 7 — `deferred-work.md` (UPDATE)**
+  - [x] New "Story 3.3 implementation" section: no automated action-level test for `drawTournament` beyond the verify script (Task 8); the transaction's atomicity is asserted by the verify script but not stress-tested under real concurrency (same accepted-risk class as every other TOCTOU item already tracked); `generateSchedule`'s default `Math.random`-based shuffle means the draw's actual pairing order is non-deterministic in production — expected and desired (FR-11's "випадковий порядок"), noted so a future reader doesn't mistake it for a bug.
 - [ ] **Task 8 — Verification gate** (AC: all)
   - [ ] `pnpm test` unchanged (no new `src/domain` module) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean (no new route).
   - [ ] Import-boundary greps: `src/data/draw.ts` is the only new Prisma-client import site.
@@ -192,6 +192,7 @@ claude-sonnet-5 (bmad-dev-story)
 - Task 3: `src/actions/draw.ts` created with `drawTournament` — reuses `checkTransition` directly (not `transitionTournament`), calls `generateSchedule` then `saveDraw`. `typecheck`/`lint` clean.
 - Task 4: `DrawTournamentButton` added to `src/components/tournament-actions.tsx` — `useTransition` + `checkTransition` for disabled+captioned state, `team-enrollment.tsx`'s `enroll()` shape, no `ConfirmDialog`. `typecheck`/`lint` clean.
 - Task 5: `/admin/tournaments/[id]` renders a new "Жеребкування" section with `DrawTournamentButton`, passing `entries.length` (already-fetched `entries`). `typecheck`/`lint` clean.
+- Tasks 6-7: updated `src/data/README.md`, `src/actions/README.md`, `src/components/README.md`, `AGENTS.md` (Stack-status bullet), and `deferred-work.md` (new Story 3.3 section + annotated the existing AD-8-wording item).
 
 ### File List
 
@@ -200,6 +201,11 @@ claude-sonnet-5 (bmad-dev-story)
 - `src/actions/draw.ts` (NEW)
 - `src/components/tournament-actions.tsx` (UPDATE)
 - `src/app/admin/tournaments/[id]/page.tsx` (UPDATE)
+- `src/data/README.md` (UPDATE)
+- `src/actions/README.md` (UPDATE)
+- `src/components/README.md` (UPDATE)
+- `AGENTS.md` (UPDATE)
+- `_bmad-output/implementation-artifacts/deferred-work.md` (UPDATE)
 
 ## Change Log
 

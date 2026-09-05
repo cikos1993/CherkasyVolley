@@ -142,6 +142,18 @@ picks up the newly revalidated data.
 a thrown/rejected call or `{ ok: false }` toasts the error and returns `false`
 (dialog stays open); success toasts and `router.push("/admin/tournaments")`.
 
+`DrawTournamentButton({ tournamentId, state, entryCount, teamCount })` (Story
+3.3) — `useTransition` + a direct call to `drawTournament`, the
+`team-enrollment.tsx` `enroll()` shape (not `useActionState` — a single-action
+button, not a form): success toasts and `router.refresh()`; `{ ok: false }` or
+a thrown/rejected call toasts the error. No `ConfirmDialog` — "провести
+жеребкування" isn't in `EXPERIENCE.md`'s closed list of actions requiring one.
+Disabled + captioned via `checkTransition(state, "GROUP_STAGE", { entryCount,
+teamCount })` (`src/domain/tournamentState`) computed client-side — the same
+`view → domain` edge `team-enrollment.tsx`'s `checkCanEnroll` already uses,
+applied here to reuse the transition's own precondition instead of a second
+implementation of it.
+
 ## `team-enrollment.tsx`
 
 `TeamEnrollment({ tournamentId, state, teamCount, entries, availableTeams })`

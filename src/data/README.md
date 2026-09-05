@@ -22,11 +22,15 @@ goes through a named function exported from here — `getPublicTournament`,
   "last_admin" }` and are called only from `grantAdmin` / `revokeAdmin` under
   `requireAdmin()`.
 - `tournaments.ts` — `getTournamentForAdmin(id)` (admin read, drafts included;
-  called only under `requireAdmin()`), `listTournamentsForAdmin()` (admin read,
-  every tournament, for `/admin/tournaments`),
-  `setTournamentState(id, state)` — **the sole writer of `Tournament.state`**,
-  called only from `transitionTournament` after the transition is validated in
-  `src/domain/tournamentState` (AD-8; no other function writes `state`) —
+  called only under `requireAdmin()`; includes `group: { id }` since Story 3.3,
+  so callers like `drawTournament` don't need a second query for it),
+  `listTournamentsForAdmin()` (admin read, every tournament, for
+  `/admin/tournaments`), `setTournamentState(id, state, client?)` — **the sole
+  writer of `Tournament.state`**, called only after the transition is validated
+  in `src/domain/tournamentState` (AD-8; no other function writes `state`) — by
+  `transitionTournament`, and (Story 3.3) by `draw.ts`'s `saveDraw` inside its
+  transaction, via the optional third `client` parameter (a
+  `Prisma.TransactionClient`, defaulting to the shared `db`) —
   `createTournamentRecord(input)` — **the sole creator of a `Tournament`**;
   inserts the tournament and its single `Group` in one statement, never sets
   `state` (defaults `DRAFT`) — `updateTournamentRecord(id, input)` — the second
@@ -93,6 +97,13 @@ goes through a named function exported from here — `getPublicTournament`,
   `computeStandings` → `src/domain/tiebreak.ts`'s `orderStandings`. Returns
   `[]` pre-draw (no `GroupSlot` rows yet) — never stored (AD-4), recomputed
   every call.
+- `draw.ts` — `saveDraw(tournamentId, groupId, entryIds, pairings)` (Story
+  3.3), the first real writer of `GroupSlot`/`Match`. One `db.$transaction`:
+  seats every entry into `GroupSlot`, creates one `GROUP`-stage `Match` per
+  pairing, then calls `tournaments.ts`'s `setTournamentState(..., tx)` — all
+  atomically, so a partial failure can't leave draw data on a still-`DRAFT`
+  tournament. Performs no validation itself; the caller (`drawTournament`)
+  must already have confirmed the transition via `checkTransition`.
 
 The `Tournament`, `Team`, `TournamentEntry`, `Player`, `Group`, `GroupSlot`, `Match`
 and `SetScore` entities (schema landed across Story 2.1, 2.4, and 3.2, migrations
@@ -107,9 +118,10 @@ players → 2.8, public reads → 2.9, standings → 3.2). Two query flavours pe
 - **admin** — includes drafts; a separate function, called only from under
   `requireAdmin()`. Example: `getTournamentForAdmin`.
 
-`Tournament.state` is written only by `transitionTournament` (Story 2.3 / AD-8),
-never assigned. Standings and playoff placements are **never** stored (AD-4) —
-there is deliberately no such column.
+`Tournament.state` is written only through `setTournamentState` (Story 2.3 / AD-8),
+never assigned directly — called by `transitionTournament` and, since Story 3.3, by
+`draw.ts`'s `saveDraw` inside its own transaction. Standings and playoff placements
+are **never** stored (AD-4) — there is deliberately no such column.
 
 **May import:** the Prisma client and generated schema types. `client.ts` constructs
 the single shared `PrismaClient` instance (`@prisma/adapter-pg` over the pooled

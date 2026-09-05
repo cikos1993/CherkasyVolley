@@ -21,8 +21,13 @@ Conventions below are manual-review, not lint-checked:
 - `requireAdmin()` is the first statement of every action. Hiding a button is not
   access control; the server rejects the write.
 - `Tournament.state` is changed only by explicit transition actions
-  (`DRAFT → GROUP_STAGE → PLAYOFF → COMPLETED`), each checking its preconditions.
-  Never assign `state` directly.
+  (`DRAFT → GROUP_STAGE → PLAYOFF → COMPLETED`), each checking its preconditions
+  via `checkTransition` before writing through `setTournamentState`. Never assign
+  `state` directly. `transitionTournament` is the generic transition action;
+  `drawTournament` (Story 3.3) is the first **dedicated** one — it reuses
+  `checkTransition` directly rather than nesting a call to `transitionTournament`,
+  since the `DRAFT → GROUP_STAGE` transition also has to atomically seat entries
+  and generate the match calendar.
 - Actions return `{ ok: true, data }` or `{ ok: false, code, message }`.
 - After every write, call `revalidatePath` / `revalidateTag` for the affected routes.
 
@@ -96,3 +101,12 @@ Actions are wired in their feature stories.
   found → `NOT_FOUND`) → `deletePlayer(entryId, playerId)` → `count === 0` →
   `NOT_FOUND` → `revalidatePath`. No state restriction (unlike `entries.ts`) —
   Story 2.8's AC leaves roster edits open regardless of `Tournament.state`.
+- `draw.ts` — `drawTournament(tournamentId)` (Story 3.3): `ActionResult<undefined>`,
+  the `admin-roles.ts` shape. `requireAdmin()` → `getTournamentForAdmin` (not
+  found, or no `group` → `NOT_FOUND`) → `listEntriesForTournament` for the entry
+  ids/count → `checkTransition(tournament.state, "GROUP_STAGE", { entryCount,
+  teamCount })` (not ok → `{ ok: false, code, message }`) → `generateSchedule`
+  (`src/domain/schedule`) → `saveDraw` (`src/data/draw.ts`, one transaction:
+  `GroupSlot` + `Match` rows + `setTournamentState`) → `revalidatePath`. The
+  first dedicated (non-`transitionTournament`) transition action — see the
+  note above.
