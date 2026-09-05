@@ -128,22 +128,99 @@ model Tournament {
   updatedAt     DateTime          @default(now()) @updatedAt @db.Timestamptz(3)
   entries       TournamentEntry[]
   group         Group?
+  matches       Match[]
 
   @@unique([discipline, type, year, name])
   @@index([discipline, state, year])
   @@map("tournament")
 }
 
-/// The single group of a v1 tournament (Tournament 1—1 Group). Structural anchor
-/// only — its slots and matches arrive in Epic 3. Planned size is Tournament.teamCount.
+/// The single group of a v1 tournament (Tournament 1—1 Group). Planned size is
+/// Tournament.teamCount.
 model Group {
-  id           String     @id @default(cuid())
-  tournamentId String     @unique
-  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime   @default(now()) @updatedAt @db.Timestamptz(3)
+  id           String      @id @default(cuid())
+  tournamentId String      @unique
+  tournament   Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  slots        GroupSlot[]
+  matches      Match[]
+  createdAt    DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime    @default(now()) @updatedAt @db.Timestamptz(3)
 
   @@map("group")
+}
+
+/// Which entries were placed into which group at draw time (Story 3.3) —
+/// distinct from `TournamentEntry`, which only records participation in the
+/// tournament as a whole. In v1 (exactly one `Group` per `Tournament`) every
+/// entered team ends up here after the draw; the split exists so a future
+/// multi-group format isn't structurally blocked.
+model GroupSlot {
+  id        String          @id @default(cuid())
+  groupId   String
+  group     Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  entryId   String
+  entry     TournamentEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now()) @db.Timestamptz(3)
+
+  @@unique([groupId, entryId])
+  @@map("group_slot")
+}
+
+/// Stage of a `Match`. `GROUP` matches belong to a `Group` (Story 3.3); the
+/// three playoff stages (Epic 4) don't — `Match.groupId` is null for them.
+enum MatchStage {
+  GROUP
+  SEMIFINAL
+  THIRD_PLACE
+  FINAL
+}
+
+/// A single game between two `TournamentEntry`s. Result lives only in
+/// `SetScore` rows (AD-4) — this model carries no score/winner column.
+/// `homeEntryId`/`awayEntryId` are nullable: a `FINAL`/`THIRD_PLACE` match
+/// (Epic 4) is created before its participants are decided by the
+/// semifinals — `domain/bracket.ts` computes them live until a real
+/// `SetScore` exists (AD-5). `GROUP` matches (this story onward) always have
+/// both set at creation.
+model Match {
+  id           String           @id @default(cuid())
+  tournamentId String
+  tournament   Tournament       @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  stage        MatchStage       @default(GROUP)
+  groupId      String?
+  group        Group?           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  homeEntryId  String?
+  homeEntry    TournamentEntry? @relation("MatchHomeEntry", fields: [homeEntryId], references: [id], onDelete: Cascade)
+  awayEntryId  String?
+  awayEntry    TournamentEntry? @relation("MatchAwayEntry", fields: [awayEntryId], references: [id], onDelete: Cascade)
+  /// Free text, not a real venue entity — matches `TournamentEntry`'s roster
+  /// fields' precedent of plain text over a new lookup model.
+  venueText    String?
+  scheduledAt  DateTime?        @db.Timestamptz(3)
+  sets         SetScore[]
+  createdAt    DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime         @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@index([tournamentId, stage])
+  @@map("match")
+}
+
+/// One set's score within a `Match`. The sole stored source of a result —
+/// group standings and playoff placements are always computed from these,
+/// never stored (AD-4).
+model SetScore {
+  id         String   @id @default(cuid())
+  matchId    String
+  match      Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  setNo      Int
+  homePoints Int
+  awayPoints Int
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@unique([matchId, setNo])
+  @@index([matchId])
+  @@map("set_score")
 }
 
 /// A reusable club identity (glossary "Команда"). One row is entered into many
@@ -167,14 +244,17 @@ model Team {
 /// roster (`players`), which is specific to this tournament. At most one per
 /// (tournament, team). Deleting it deletes the roster (FR-9).
 model TournamentEntry {
-  id           String     @id @default(cuid())
+  id           String      @id @default(cuid())
   tournamentId String
   teamId       String
-  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  team         Team       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  tournament   Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team         Team        @relation(fields: [teamId], references: [id], onDelete: Restrict)
   players      Player[]
-  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime   @default(now()) @updatedAt @db.Timestamptz(3)
+  groupSlots   GroupSlot[]
+  homeMatches  Match[]     @relation("MatchHomeEntry")
+  awayMatches  Match[]     @relation("MatchAwayEntry")
+  createdAt    DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime    @default(now()) @updatedAt @db.Timestamptz(3)
 
   @@unique([tournamentId, teamId])
   @@index([teamId])

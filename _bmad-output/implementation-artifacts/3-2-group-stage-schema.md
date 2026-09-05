@@ -51,14 +51,15 @@ Translated from `epics.md` → Epic 3 → Story 3.2. The Ukrainian source is aut
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — `prisma/schema.prisma` (UPDATE): `MatchStage` enum, `GroupSlot`, `Match`, `SetScore` models** (AC: 1, 2)
-  - [ ] `enum MatchStage { GROUP SEMIFINAL THIRD_PLACE FINAL }`.
-  - [ ] `model GroupSlot` — `id`, `groupId` (FK → `Group`, `onDelete: Cascade`), `entryId` (FK → `TournamentEntry`, `onDelete: Cascade`), `createdAt`. `@@unique([groupId, entryId])`.
-  - [ ] `model Match` — `id`, `tournamentId` (FK → `Tournament`, `onDelete: Cascade`), `stage: MatchStage @default(GROUP)`, `groupId: String?` (FK → `Group`, `onDelete: Cascade`), `homeEntryId: String?` / `awayEntryId: String?` (two FKs → `TournamentEntry`, named relations since there are two edges to the same model, `onDelete: Cascade`), `scheduledAt: DateTime? @db.Timestamptz(3)`, `venueText: String?`, `createdAt`/`updatedAt @db.Timestamptz(3)`. `@@index([tournamentId, stage])`.
-  - [ ] `model SetScore` — `id`, `matchId` (FK → `Match`, `onDelete: Cascade`), `setNo: Int`, `homePoints: Int`, `awayPoints: Int`, `createdAt`/`updatedAt @db.Timestamptz(3)`. `@@unique([matchId, setNo])`, `@@index([matchId])`.
-  - [ ] `Group` gains back-relations (`slots GroupSlot[]`, `matches Match[]`) — the model's own fields are otherwise untouched.
-  - [ ] `Tournament` gains a `matches Match[]` back-relation.
-  - [ ] `TournamentEntry` gains `groupSlots GroupSlot[]`, `homeMatches Match[] @relation("MatchHomeEntry")`, `awayMatches Match[] @relation("MatchAwayEntry")` back-relations.
+- [x] **Task 1 — `prisma/schema.prisma` (UPDATE): `MatchStage` enum, `GroupSlot`, `Match`, `SetScore` models** (AC: 1, 2)
+  - [x] `enum MatchStage { GROUP SEMIFINAL THIRD_PLACE FINAL }`.
+  - [x] `model GroupSlot` — `id`, `groupId` (FK → `Group`, `onDelete: Cascade`), `entryId` (FK → `TournamentEntry`, `onDelete: Cascade`), `createdAt`. `@@unique([groupId, entryId])`.
+  - [x] `model Match` — `id`, `tournamentId` (FK → `Tournament`, `onDelete: Cascade`), `stage: MatchStage @default(GROUP)`, `groupId: String?` (FK → `Group`, `onDelete: Cascade`), `homeEntryId: String?` / `awayEntryId: String?` (two named-relation FKs → `TournamentEntry`, `onDelete: Cascade`), `scheduledAt: DateTime? @db.Timestamptz(3)`, `venueText: String?`, `createdAt`/`updatedAt @db.Timestamptz(3)`. `@@index([tournamentId, stage])`.
+  - [x] `model SetScore` — `id`, `matchId` (FK → `Match`, `onDelete: Cascade`), `setNo: Int`, `homePoints: Int`, `awayPoints: Int`, `createdAt`/`updatedAt @db.Timestamptz(3)`. `@@unique([matchId, setNo])`, `@@index([matchId])`.
+  - [x] `Group` gains back-relations (`slots GroupSlot[]`, `matches Match[]`) — the model's own fields are otherwise untouched.
+  - [x] `Tournament` gains a `matches Match[]` back-relation.
+  - [x] `TournamentEntry` gains `groupSlots GroupSlot[]`, `homeMatches Match[] @relation("MatchHomeEntry")`, `awayMatches Match[] @relation("MatchAwayEntry")` back-relations.
+  - [x] `pnpm exec prisma format` + `pnpm exec prisma generate` clean; `typecheck`/`lint` clean.
 - [ ] **Task 2 — Migration (fallback technique, non-interactive tool)** (AC: 1, 2)
   - [ ] Pre-flight: `pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` → review the generated SQL.
   - [ ] Hand-write `prisma/migrations/<timestamp>_group_stage_schema/migration.sql` from that diff, verbatim plus the three `CHECK` constraints from Notes on AC interpretation appended at the end (matching Story 2.4's migration file's own append style).
