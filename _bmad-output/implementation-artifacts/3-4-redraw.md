@@ -59,10 +59,10 @@ PRD FR-12 (`prd.md` §4.4, cited in the story's context) adds two checkable cons
 - [x] **Task 2 — `src/data/matches.ts` (UPDATE): `hasAnyGroupResult`** (AC: 1, 2)
   - [x] `hasAnyGroupResult(tournamentId: string): Promise<boolean>` — `db.setScore.findFirst({ where: { match: { tournamentId, stage: "GROUP" } }, select: { id: true } })` mapped to `!== null`. Doc comment: the sole read backing `checkCanRedraw`'s "no results yet" gate.
   - [x] `typecheck`/`lint` clean.
-- [ ] **Task 3 — `src/data/draw.ts` (UPDATE): `listGroupEntryIds` + `saveRedraw`** (AC: 1)
-  - [ ] `listGroupEntryIds(groupId: string): Promise<string[]>` — `db.groupSlot.findMany({ where: { groupId }, select: { entryId: true } })`, mapped to the id array.
-  - [ ] `saveRedraw(tournamentId: string, groupId: string, pairings: DrawPairing[]): Promise<void>` — one `db.$transaction`: `tx.match.deleteMany({ where: { tournamentId, stage: "GROUP" } })` (cascades away any `SetScore`, though the precondition guarantees none exist) → `tx.match.createMany({ data: pairings.map((p) => ({ tournamentId, groupId, stage: "GROUP", ...p })) })`. Doc comment: performs no validation itself, same convention as `saveDraw`; never seats/unseats `GroupSlot`; the caller (`redrawTournament`) must already have confirmed `checkCanRedraw`.
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 3 — `src/data/draw.ts` (UPDATE): `listGroupEntryIds` + `saveRedraw`** (AC: 1)
+  - [x] `listGroupEntryIds(groupId: string): Promise<string[]>` — `db.groupSlot.findMany({ where: { groupId }, select: { entryId: true } })`, mapped to the id array.
+  - [x] `saveRedraw(tournamentId: string, groupId: string, pairings: DrawPairing[]): Promise<void>` — one `db.$transaction`: `tx.match.deleteMany({ where: { tournamentId, stage: "GROUP" } })` (cascades away any `SetScore`, though the precondition guarantees none exist) → `tx.match.createMany({ data: pairings.map((p) => ({ tournamentId, groupId, stage: "GROUP", ...p })) })`. Doc comment: performs no validation itself, same convention as `saveDraw`; never seats/unseats `GroupSlot`; the caller (`redrawTournament`) must already have confirmed `checkCanRedraw`.
+  - [x] `typecheck`/`lint` clean.
 - [ ] **Task 4 — `src/actions/draw.ts` (UPDATE): `redrawTournament`** (AC: 1, 2)
   - [ ] `redrawTournament(tournamentId): Promise<ActionResult<undefined>>` — `requireAdmin()` → `getTournamentForAdmin` (not found, or no `group` → `NOT_FOUND`) → `hasAnyGroupResult(tournamentId)` → `checkCanRedraw(tournament.state, hasResults)` (not ok → `{ ok: false, code: "PRECONDITION_FAILED", message: check.message }`) → `listGroupEntryIds(tournament.group.id)` → `defaultShuffle` (`src/domain/schedule`) → `generateSchedule(shuffled, tournament.rounds)` → map to pairings (drop `round`/`tour`, same as `drawTournament`) → `saveRedraw(tournamentId, tournament.group.id, pairings)` → `revalidatePath` (discipline route, `/admin/tournaments/${tournamentId}`; **not** `/admin/tournaments` — `state` doesn't change, so the list page's displayed state is already correct) → `{ ok: true, data: undefined }`.
   - [ ] Add `"PRECONDITION_FAILED"` reuse (already an `ActionErrorCode` — no new code needed).
@@ -201,12 +201,14 @@ claude-sonnet-5 (bmad-dev-story)
 
 - Task 1: `src/domain/redraw.ts` created with `checkCanRedraw(state, hasResults)`, mirroring `checkCanEnroll`/`checkCanRemoveEntry`'s shape. `src/domain/redraw.test.ts` — 4 tests (allow, reject-wrong-state, reject-has-results, state-checked-first). `pnpm test` 107/107; `typecheck`/`lint` clean.
 - Task 2: `hasAnyGroupResult(tournamentId)` added to `src/data/matches.ts` alongside `getStandings`. `typecheck`/`lint` clean.
+- Task 3: `listGroupEntryIds(groupId)` and `saveRedraw(tournamentId, groupId, pairings)` added to `src/data/draw.ts` alongside `saveDraw`. `typecheck`/`lint` clean.
 
 ### File List
 
 - `src/domain/redraw.ts` (NEW)
 - `src/domain/redraw.test.ts` (NEW)
 - `src/data/matches.ts` (UPDATE)
+- `src/data/draw.ts` (UPDATE)
 
 ## Change Log
 

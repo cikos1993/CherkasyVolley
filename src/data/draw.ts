@@ -38,3 +38,41 @@ export function saveDraw(
     await setTournamentState(tournamentId, "GROUP_STAGE", tx);
   });
 }
+
+/**
+ * Entry ids actually seated in a group (Story 3.4) — the source of truth for
+ * "who's in this group," distinct from `TournamentEntry`/`listEntriesForTournament`,
+ * which `saveDraw` reads before any `GroupSlot` exists. A redraw must reuse
+ * these ids, not re-read entries, since group membership never changes here.
+ */
+export async function listGroupEntryIds(groupId: string): Promise<string[]> {
+  const slots = await db.groupSlot.findMany({ where: { groupId }, select: { entryId: true } });
+  return slots.map((slot) => slot.entryId);
+}
+
+/**
+ * Deletes every `GROUP`-stage `Match` row for a tournament and recreates the
+ * calendar from a fresh set of pairings, in one transaction. Never touches
+ * `GroupSlot` or `Tournament.state` — a redraw only replaces the calendar,
+ * not who's in the group or the tournament's lifecycle stage. Performs no
+ * validation itself: the caller (`redrawTournament`) must already have
+ * confirmed `checkCanRedraw` before calling this.
+ */
+export function saveRedraw(
+  tournamentId: string,
+  groupId: string,
+  pairings: DrawPairing[],
+): Promise<void> {
+  return db.$transaction(async (tx) => {
+    await tx.match.deleteMany({ where: { tournamentId, stage: "GROUP" } });
+    await tx.match.createMany({
+      data: pairings.map((pairing) => ({
+        tournamentId,
+        groupId,
+        stage: "GROUP",
+        homeEntryId: pairing.homeEntryId,
+        awayEntryId: pairing.awayEntryId,
+      })),
+    });
+  });
+}
