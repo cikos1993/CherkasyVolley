@@ -69,11 +69,11 @@ Translated from `epics.md` → Epic 2 → Story 2.9. The Ukrainian source is aut
   - [x] `PublicRoster({ players })` — read-only. One entry per player: `fullName` + only the non-null optional fields (same filter logic as the admin `PlayerRow`, but no edit/delete affordances at all). Labels from `@/lib/player-labels`'s `PLAYER_OPTIONAL_FIELDS`.
   - [x] Empty roster → a plain line, not `EmptyState` (a team with zero players mid-setup is an admin data-quality concern, not a "nothing here yet" product surface a visitor needs guided out of — matches `EXPERIENCE.md`'s "Порожньо" rows, none of which name this case).
   - [x] `typecheck`/`lint` clean.
-- [ ] **Task 5 — `src/app/classic/[tournament]/page.tsx` (NEW)** (AC: 1, 2, 3)
-  - [ ] Server Component. `getPublicTournament(id)` → if `null`: `getSessionUser()` → if `user?.isAdmin`, `getTournamentForAdmin(id)` as the fallback tournament; else `undefined`. If still nothing → `notFound()`.
-  - [ ] Renders: back-link to `/classic`, tournament `name`, `<StatusBadge state={tournament.state} />`, the four inert/active tab-chips (Task above), then the "Команди" panel: `listEntriesForTournament(id)` → non-empty: a list of team names each `<Link href="/classic/${id}/teams/${entry.teamId}">`; empty: `<EmptyState {...NO_TEAMS} />`.
-  - [ ] `generateMetadata` — dynamic, `getPublicTournament(id)` for the `<title>` (a second small query; no auth-timing hazard here unlike the admin page, since this route has no layout-level redirect gate to race). Fallback title if not found (the page itself still 404s via the admin-preview logic above).
-  - [ ] `pnpm build` before `pnpm typecheck` (new nested route, the `.next/types` caveat carried since Story 2.4).
+- [x] **Task 5 — `src/app/classic/[tournament]/page.tsx` (NEW)** (AC: 1, 2, 3)
+  - [x] Server Component. `getPublicTournament(id)` → if `null`: `getSessionUser()` → if `user?.isAdmin`, `getTournamentForAdmin(id)` as the fallback tournament; else `undefined`. If still nothing → `notFound()`.
+  - [x] Renders: back-link to `/classic`, tournament `name`, `<StatusBadge state={tournament.state} />`, the four inert/active tab-chips (Task above), then the "Команди" panel: `listEntriesForTournament(id)` → non-empty: a list of team names each `<Link href="/classic/${id}/teams/${entry.teamId}">`; empty: `<EmptyState {...NO_TEAMS} />`.
+  - [x] `generateMetadata` — dynamic, `getPublicTournament(id)` for the `<title>` (a second small query; no auth-timing hazard here unlike the admin page, since this route has no layout-level redirect gate to race). Fallback title if not found (the page itself still 404s via the admin-preview logic above).
+  - [x] `pnpm build` before `pnpm typecheck` (new nested route, the `.next/types` caveat carried since Story 2.4). Route table confirms `/classic/[tournament]` as `ƒ`.
 - [ ] **Task 6 — `src/app/classic/[tournament]/teams/[team]/page.tsx` (NEW)** (AC: 2)
   - [ ] Server Component. Same visibility resolution as Task 5 (`getPublicTournament(tournamentId)` → admin-preview fallback → `notFound()` if neither), then `getEntryByTeam(tournamentId, teamId)` → `notFound()` if `null` (team never entered this tournament, or a stale/foreign id).
   - [ ] `listPlayersForEntry(entry.id)` → `<PublicRoster players={...} />`.
