@@ -84,11 +84,22 @@ goes through a named function exported from here — `getPublicTournament`,
   `{count}`; `src/actions/players.ts` treats `count === 0` as not-found. Takes
   `PlayerInput` from `src/domain/playerForm` (a sanctioned type-only
   `data → domain` import, same pattern as `tournaments.ts`/`teams.ts`).
+- `matches.ts` — `getStandings(tournamentId)` (Story 3.2), the group standings
+  table. The first `data → domain` **value** call (every prior edge —
+  `NewTournamentInput`, `PlayerInput`, etc. — was type-only): resolves the
+  tournament's `Group` → its `GroupSlot`s (entry ids + team names, **not**
+  `TournamentEntry` directly — see `GroupSlot`'s own doc comment in
+  `schema.prisma`) → every `GROUP`-stage `Match` + `SetScore` → `src/domain/scoring.ts`'s
+  `computeStandings` → `src/domain/tiebreak.ts`'s `orderStandings`. Returns
+  `[]` pre-draw (no `GroupSlot` rows yet) — never stored (AD-4), recomputed
+  every call.
 
-The `Tournament`, `Team`, `TournamentEntry` and `Player` entities (schema landed in
-Story 2.1, migration `20260903174727_tournament_schema`) are owned here too; their
-query/write functions arrive with the feature stories (create → 2.4, team directory
-→ 2.6, entries → 2.7, players → 2.8, public reads → 2.9). Two query flavours per read:
+The `Tournament`, `Team`, `TournamentEntry`, `Player`, `Group`, `GroupSlot`, `Match`
+and `SetScore` entities (schema landed across Story 2.1, 2.4, and 3.2, migrations
+`20260903174727_tournament_schema` / `20260904160000_tournament_group_and_natural_key` /
+`20260905125839_group_stage_schema`) are owned here too; their query/write functions
+arrive with the feature stories (create → 2.4, team directory → 2.6, entries → 2.7,
+players → 2.8, public reads → 2.9, standings → 3.2). Two query flavours per read:
 
 - **public** — filter `state != DRAFT` **and** `discipline = CLASSIC` (AD-7, AD-9).
   Called from Server Components, no auth. First examples: `getPublicTournament` /

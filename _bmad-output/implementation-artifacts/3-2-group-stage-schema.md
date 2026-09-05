@@ -68,10 +68,10 @@ Translated from `epics.md` → Epic 3 → Story 3.2. The Ukrainian source is aut
 - [x] **Task 3 — `src/data/matches.ts` (NEW): `getStandings`** (AC: 1, 2)
   - [x] `getStandings(tournamentId: string): Promise<OrderedStandingsRow[]>` (the `src/domain/tiebreak.ts` return type) — resolves the tournament's `Group` → its `GroupSlot`s (with each slot's `TournamentEntry.team.name` for the `teamNames` map) → every `GROUP`-stage `Match` for the tournament with its `SetScore`s (mapped into `src/domain/scoring.ts`'s `MatchResult` shape) → `computeStandings` → `orderStandings` (both from `src/domain`, the tournament's `scoringPreset` read alongside). Returns `[]` if the group has no slots yet (pre-draw).
   - [x] Doc comment: the sole `src/data → src/domain` **value** import for standings — pure computation only, no write, no storage (AD-4). `typecheck`/`lint` clean.
-- [ ] **Task 4 — Docs**
-  - [ ] `src/data/README.md` — new `matches.ts` entry; note `Group`/`GroupSlot`/`Match`/`SetScore` under the existing "entities owned here" paragraph (already anticipates this: "Group landed in Story 2.4... GroupSlot / Match / SetScore come in Epic 3").
-  - [ ] `AGENTS.md` — Stack-status bullet for Story 3.2 (schema/migration details, `getStandings`).
-  - [ ] No `ARCHITECTURE-SPINE.md` edit — AD-4/AD-5/AD-11 are implemented exactly as already specified.
+- [x] **Task 4 — Docs**
+  - [x] `src/data/README.md` — new `matches.ts` entry; note `Group`/`GroupSlot`/`Match`/`SetScore` under the existing "entities owned here" paragraph (already anticipates this: "Group landed in Story 2.4... GroupSlot / Match / SetScore come in Epic 3").
+  - [x] `AGENTS.md` — Stack-status bullet for Story 3.2 (schema/migration details, `getStandings`).
+  - [x] No `ARCHITECTURE-SPINE.md` edit — AD-4/AD-5/AD-11 are implemented exactly as already specified.
 - [ ] **Task 5 — `deferred-work.md` (UPDATE)**
   - [ ] New "Story 3.2 implementation" section: no automated action-level test for `getStandings` beyond the verify script (Task 6) — same class as every prior `src/data` function; `GroupSlot`'s "no seed/position field" decision flagged for revisit if a future story needs manual reseeding beyond the `needsManualSeed` display flag; the `homeEntryId`/`awayEntryId` nullability (needed for Epic 4, unused by this story) flagged so Epic 4's bracket story doesn't have to rediscover why it's already nullable.
 - [ ] **Task 6 — Verification gate** (AC: all)
