@@ -77,6 +77,33 @@ Translated from `epics.md` → Epic 3 → Story 3.1. The Ukrainian source is aut
   - [x] Real command output + notes captured in the Dev Agent Record.
 - [x] **Task 8 — Commit(s)** — one commit + `git push origin main` per completed task. No `build` gate to wait on (no new route), but still run it once at the end per the verification gate.
 
+### Review Findings
+
+Implementation review 2026-09-05 (`bmad-code-review`, 4 layers) over `git diff 1b20a7a..HEAD`. 0 decision-needed, 8 patch, 5 defer, 2 dismissed.
+
+#### Patch
+
+- [ ] [Review][Patch] **`schedule.ts`'s "fixed" circle-method anchor team is home in 100% of its matches, every tour, every round** — contradicts the story's own documented claim that "home/away assignment within a pairing is arbitrary but stable across cycles." Found by Blind Hunter; verified by hand-tracing (whichever entry is `entryIds[0]` is always `current[0]`, always paired as `(current[0], current[n-1])`, always listed first = home). No test catches it because every schedule test normalizes pairs through a sorted `pairKey` before comparing, discarding home/away identity. [src/domain/schedule.ts]
+- [ ] [Review][Patch] **`validateMatchScore` determines "is this the last set" via array index but the target score via `set.setNo` — nothing validates `setNo` is sequential/unique/matches array position.** Found independently by Edge Case Hunter, Verification Gap Reviewer, and Blind Hunter — the strongest convergence in this review. Not exercised today (every test fixture happens to construct `sets` in order), but a real risk once Story 3.2's data layer becomes a real caller. [src/domain/validation.ts]
+- [ ] [Review][Patch] **Duplicate "which side won this set" comparison logic** — `scoring.ts`'s private `countSetsWon` and an inline reimplementation of the same comparison inside `validateMatchScore` (`validation.ts`). If the rule ever changes, only one copy is likely to get updated. [src/domain/scoring.ts, src/domain/validation.ts]
+- [ ] [Review][Patch] **`SetValidation` and `MatchValidation` are structurally identical types** (`{ok:true} | {ok:false; message:string}`) declared twice under different names. [src/domain/validation.ts]
+- [ ] [Review][Patch] **Notes on AC interpretation claims `tiebreak.ts` exports comparator logic that `scoring.ts` calls internally — backwards.** The diff shows the opposite: `tiebreak.ts` imports and calls `computeStandings` from `scoring.ts`; `scoring.ts` has zero references to `tiebreak.ts`. Inert architecturally (both directions are legal same-layer domain imports), but misleading documentation. [3-1-domain-engine-scoring-tiebreak-schedule-validation.md — Notes on AC interpretation]
+- [ ] [Review][Patch] **Dev Agent Record (Task 2) describes `orderStandings` as "a recursive tied-group resolver" — the actual code is a fixed three-stage linear pipeline** (`resolveTiedGroup` → `resolveBySetsWon` → `resolveByNameFallback`) with no recursive self-calls. [3-1-domain-engine-scoring-tiebreak-schedule-validation.md — Dev Agent Record]
+- [ ] [Review][Patch] **No `validateMatchScore`-level test exercises an illegal-margin `CUSTOM` match** — the story goes out of its way to document and defend "win-by-2 applies to both presets" as a deliberate decision, but the only margin tests go through the preset-agnostic `validateSetScore` directly; the only `CUSTOM`-specific `validateMatchScore` test covers set *count*, not margin. [src/domain/validation.test.ts]
+- [ ] [Review][Patch] **Two missing doc comments**: `scoring.ts`'s `computeStandings`/`matchPoints` don't state that they trust `sets` already passed `validateMatchScore` (an implicit module-boundary contract); `tiebreak.ts`'s name-fallback sort direction (ascending) is a judgment call like its two sibling decisions but isn't flagged as one anywhere. [src/domain/scoring.ts, src/domain/tiebreak.ts]
+
+#### Defer
+
+- [x] [Review][Defer] `generateSchedule` has no input validation for degenerate calls (`rounds <= 0` or non-integer, `entryIds.length` of 0 or 1, a duplicate `entryId` producing a self-paired match) [src/domain/schedule.ts] — deferred: `TEAM_COUNT_MIN`/`ROUNDS_MIN` (Story 2.4's `tournamentForm.ts`) already prevent these at tournament creation, before this function is ever called (Story 3.3 wires the real caller)
+- [x] [Review][Defer] `computeStandings` doesn't guard a self-match (`homeEntryId === awayEntryId`) or a duplicate `entryIds` entry (both silently corrupt/collapse a row) [src/domain/scoring.ts] — deferred, same reasoning: `TournamentEntry`'s own DB uniqueness and `generateSchedule`'s circle method structurally prevent both upstream
+- [x] [Review][Defer] `validateSetScore` doesn't guard a malformed (non-positive/non-integer) `target` passed directly [src/domain/validation.ts] — deferred, `target` is always derived via `targetScore()` in real call sites
+- [x] [Review][Defer] `orderStandings`'s `teamNames` map has no guard for a missing entry (silently sorts as `""`) [src/domain/tiebreak.ts] — deferred, the map is expected to be built from the same entries being ordered
+- [x] [Review][Defer] The win-by-2-for-both-presets rationale could cite stronger PRD textual support (FR-5's own wording that `CUSTOM` sets also play "до 25… крім Ветеранського — там … до 15," implying the same set-ending concept applies) than the story currently argues [3-1-domain-engine-scoring-tiebreak-schedule-validation.md] — deferred as a documentation-quality note (Acceptance Auditor's own framing: "the interpretation survives scrutiny but the stated rationale isn't the strongest available one"), not a functional gap
+
+#### Dismissed as noise / unreachable / out of scope (2)
+
+The `"__bye__"` sentinel colliding with a real `entryId` — unreachable given cuid's shape, not a realistic risk · test coverage skipping 2/3-team schedules — out of scope given the product's own `TEAM_COUNT_MIN = 4` constraint (Story 2.4); this algorithm's generality beyond the product's real range isn't a gap.
+
 ## Dev Notes
 
 ### What this story is / is NOT

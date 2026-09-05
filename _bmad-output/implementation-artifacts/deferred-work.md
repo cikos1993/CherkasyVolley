@@ -15,6 +15,16 @@ _Implementation review (`bmad-code-review`, 4 layers) over `git diff 2c6517e..HE
 - **No test asserts `listPlayersForEntry`'s documented `fullName`-ascending order.** Low-value test gap, same class as every other "no action-level test" item already tracked below.
 - **`editPlayer`'s `formError` path doesn't auto-close the edit form.** If a player is deleted concurrently (`count === 0`), the edit form stays open referencing a gone player until the admin manually clicks "Скасувати". Rare race at this project's admin-only scale, same class as other accepted concurrency gaps.
 
+## Deferred from: code review of 3-1-domain-engine-scoring-tiebreak-schedule-validation (2026-09-05)
+
+_Implementation review (`bmad-code-review`, 4 layers) over `git diff 1b20a7a..HEAD`. 0 decision-needed, 8 patched, 5 deferred, 2 dismissed._
+
+- **`generateSchedule` has no input validation for degenerate calls** (`rounds <= 0`, `entryIds` of length 0 or 1, a duplicate `entryId`). `TEAM_COUNT_MIN`/`ROUNDS_MIN` already prevent these at tournament creation before this function is ever called.
+- **`computeStandings` doesn't guard a self-match or a duplicate `entryIds` entry.** `TournamentEntry`'s DB uniqueness and `generateSchedule`'s circle method structurally prevent both upstream.
+- **`validateSetScore` doesn't guard a malformed `target` passed directly.** `target` is always derived via `targetScore()` in real call sites.
+- **`orderStandings`'s `teamNames` map has no guard for a missing entry.** Expected to be built from the same entries being ordered.
+- **The win-by-2-for-both-presets rationale could cite stronger PRD textual support** than the story currently argues (FR-5's own CUSTOM-target-score wording). Documentation-quality note, not a functional gap.
+
 ## Deferred from / decided in: Story 3.1 implementation (2026-09-05)
 
 - **No from-empty integration test yet** — this story is 100% unit-testable in isolation (no `src/data`/`Match`/`SetScore` schema until Story 3.2), unlike every prior story since 2.1. Story 3.2's `getStandings(tournamentId)` will be the first real integration point; a disposable-Neon-branch round-trip test belongs there, not here.
