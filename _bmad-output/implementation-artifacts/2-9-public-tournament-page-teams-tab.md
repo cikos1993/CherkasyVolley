@@ -80,9 +80,9 @@ Translated from `epics.md` → Epic 2 → Story 2.9. The Ukrainian source is aut
   - [x] Back-link to `/classic/[tournament]`, `<h1>{entry.team.name}</h1>`.
   - [x] `generateMetadata` — team name in `<title>`.
   - [x] `pnpm build` before `pnpm typecheck` (second new nested route this story). Route table confirms `/classic/[tournament]/teams/[team]` as `ƒ`.
-- [ ] **Task 7 — `src/app/classic/page.tsx` (UPDATE): real listing**
-  - [ ] Replace the unconditional `<EmptyState {...NO_TOURNAMENTS} />` with `listPublicTournaments()` → empty: unchanged `NO_TOURNAMENTS`; non-empty: a list, each row → name, year, type label (`TOURNAMENT_TYPE_LABELS`, `@/lib/tournament-labels`), `<StatusBadge>`, linking to `/classic/[tournament]`.
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 7 — `src/app/classic/page.tsx` (UPDATE): real listing**
+  - [x] Replace the unconditional `<EmptyState {...NO_TOURNAMENTS} />` with `listPublicTournaments()` → empty: unchanged `NO_TOURNAMENTS`; non-empty: a list, each row → name, year, type label (`TOURNAMENT_TYPE_LABELS`, `@/lib/tournament-labels`), `<StatusBadge>`, linking to `/classic/[tournament]`.
+  - [x] `typecheck`/`lint` clean.
 - [ ] **Task 8 — Docs**
   - [ ] `src/data/README.md` — `tournaments.ts` gains `getPublicTournament`/`listPublicTournaments` (first public reads — update the module's opening "two query flavours" note to point at real examples instead of the forward-looking placeholder text); `entries.ts` gains `getEntryByTeam`.
   - [ ] `src/components/README.md` — `status-badge.tsx` and `public-roster.tsx` entries.
