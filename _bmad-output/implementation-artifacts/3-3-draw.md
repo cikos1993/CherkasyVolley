@@ -85,7 +85,27 @@ Translated from `epics.md` → Epic 3 → Story 3.3. The Ukrainian source is aut
   - [x] Real command output + notes captured in the Dev Agent Record.
 - [x] **Task 9 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
 
-## Dev Notes
+### Review Findings
+
+_Code review (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Verification Gap Reviewer, Acceptance Auditor) over `git diff 02979c09..0c35e4c`. All 4 layers completed. 1 decision-needed, 3 patched, 3 deferred, 10 dismissed._
+
+#### Decision Needed
+
+- [ ] [Review][Decision] `entryIds` reach `generateSchedule` in the exact order `listEntriesForTournament` returns them (alphabetical by team name) and are never shuffled — `generateSchedule`'s injectable `shuffle` (Story 3.1) only reorders pairs *within* a tour and each pair's home/away side; `circleMethodTours`'s fixed anchor (`ids[0]`) and rotation mean the actual pairing structure (which team plays whom, in which tour) is a pure, deterministic function of `entryIds`' input order. In production this means the *matchup* pattern for a given set of team names is identical every time — not random at all, only its cosmetic listing order and home/away side are. [`src/actions/draw.ts:34-45`] — Given the feature is literally called "жеребкування" (a draw/lottery), and this is silent (no error, no test failure, looks correct), this needs a human call: (a) leave as-is (Story 3.1's own doc comment interprets the AC's "випадковим порядком пар у турах" as being about within-tour listing order only, a decision already made and reviewed in 3.1), or (b) shuffle `entryIds` before calling `generateSchedule` (requires exporting a shuffle helper from `src/domain/schedule.ts`, or having `drawTournament` shuffle locally) so the actual matchups are randomized, not just their presentation.
+
+#### Patch
+
+- [ ] [Review][Patch] "Жеребкування" section rendered unconditionally regardless of `tournament.state`, producing a confusing, self-referential message once already drawn (`checkTransition("GROUP_STAGE", "GROUP_STAGE", ...)` → "Неможливий перехід зі стану «Груповий етап» до «Груповий етап»."), and persisting forever through `PLAYOFF`/`COMPLETED`. [`src/app/admin/tournaments/[id]/page.tsx`] — 3-way convergence (Blind Hunter, Verification Gap Reviewer, Acceptance Auditor citing `EXPERIENCE.md`'s admin-action-bar spec, which scopes this button to the `DRAFT` bar only).
+- [ ] [Review][Patch] `drawTournament` never revalidates `/admin/tournaments` — the tournament list page keeps showing "Чернетка" after a successful draw until an unrelated cache expiry. [`src/actions/draw.ts:53-54`] — 2-way convergence (Blind Hunter, Edge Case Hunter).
+- [ ] [Review][Patch] `saveDraw`'s transaction-atomicity/rollback guarantee (stated in its own doc comment) is asserted but never verified by any test — `scripts/verify-draw.mts` only exercises the happy path. [`scripts/verify-draw.mts`, `src/data/draw.ts`] — Verification Gap Reviewer; fix is test-only (assert a second `saveDraw` call against an already-seated group throws and leaves row counts/state unchanged), no production-code change needed.
+
+#### Defer
+
+- [x] [Review][Defer] No atomic guard against two truly concurrent `drawTournament` calls (TOCTOU between `checkTransition`'s read and `saveDraw`'s write) [`src/actions/draw.ts`, `src/data/draw.ts`] — deferred, pre-existing risk class. Traced the transaction manually: a genuine race hits `GroupSlot`'s `@@unique([groupId, entryId])` inside `saveDraw`'s transaction, which rolls back cleanly (no data corruption) but surfaces to the losing caller as an unhandled exception / generic "Спробуйте ще раз" toast instead of a precise "вже проведено" message. Same accepted-risk class as `enrollTeam`/`transitionTournament`/`updateTournament`'s already-deferred TOCTOU gaps at this project's 2–5-admin scale.
+- [x] [Review][Defer] `drawTournament` does not map Prisma errors (the race above, or a `P2025` if the tournament is deleted mid-request) to a friendly `ActionResult` before `toActionError` re-throws them [`src/actions/draw.ts`] — deferred, pre-existing pattern identical to `setTournamentState`'s already-tracked `P2025` gap (deferred since the 2.3/2.7 reviews); `admin-roles.ts` has the same shape.
+- [x] [Review][Defer] Transaction timeout risk at the extreme of allowed input (`teamCount = 64`, `rounds = 10` → up to 20,160 `Match` rows in one `$transaction`) [`src/data/draw.ts`] — deferred, low probability at this project's real usage scale; a one-line `{ timeout }` option fixes it if ever hit.
+
+
 
 ### What this story is / is NOT
 

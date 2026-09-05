@@ -2,6 +2,14 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from: code review of 3-3-draw (2026-09-05)
+
+_Implementation review (`bmad-code-review`, 4 layers) over `git diff 02979c09..0c35e4c`. All 4 layers completed. 1 decision-needed, 3 patched, 3 deferred, 10 dismissed._
+
+- **No atomic guard against two truly concurrent `drawTournament` calls** (TOCTOU between `checkTransition`'s read and `saveDraw`'s write). Manually traced the transaction: a genuine race hits `GroupSlot`'s `@@unique([groupId, entryId])` inside `saveDraw`'s transaction, which rolls back cleanly (no data corruption) but surfaces to the losing caller as an unhandled exception / generic error toast instead of a precise "вже проведено" message. Same accepted-risk class as `enrollTeam`/`transitionTournament`/`updateTournament`'s already-deferred TOCTOU gaps at this project's 2–5-admin scale. Note: the earlier (Story 2.3-review) deferred item for `transitionTournament`'s TOCTOU gap explicitly said the atomic fix "belongs with the draw action" — this story's `saveDraw` transaction closes the *data-corruption* half of that (writes are atomic), but not the race-detection half (no conditional state check before writing); the general `transitionTournament` gap itself is still fully open.
+- **`drawTournament` does not map Prisma errors** (the race above, or a `P2025` if the tournament is deleted mid-request) to a friendly `ActionResult` before `toActionError` re-throws them. Pre-existing pattern identical to `setTournamentState`'s already-tracked `P2025` gap (deferred since the 2.3/2.7 reviews); `admin-roles.ts` has the same shape.
+- **Transaction timeout risk at the extreme of allowed input** (`teamCount = 64`, `rounds = 10` → up to 20,160 `Match` rows in one `$transaction`). Low probability at this project's real usage scale; a one-line `{ timeout }` option on `db.$transaction` fixes it if ever hit.
+
 ## Deferred from / decided in: Story 3.3 implementation (2026-09-05)
 
 - **No automated action-level test for `drawTournament` beyond the verify script.** Same class of gap as every prior `src/actions` function without a `requireAdmin`/session-mock harness. Mitigated by `scripts/verify-draw.mts` (the real DB round-trip through `checkTransition` → `generateSchedule` → `saveDraw`) + code review.
