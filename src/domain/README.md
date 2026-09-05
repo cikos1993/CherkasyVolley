@@ -47,6 +47,45 @@ schedule generation, playoff seeding and bracket advancement.
   the value passes straight through to `src/data`. No unique/dedup check — AC 3
   ("не забороняє однакове ПІБ") is an intentional absence, not a gap.
 
+- `scoring.ts` — group-stage points and standings (Story 3.1, glossary
+  "Система очок"/"Таблиця групи"). `matchPoints(sets, preset)` — `CLASSIC`
+  3/0 for a 3:0 or 3:1 sweep, 2/1 for a 3:2 decider; `CUSTOM` 1 point per set
+  won, both sides, always 3 sets. `computeStandings(entryIds, matches, preset)`
+  — `played`/`wins`/`losses`/`points`/`setsWon`/`setsLost` per entry,
+  aggregated fresh from `matches` every call (AD-4 — never stored). Ordering
+  is `tiebreak.ts`'s job, not this module's.
+
+- `tiebreak.ts` — group standings ordering (Story 3.1, FR-17). `orderStandings(rows,
+  matches, preset, teamNames)` implements the chain points → head-to-head
+  **mini-table** (a fresh `computeStandings` call restricted to just the
+  matches among the currently-tied entries, not the whole group) → total sets
+  won → team name (Ukrainian collation), flagging `needsManualSeed: true`
+  only on rows that reach the name fallback — a step that doesn't fully
+  resolve a tie (e.g. a 3-way results cycle) falls through to the next, it
+  doesn't recurse into its own chain.
+
+- `schedule.ts` — round-robin schedule generation (Story 3.1, glossary
+  "Жеребкування"). `generateSchedule(entryIds, rounds, shuffle?)` — the
+  standard circle method; an odd entry count gets one synthetic bye slot per
+  tour that's never emitted as a real pairing. `rounds` cycles **repeat the
+  identical pairing set** — a deliberate decision (no home/away swap between
+  cycles; see the Story 3.1 file's Notes on AC interpretation), only the
+  *order* pairs are listed within a tour is randomized, independently per
+  cycle, via the injectable `shuffle` (defaults to `Math.random`-based
+  Fisher–Yates; tests inject the identity function for determinism).
+
+- `validation.ts` — set-score validation (Story 3.1, FR-5/FR-15). `targetScore(preset,
+  tournamentType, setNo)` — `VETERAN` is always 15 regardless of preset;
+  otherwise 25, except `CLASSIC`'s decisive 5th set, always 15 — fixed per
+  FR-5's own `[NOTE FOR PM]`, PRD Open Question #5 is already resolved for
+  v1, not actually open. `validateSetScore(homePoints, awayPoints, target)`
+  — win-by-2, applied to **both** presets (PRD states the rule only under
+  `CLASSIC`'s wording, but nothing there redefines what winning a *set*
+  means under `CUSTOM`). `validateMatchScore(sets, preset, tournamentType)`
+  — `CLASSIC` ends the instant one side reaches 3 set-wins (a set played
+  after that point is invalid); `CUSTOM` is always exactly 3 sets, no
+  early-stop concept.
+
 The Vitest runner (`pnpm test`) was added alongside the first module.
 
 **May import:** other `src/domain` modules, the standard library, pure npm utilities.

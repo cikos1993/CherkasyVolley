@@ -64,10 +64,10 @@ Translated from `epics.md` → Epic 3 → Story 3.1. The Ukrainian source is aut
   - [x] `validateSetScore(homePoints, awayPoints, target): { ok: true } | { ok: false; message: string }` — winner must reach `>= target` with a lead `>= 2`; the loser's score has no independent ceiling beyond what the margin rule implies; reject negative/non-integer inputs.
   - [x] `validateMatchScore(sets, preset, tournamentType): { ok: true } | { ok: false; message: string }` — `CLASSIC`: 3 to 5 sets, ends the instant one side reaches 3 set-wins (any set played after that point is invalid), each set validated via `validateSetScore` with the right `targetScore` per `setNo`; `CUSTOM`: exactly 3 sets, no early-stop rule (all 3 always played per FR-5).
   - [x] Vitest: `targetScore` for every `(preset, type, setNo)` combination that matters; `validateSetScore` legal scores at the boundary (25:23, 26:24, 27:25), illegal margin-1 (25:24), illegal below-target; `validateMatchScore` a complete legal `CLASSIC` 3:2 match, an illegal `CLASSIC` match with a 4th set played after a 3:0 sweep, an incomplete `CLASSIC` match, a complete legal `CUSTOM` match, an illegal `CUSTOM` match with only 2 sets, a `CLASSIC` 5th set failing the 15-point target. `pnpm test` → 9 files, 99/99.
-- [ ] **Task 5 — Docs**
-  - [ ] `src/domain/README.md` — four new module entries (`scoring.ts`, `tiebreak.ts`, `schedule.ts`, `validation.ts`), each summarizing its exported functions and the one non-obvious rule (win-by-2 applies to both presets; no home/away swap across cycles; the mini-table tiebreak step).
-  - [ ] `AGENTS.md` — Stack-status bullet for Story 3.1 (the epic's own convention: "Перша історія — чистий двигун").
-  - [ ] No `ARCHITECTURE-SPINE.md` edit — this story implements AD-2/AD-4/NFR-3 exactly as already specified, no new invariant.
+- [x] **Task 5 — Docs**
+  - [x] `src/domain/README.md` — four new module entries (`scoring.ts`, `tiebreak.ts`, `schedule.ts`, `validation.ts`), each summarizing its exported functions and the one non-obvious rule (win-by-2 applies to both presets; no home/away swap across cycles; the mini-table tiebreak step).
+  - [x] `AGENTS.md` — Stack-status bullet for Story 3.1 (the epic's own convention: "Перша історія — чистий двигун").
+  - [x] No `ARCHITECTURE-SPINE.md` edit — this story implements AD-2/AD-4/NFR-3 exactly as already specified, no new invariant.
 - [ ] **Task 6 — `deferred-work.md` (UPDATE)**
   - [ ] New "Story 3.1 implementation" section: no from-empty integration test yet (no `src/data`/`Match`/`SetScore` schema until Story 3.2 — this story is 100% unit-testable in isolation, unlike every prior story); the win-by-2-applies-to-both-presets decision flagged as a judgment call worth revisiting if a real regulation ever states otherwise; the no-home/away-swap decision flagged the same way.
 - [ ] **Task 7 — Verification gate** (AC: all)
