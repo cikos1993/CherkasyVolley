@@ -13,7 +13,7 @@ context:
 
 # Story 3.3: Draw
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -77,13 +77,13 @@ Translated from `epics.md` → Epic 3 → Story 3.3. The Ukrainian source is aut
   - [x] `deferred-work.md`'s Story 2.3-review AD-8-wording item — note that this story is the first "окрема Server Action" per transition AD-8 originally described, without resolving the spine-wording tension itself (still an open item, just partially addressed in practice).
 - [x] **Task 7 — `deferred-work.md` (UPDATE)**
   - [x] New "Story 3.3 implementation" section: no automated action-level test for `drawTournament` beyond the verify script (Task 8); the transaction's atomicity is asserted by the verify script but not stress-tested under real concurrency (same accepted-risk class as every other TOCTOU item already tracked); `generateSchedule`'s default `Math.random`-based shuffle means the draw's actual pairing order is non-deterministic in production — expected and desired (FR-11's "випадковий порядок"), noted so a future reader doesn't mistake it for a bug.
-- [ ] **Task 8 — Verification gate** (AC: all)
-  - [ ] `pnpm test` unchanged (no new `src/domain` module) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean (no new route).
-  - [ ] Import-boundary greps: `src/data/draw.ts` is the only new Prisma-client import site.
-  - [ ] `scripts/verify-draw.mts` (NEW, self-cleaning): create a throwaway `DRAFT` tournament with `teamCount = 4`, enter exactly 4 teams → call the same logic `drawTournament` would (via `checkTransition` + `generateSchedule` + `saveDraw`, exercised directly at the `src/data`/`src/domain` level, the same style every prior verify script uses to bypass `requireAdmin()`) → assert: `GroupSlot` has exactly 4 rows, one per entry; `Match` has exactly `C(4,2) × rounds` rows, all `stage: "GROUP"`, `groupId` set, both entries set; `Tournament.state` is now `GROUP_STAGE`; `getStandings(tournamentId)` (Story 3.2) returns all 4 entries with `played: 0` (no `SetScore` yet) → also assert `checkTransition` correctly refuses the draw when entry count ≠ `teamCount` (no DB writes attempted) → full teardown.
-  - [ ] Re-run all seven prior verify scripts — no regression.
-  - [ ] Real command output + notes captured in the Dev Agent Record.
-- [ ] **Task 9 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
+- [x] **Task 8 — Verification gate** (AC: all)
+  - [x] `pnpm test` unchanged (no new `src/domain` module) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean (no new route).
+  - [x] Import-boundary greps: `src/data/draw.ts` is the only new Prisma-client import site. (Confirmed: grepping `@/generated/prisma|@prisma/client` across `src/` returns only `src/data/**` files plus module READMEs.)
+  - [x] `scripts/verify-draw.mts` (NEW, self-cleaning): create a throwaway `DRAFT` tournament with `teamCount = 4`, enter exactly 4 teams → call the same logic `drawTournament` would (via `checkTransition` + `generateSchedule` + `saveDraw`, exercised directly at the `src/data`/`src/domain` level, the same style every prior verify script uses to bypass `requireAdmin()`) → assert: `GroupSlot` has exactly 4 rows, one per entry; `Match` has exactly `C(4,2) × rounds` rows, all `stage: "GROUP"`, `groupId` set, both entries set; `Tournament.state` is now `GROUP_STAGE`; `getStandings(tournamentId)` (Story 3.2) returns all 4 entries with `played: 0` (no `SetScore` yet) → also assert `checkTransition` correctly refuses the draw when entry count ≠ `teamCount` (no DB writes attempted) → full teardown.
+  - [x] Re-run all seven prior verify scripts — no regression.
+  - [x] Real command output + notes captured in the Dev Agent Record.
+- [x] **Task 9 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
 
 ## Dev Notes
 
@@ -193,6 +193,7 @@ claude-sonnet-5 (bmad-dev-story)
 - Task 4: `DrawTournamentButton` added to `src/components/tournament-actions.tsx` — `useTransition` + `checkTransition` for disabled+captioned state, `team-enrollment.tsx`'s `enroll()` shape, no `ConfirmDialog`. `typecheck`/`lint` clean.
 - Task 5: `/admin/tournaments/[id]` renders a new "Жеребкування" section with `DrawTournamentButton`, passing `entries.length` (already-fetched `entries`). `typecheck`/`lint` clean.
 - Tasks 6-7: updated `src/data/README.md`, `src/actions/README.md`, `src/components/README.md`, `AGENTS.md` (Stack-status bullet), and `deferred-work.md` (new Story 3.3 section + annotated the existing AD-8-wording item).
+- Task 8: `pnpm test` 103/103 unchanged, `pnpm typecheck`/`pnpm lint` clean, `pnpm build` clean (no new route — `/admin/tournaments/[id]` is existing). Import-boundary grep confirms `src/data/**` is the only place importing the Prisma client. New `scripts/verify-draw.mts` — all 14 assertions pass (precondition refusal, `GroupSlot`/`Match` row counts and shape, `Tournament.state` transition, post-draw `getStandings` all-zero-played, full teardown). Re-ran all 7 prior verify scripts (`verify-admin-roles`, `verify-tournament-create`, `verify-tournament-edit-delete`, `verify-team-create`, `verify-team-enrollment`, `verify-roster`, `verify-public-tournament`, `verify-group-stage-schema`) — no regression.
 
 ### File List
 
@@ -206,9 +207,11 @@ claude-sonnet-5 (bmad-dev-story)
 - `src/components/README.md` (UPDATE)
 - `AGENTS.md` (UPDATE)
 - `_bmad-output/implementation-artifacts/deferred-work.md` (UPDATE)
+- `scripts/verify-draw.mts` (NEW)
 
 ## Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-05 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
+| 2026-09-05 | Implementation complete (`bmad-dev-story`) — all 9 tasks done, `pnpm test`/`typecheck`/`lint`/`build` clean, all 8 verify scripts (7 prior + new `verify-draw.mts`) pass. Status: review. |
