@@ -91,7 +91,22 @@ PRD FR-12 (`prd.md` §4.4, cited in the story's context) adds two checkable cons
   - [x] Real command output + notes captured in the Dev Agent Record.
 - [x] **Task 10 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
 
-## Dev Notes
+### Review Findings
+
+_Code review (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Verification Gap Reviewer, Acceptance Auditor) over `git diff 7acfa77..8397d9b`. All 4 layers completed (2 layers required a retry after a session rate limit reset). 0 decision-needed, 1 patched, 4 deferred, 12 dismissed._
+
+#### Patch
+
+- [ ] [Review][Patch] TOCTOU between `hasAnyGroupResult`'s check and `saveRedraw`'s transaction: a `SetScore` inserted in that narrow window is silently cascade-deleted by the redraw with no re-check inside the transaction — qualitatively worse than the already-accepted "ugly error message" TOCTOU class elsewhere, since this one can silently destroy a legitimately-entered match result rather than just fail an admin action. [`src/actions/draw.ts`, `src/data/draw.ts`] — 2-way convergence (Blind Hunter, Edge Case Hunter).
+
+#### Defer
+
+- [x] [Review][Defer] `saveRedraw` deletes by `tournamentId + stage` only, not scoped by `groupId` (unlike `saveDraw`'s consistent `groupId` scoping) [`src/data/draw.ts`] — deferred, currently inert since v1 has exactly one `Group` per `Tournament`; a latent inconsistency for the future multi-group format `GroupSlot`'s split from `TournamentEntry` was designed to allow.
+- [x] [Review][Defer] `drawTournament`/`redrawTournament` only revalidate the discipline index page, not the public tournament-detail route (`/classic/[tournament]`) [`src/actions/draw.ts`] — deferred, pre-existing Story 3.3 gap repeated verbatim here; zero practical effect today since no public route displays `Match` data yet (Story 3.5/3.8 own that).
+- [x] [Review][Defer] Two concurrent `redrawTournament` calls can interleave so the "losing" admin's freshly-generated calendar is silently overwritten by the other's [`src/actions/draw.ts`] — deferred, no data loss (nothing committed disappears, just non-deterministic which redraw "wins"); same accepted TOCTOU risk class already deferred for `drawTournament`/`enrollTeam`/`transitionTournament` at this project's 2–5-admin scale.
+- [x] [Review][Defer] `/admin/tournaments/[id]/page.tsx` fetches `hasAnyGroupResult` unconditionally even for `DRAFT`/`PLAYOFF`/`COMPLETED` tournaments where the redraw section never renders [`src/app/admin/tournaments/[id]/page.tsx`] — deferred, an avoidable but negligible extra query at this project's scale.
+
+
 
 ### What this story is / is NOT
 

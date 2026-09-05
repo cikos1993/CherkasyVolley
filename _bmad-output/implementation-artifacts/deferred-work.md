@@ -2,6 +2,14 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from: code review of 3-4-redraw (2026-09-06)
+
+_Implementation review (`bmad-code-review`, 4 layers) over `git diff 7acfa77..8397d9b`. All 4 layers completed (2 required a retry after a session rate limit reset). 0 decision-needed, 1 patched, 4 deferred, 12 dismissed._
+
+- **`saveRedraw` deletes by `tournamentId + stage` only, not scoped by `groupId`** (unlike `saveDraw`'s consistent `groupId` scoping). Currently inert — v1 has exactly one `Group` per `Tournament` — but a latent inconsistency for the future multi-group format `GroupSlot`'s split from `TournamentEntry` was designed to allow.
+- **`drawTournament`/`redrawTournament` only revalidate the discipline index page, not the public tournament-detail route** (`/classic/[tournament]`). Pre-existing Story 3.3 gap, repeated verbatim here. Zero practical effect today since no public route displays `Match` data yet — becomes relevant once Story 3.5/3.8 render schedule/standings publicly.
+- **`/admin/tournaments/[id]/page.tsx` fetches `hasAnyGroupResult` unconditionally**, even for `DRAFT`/`PLAYOFF`/`COMPLETED` tournaments where the redraw section never renders. An avoidable but negligible extra query at this project's scale.
+
 ## Deferred from / decided in: Story 3.4 implementation (2026-09-05)
 
 - **No automated action-level test for `redrawTournament` beyond the verify script.** Same class of gap as `drawTournament`'s already-deferred item (Story 3.3) — no `requireAdmin`/session-mock harness exists yet. Mitigated by `scripts/verify-redraw.mts` (the real DB round-trip through `checkCanRedraw` → `generateSchedule` → `saveRedraw`) + the domain logic's own Vitest coverage (`redraw.test.ts`).
