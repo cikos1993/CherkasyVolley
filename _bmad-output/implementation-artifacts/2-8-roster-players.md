@@ -18,7 +18,7 @@ context:
 
 # Story 2.8: Team roster — players
 
-Status: ready-for-dev
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -52,13 +52,13 @@ Translated from `epics.md` → Epic 2 → Story 2.8. The Ukrainian source is aut
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — `src/domain/playerForm.ts` (NEW) + Vitest spec** (AC: 1, 2, 3)
-  - [ ] Pure module. `FULL_NAME_MAX = 120` (matches the `name`-field bound convention already used for `Tournament.name`/`Team.name`); `FREE_TEXT_MAX = 60` for the six optional fields (generous for values like "180 см", "діагональний", "1995-05-12").
-  - [ ] `PlayerInput = { fullName: string; birthDate: string | null; birthPlace: string | null; sportRank: string | null; position: string | null; height: string | null; weight: string | null }` — `null` (not `undefined` or `""`) is the "empty" sentinel, matching Prisma's own `String?` nullability so the data layer can pass the validated value straight through.
-  - [ ] `PlayerField = keyof PlayerInput`; `FieldErrors = Partial<Record<PlayerField, string>>`.
-  - [ ] `validatePlayer(raw)` — trims every field; `fullName` empty → `"Вкажіть ПІБ гравця."`, over `FULL_NAME_MAX` → a length message; each optional field: empty after trim → `null`, over `FREE_TEXT_MAX` → a length message (keyed to that field), otherwise the trimmed string. Collects every failing field at once (the `validateNewTournament`/`validateNewTeam` convention).
-  - [ ] `src/domain/playerForm.test.ts` — valid input with all fields; valid input with only `fullName` (others become `null`); empty/whitespace-only `fullName` rejected; `fullName` over max rejected; each optional field over its max rejected independently; multiple simultaneous failures all reported; Ukrainian message content assertions (not just a Cyrillic regex — apply the Story 2.7 review's own lesson about weak message-content tests).
-  - [ ] `pnpm test` green (new file only).
+- [x] **Task 1 — `src/domain/playerForm.ts` (NEW) + Vitest spec** (AC: 1, 2, 3)
+  - [x] Pure module. `FULL_NAME_MAX = 120`; `FREE_TEXT_MAX = 60` for the six optional fields.
+  - [x] `PlayerInput` — `null` is the "empty" sentinel for optional fields.
+  - [x] `PlayerField = keyof PlayerInput`; `FieldErrors = Partial<Record<PlayerField, string>>`.
+  - [x] `validatePlayer(raw)` — trims every field; collects every failing field at once.
+  - [x] `src/domain/playerForm.test.ts` — 9 tests: all-filled, name-only (others null), whitespace-only optional → null, exact-max accepted, empty/whitespace `fullName` rejected (message content asserted), over-max `fullName` (message content asserted), each optional field over max independently, multi-error, Ukrainian message assertion.
+  - [x] `pnpm test` → 5 files, 68/68.
 - [ ] **Task 2 — `src/data/entries.ts` (UPDATE): `getEntryForAdmin`** (AC: 1, 2, 3, 4)
   - [ ] `getEntryForAdmin(tournamentId: string, entryId: string)` — `db.tournamentEntry.findFirst({ where: { id: entryId, tournamentId }, select: { id: true, teamId: true, team: { select: { id: true, name: true } } } })`. Returns `null` when the ids don't pair up (wrong tournament, or the entry doesn't exist) — the page's `notFound()` gate and every player action call this first, never a bare `db.tournamentEntry.findUnique({ where: { id: entryId } })`.
 - [ ] **Task 3 — `src/data/players.ts` (NEW)** (AC: 1, 2, 3, 4)
