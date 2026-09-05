@@ -17,7 +17,7 @@ context:
 
 # Story 3.5: Розклад матчів
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -314,3 +314,4 @@ claude-sonnet-5 (bmad-dev-story)
 | --- | --- |
 | 2026-09-06 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-06 | Open questions resolved by the user ("роби як вважаєш"): dedicated admin route (not inline section); `?tab=` query param (not sub-routes); pre-draw admin schedule page shows a friendly line, not `notFound()`; `teamCount` min 4 is not a 3.5 concern. |
+| 2026-09-06 | Implementation complete (`bmad-dev-story`) — all 14 tasks done. `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 124/124 (17 new), `scripts/verify-match-schedule.mts` (22 assertions) + all 10 prior verify scripts pass. Two carried deferred items closed (public-route revalidation; the deferred `?tab=` tab component). Status: review. |
