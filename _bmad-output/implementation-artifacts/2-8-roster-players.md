@@ -18,7 +18,7 @@ context:
 
 # Story 2.8: Team roster — players
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -101,7 +101,7 @@ Translated from `epics.md` → Epic 2 → Story 2.8. The Ukrainian source is aut
   - [x] Re-ran all four prior verify scripts (`verify-tournament-create.mts`, `verify-tournament-edit-delete.mts`, `verify-team-create.mts`, `verify-team-enrollment.mts`) — all green, no cross-story regression.
   - [x] **Browser walkthrough — not run** (no automated Google OAuth in this environment, the same residual gap carried since Story 2.4). Coverage instead: `typecheck`/`lint`/`build` + the verify script (the real AC-1/AC-2/AC-4 check) + code review.
   - [x] Real command output + notes captured in the Dev Agent Record.
-- [ ] **Task 12 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
+- [x] **Task 12 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
 
 ## Dev Notes
 
@@ -255,3 +255,14 @@ claude-sonnet-5
 | Date | Change |
 | --- | --- |
 | 2026-09-05 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
+| 2026-09-05 | Task 1 — `src/domain/playerForm.ts`: `validatePlayer` + 9 Vitest cases. `bmad-dev-story`. |
+| 2026-09-05 | Task 2 — `src/data/entries.ts`: `getEntryForAdmin(tournamentId, entryId)`. |
+| 2026-09-05 | Task 3 — `src/data/players.ts`: `listPlayersForEntry`, `createPlayer`, `updatePlayer`, `deletePlayer` — all `(entryId, playerId)`-scoped from the start. |
+| 2026-09-05 | Task 4 — `src/actions/players.ts`: `addPlayer`, `editPlayer`, `removePlayer`. |
+| 2026-09-05 | Task 5 — `player-form.tsx`; two new ESLint rules hit and fixed (`react-hooks/set-state-in-effect`, `react-hooks/refs`). |
+| 2026-09-05 | Task 6 — `roster.tsx`: player list, inline edit swap, create form. |
+| 2026-09-05 | Task 7 — `/admin/tournaments/[id]/entries/[entryId]/page.tsx`. |
+| 2026-09-05 | Task 8 — `team-enrollment.tsx`: "Склад" link per entry row. |
+| 2026-09-05 | Task 9 — README + `AGENTS.md` updates; fixed a stale Story 2.7 doc line (`removeTeamEntry`'s `P2025` mapping) in `src/actions/README.md`. |
+| 2026-09-05 | Task 10 — `deferred-work.md`: new "Story 2.8 implementation" section. |
+| 2026-09-05 | Task 11/12 — verification gate green; new `scripts/verify-roster.mts` (15/15), including the direct regression test for the Story 2.7 lesson applied to players. All five verify scripts re-run together, no regression. Status → review. |
