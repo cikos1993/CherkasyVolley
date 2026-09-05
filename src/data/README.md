@@ -39,6 +39,11 @@ goes through a named function exported from here — `getPublicTournaments`,
   `updateTournamentRecord` take the `NewTournamentInput` type from `src/domain`
   (a sanctioned `data → domain` type import — see the open item below);
   `getTournamentForAdmin` / `deleteTournamentRecord` take only an `id`.
+  **`getPublicTournament(id)` / `listPublicTournaments()` (Story 2.9)** — the
+  first public (role-blind) reads in this file, both filtering
+  `state != DRAFT` **and** `discipline = CLASSIC` unconditionally (AD-7/AD-9);
+  a draft-preview exception, if a caller wants one, is resolved one layer up
+  in the view (see `src/app/classic/[tournament]/page.tsx`), never here.
 - `teams.ts` — `listTeams()` (every team, ordered by name — no draft/privacy
   concept, unlike `Tournament`) and `createTeamRecord(input)` — **the sole
   creator of a `Team`**; writes `input.name` and `input.nameKey` as given (both
@@ -62,7 +67,13 @@ goes through a named function exported from here — `getPublicTournaments`,
   `P2025`). Relies on the schema's `Player.entryId onDelete: Cascade` to
   remove the roster, no explicit cleanup code. `TOURNAMENT_ENTRY_NATURAL_KEY_INDEX`
   is the Postgres index name backing `@@unique([tournamentId, teamId])`, used
-  with `errors.ts`'s `isUniqueViolation`.
+  with `errors.ts`'s `isUniqueViolation`. **`getEntryByTeam(tournamentId, teamId)`
+  (Story 2.9)** — scoped by both ids together like `getEntryForAdmin`, but
+  keyed by `teamId` (what the public roster route carries) instead of
+  `entryId`. Deliberately **visibility-agnostic** — no state/discipline
+  filter; the caller (a `src/app/classic/**` page) resolves whether the
+  tournament is visible first, the same "scoping ≠ visibility" split
+  `getEntryForAdmin` already models on the admin side.
 - `players.ts` — the `Player` roster (Story 2.8), every function scoped by
   `(entryId, playerId)` together, never `playerId` alone (the same lesson as
   `entries.ts`'s Story 2.7 fix, applied here from the start).
@@ -77,12 +88,13 @@ goes through a named function exported from here — `getPublicTournaments`,
 The `Tournament`, `Team`, `TournamentEntry` and `Player` entities (schema landed in
 Story 2.1, migration `20260903174727_tournament_schema`) are owned here too; their
 query/write functions arrive with the feature stories (create → 2.4, team directory
-→ 2.6, entries → 2.7, players → 2.8). Two query flavours per read:
+→ 2.6, entries → 2.7, players → 2.8, public reads → 2.9). Two query flavours per read:
 
 - **public** — filter `state != DRAFT` **and** `discipline = CLASSIC` (AD-7, AD-9).
-  Called from Server Components, no auth.
+  Called from Server Components, no auth. First examples: `getPublicTournament` /
+  `listPublicTournaments` (`tournaments.ts`, Story 2.9).
 - **admin** — includes drafts; a separate function, called only from under
-  `requireAdmin()`.
+  `requireAdmin()`. Example: `getTournamentForAdmin`.
 
 `Tournament.state` is written only by `transitionTournament` (Story 2.3 / AD-8),
 never assigned. Standings and playoff placements are **never** stored (AD-4) —

@@ -222,3 +222,29 @@ is always rendered at the bottom. Empty roster → `<EmptyState {...NO_PLAYERS} 
 hand-written `<p>`, bypassing this project's own empty-state convention). No
 roster-size cap or dedup UI — Story 2.8's AC leaves "duplicate ПІБ allowed"
 as an intentional absence.
+
+## `status-badge.tsx`
+
+`StatusBadge({ state })` — the first public-facing status pill (Story 2.9).
+`state: TournamentState` (type-only `view → domain` import from
+`@/domain/tournamentState`, the `tournament-form.tsx` precedent), text from
+that module's existing `LABELS`. Visual variant per `DESIGN.md`'s
+`status-badge` token: `DRAFT` → `bg-muted`/`text-muted-foreground` fill
+(reachable only via the admin draft-preview fallback, never shown to a plain
+visitor); `GROUP_STAGE`/`PLAYOFF` → `border-primary`/`text-primary` outline;
+`COMPLETED` → `border-muted-foreground`/`text-muted-foreground` outline.
+Used on `/classic` (the listing) and `/classic/[tournament]`.
+
+## `public-roster.tsx`
+
+`PublicRoster({ players })` — the read-only counterpart to the admin
+`Roster`/`PlayerRow` (Story 2.8), used on the public
+`/classic/[tournament]/teams/[team]` page. **Not** a reuse-with-a-flag of
+the admin components — no edit/delete affordances, no `ConfirmDialog`, no
+`@/actions` import, since every admin affordance there assumes a session
+this page never checks for. Same non-null-optional-field filtering as
+`PlayerRow`, sharing the same `PLAYER_OPTIONAL_FIELDS` labels
+(`@/lib/player-labels`, extracted during Story 2.8's own code review
+specifically so a future consumer like this one wouldn't re-duplicate them).
+Empty roster → a plain line, not `EmptyState` — a team with zero players
+mid-setup is a data-quality state, not a "nothing here yet" product surface.
