@@ -57,13 +57,13 @@ Translated from `epics.md` → Epic 2 → Story 2.7. The Ukrainian source is aut
   - [x] `checkCanRemoveEntry(state)` — DRAFT-only gate.
   - [x] `src/domain/teamEnrollment.test.ts` — 6 tests: DRAFT + under-capacity passes; every non-DRAFT state rejected; at/over capacity rejected; state takes priority over capacity in the message; Ukrainian message assertion.
   - [x] `pnpm test` → 4 files, 59/59.
-- [ ] **Task 2 — `src/data/entries.ts` (NEW): reads, writers, relocated `countTournamentEntries`** (AC: 1, 2, 3)
-  - [ ] `listEntriesForTournament(tournamentId: string)` — `db.tournamentEntry.findMany({ where: { tournamentId }, orderBy: { team: { name: "asc" } }, select: { id: true, teamId: true, team: { select: { id: true, name: true } } } })`. Admin read (no draft/privacy split needed — entries are only ever read from the already-admin-gated `[id]` page in this story; a public read is Story 2.9's decision).
-  - [ ] `countTournamentEntries(tournamentId: string)` — **moved verbatim from `src/data/tournaments.ts`** (`db.tournamentEntry.count({ where: { tournamentId } })`).
-  - [ ] `createEntry(tournamentId: string, teamId: string): Promise<{ id: string }>` — **the sole creator of a `TournamentEntry`** — `db.tournamentEntry.create({ data: { tournamentId, teamId }, select: { id: true } })`.
-  - [ ] `deleteEntry(entryId: string)` — **the sole "canceler"** — `db.tournamentEntry.delete({ where: { id: entryId } })`. Relies on the existing cascade FK (`Player.entryId onDelete: Cascade`, Story 2.1) to remove the roster (AC 3) — no new schema work.
-  - [ ] `export const TOURNAMENT_ENTRY_NATURAL_KEY_INDEX = "tournament_entry_tournamentId_teamId_key";` — the Postgres index backing `@@unique([tournamentId, teamId])` (confirmed live in `prisma/migrations/20260903174727_tournament_schema/migration.sql:78` — no guesswork needed, unlike Story 2.4/2.6's first-time live discoveries).
-  - [ ] `src/data/tournaments.ts` — remove `countTournamentEntries`; `src/actions/tournaments.ts` (`transitionTournament`) imports it from `@/data/entries` instead. No other change to that file.
+- [x] **Task 2 — `src/data/entries.ts` (NEW): reads, writers, relocated `countTournamentEntries`** (AC: 1, 2, 3)
+  - [x] `listEntriesForTournament(tournamentId)` — joined `team: { id, name }` select, ordered by team name.
+  - [x] `countTournamentEntries(tournamentId)` — moved from `src/data/tournaments.ts`.
+  - [x] `createEntry(tournamentId, teamId)` — sole creator.
+  - [x] `deleteEntry(entryId)` — sole canceler; cascade handles `Player` removal.
+  - [x] `TOURNAMENT_ENTRY_NATURAL_KEY_INDEX = "tournament_entry_tournamentId_teamId_key"` — matches the migration file verbatim.
+  - [x] `src/data/tournaments.ts` — `countTournamentEntries` removed; `src/actions/tournaments.ts` imports it from `@/data/entries`. `typecheck`/`lint` clean.
 - [ ] **Task 3 — `src/actions/entries.ts` (NEW): `enrollTeam` + `removeTeamEntry`** (AC: 1, 2, 3)
   - [ ] `enrollTeam(tournamentId: string, teamId: string): Promise<ActionResult<undefined>>` — `try { requireAdmin(); const tournament = await getTournamentForAdmin(tournamentId); if (!tournament) return NOT_FOUND; const entryCount = await countTournamentEntries(tournamentId); const check = checkCanEnroll(tournament.state, entryCount, tournament.teamCount); if (!check.ok) return { ok:false, code:"PRECONDITION_FAILED", message: check.message }; await createEntry(tournamentId, teamId); } catch (error) { if (isUniqueViolation(error, TOURNAMENT_ENTRY_NATURAL_KEY_INDEX)) return { ok:false, code:"PRECONDITION_FAILED", message:"Ця команда вже заявлена в цей турнір." }; return toActionError(error); }` → `revalidatePath(\`/admin/tournaments/${tournamentId}\`)` → `{ ok: true, data: undefined }`.
   - [ ] `removeTeamEntry(tournamentId: string, entryId: string): Promise<ActionResult<undefined>>` — same shape: `requireAdmin()` → `getTournamentForAdmin` (not found → `NOT_FOUND`) → `checkCanRemoveEntry(tournament.state)` (not ok → `PRECONDITION_FAILED`) → `deleteEntry(entryId)` in a narrowed try (`isRecordNotFound` → `NOT_FOUND` "Заявку вже видалено.", else re-throw via `toActionError`) → `revalidatePath` → `{ ok: true }`.

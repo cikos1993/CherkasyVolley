@@ -12,10 +12,6 @@ export function getTournamentForAdmin(id: string) {
   return db.tournament.findUnique({ where: { id } });
 }
 
-export function countTournamentEntries(tournamentId: string) {
-  return db.tournamentEntry.count({ where: { tournamentId } });
-}
-
 /**
  * The only writer of `Tournament.state`. The transition must already have been
  * validated (see `src/domain/tournamentState`) — this function performs no

@@ -6,8 +6,8 @@ import { redirect } from "next/navigation";
 import { toActionError, type ActionResult } from "@/actions/result";
 import { AdminRequiredError, requireAdmin } from "@/auth/requireAdmin";
 import { isRecordNotFound, isUniqueViolation } from "@/data/errors";
+import { countTournamentEntries } from "@/data/entries";
 import {
-  countTournamentEntries,
   createTournamentRecord,
   deleteTournamentRecord,
   getTournamentForAdmin,
