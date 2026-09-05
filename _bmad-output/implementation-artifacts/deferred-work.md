@@ -25,6 +25,12 @@ _Implementation review (`bmad-code-review`, 4 layers) over `git diff 1b20a7a..HE
 - **`orderStandings`'s `teamNames` map has no guard for a missing entry.** Expected to be built from the same entries being ordered.
 - **The win-by-2-for-both-presets rationale could cite stronger PRD textual support** than the story currently argues (FR-5's own CUSTOM-target-score wording). Documentation-quality note, not a functional gap.
 
+## Deferred from / decided in: Story 3.2 implementation (2026-09-05)
+
+- **No automated action-level test for `getStandings` beyond the verify script.** Same class of gap as every prior `src/data` function (no `requireAdmin`/session-mock infra) — though `getStandings` itself needs no admin gate, since it will be called from a public page (Story 3.8). Mitigated by `scripts/verify-group-stage-schema.mts` (the real DB round-trip) + code review.
+- **`GroupSlot` has no seed/position field.** Only membership (`groupId`, `entryId`) is modeled. Revisit if a future story needs manual reseeding beyond the read-only `needsManualSeed` display flag (`tiebreak.ts`, Story 3.1) — nothing in Epic 3/4's stories asks for one today.
+- **`Match.homeEntryId`/`awayEntryId` are nullable now, but this story never actually stores a null value there.** The nullability exists purely for Epic 4's `FINAL`/`THIRD_PLACE` playoff rows (AD-5's "computed live until a result exists" rule) — flagged here so Epic 4's bracket story doesn't have to rediscover why the columns are already nullable, and so nobody "fixes" them to `NOT NULL` in the meantime.
+
 ## Deferred from / decided in: Story 3.1 implementation (2026-09-05)
 
 - **No from-empty integration test yet** — this story is 100% unit-testable in isolation (no `src/data`/`Match`/`SetScore` schema until Story 3.2), unlike every prior story since 2.1. Story 3.2's `getStandings(tournamentId)` will be the first real integration point; a disposable-Neon-branch round-trip test belongs there, not here.
