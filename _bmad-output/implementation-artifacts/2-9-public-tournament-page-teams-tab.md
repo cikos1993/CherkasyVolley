@@ -16,7 +16,7 @@ context:
 
 # Story 2.9: Public tournament page & Teams tab
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -99,7 +99,7 @@ Translated from `epics.md` → Epic 2 → Story 2.9. The Ukrainian source is aut
   - [x] Re-ran all five prior verify scripts (`verify-tournament-create.mts`, `verify-tournament-edit-delete.mts`, `verify-team-create.mts`, `verify-team-enrollment.mts`, `verify-roster.mts`) — 13/13, 15/15, 5/5, 12/12, 19/19, no regression.
   - [x] **Real browser walkthrough — finally not blocked by the missing OAuth automation.** Seeded a live `GROUP_STAGE` tournament (2 teams — one with 2 players including one minimal-fields player, one empty) and a `DRAFT` tournament via a throwaway script, then browsed live in Chrome: `/classic` correctly lists only the `GROUP_STAGE` tournament with its `StatusBadge`; `/classic/[tournament]` shows name/badge/tab-chips/Команди list; both team roster pages render correctly (full player with all 6 fields, minimal player with none shown, empty-roster placeholder). **Admin-preview fallback confirmed live**: the browser's existing signed-in admin session rendered the `DRAFT` tournament's page normally (badge "Чернетка", no 404) instead of 404ing. **Anonymous-visitor path confirmed via a cookie-less `curl`**: the identical `DRAFT` URL returned `HTTP 404`, the `GROUP_STAGE` URL returned `HTTP 200` — proving both AC-3 branches (admin preview vs. non-admin 404) without touching the browser's real session. All seeded data cleaned up afterward via a throwaway script (not committed).
   - [x] Real command output + notes captured in the Dev Agent Record.
-- [ ] **Task 11 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
+- [x] **Task 11 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
 
 ## Dev Notes
 
@@ -203,8 +203,58 @@ No `project-context.md`. Binding docs: `epics.md` (Story 2.9 AC, FR-25), `glossa
 
 ### Agent Model Used
 
+claude-sonnet-5
+
 ### Debug Log References
+
+**Task 5/6 — resolved the AD-7 vs. epics.md/EXPERIENCE.md tension at implementation time exactly as the Notes on AC interpretation planned.** Both new pages call `getPublicTournament` first, then fall back to `getSessionUser()` + `getTournamentForAdmin` only if `user?.isAdmin` — no changes needed to the plan during implementation; the design held up.
+
+**Task 10 — live browser verification of both `DRAFT`-visibility branches without disturbing the real Google session.** The Chrome profile used for this session already had a signed-in admin session (from earlier OAuth verification work). Rather than sign it out to test the anonymous path (an intrusive action against the user's real account), verified the anonymous branch with a cookie-less `curl` instead: `GET /classic/<draftId>` → `404`, `GET /classic/<groupStageId>` → `200`. The admin-preview branch was verified directly in that same signed-in Chrome session — the `DRAFT` tournament's page rendered normally (badge "Чернетка") instead of 404ing. Both AC-3 branches confirmed without touching the user's real session state. Seed/cleanup used two throwaway `scripts/_tmp-*.mts` files, deleted after use — never committed.
+
+**Task 10 — story's own Dev Notes overstated one precedent.** The story predicted `verify-tournament-edit-delete.mts` already used `setTournamentState` to force a non-`DRAFT` state for test setup; it doesn't (checked — that script never touches `state`). `verify-public-tournament.mts` calls `setTournamentState` directly instead, which is simply the correct existing function for this — no issue, just noting the prediction didn't hold.
 
 ### Completion Notes List
 
+- **Task 1:** `src/data/tournaments.ts` (UPDATE) — `getPublicTournament(id)`, `listPublicTournaments()`, both filtering `state != DRAFT` and `discipline = CLASSIC` unconditionally (AD-7/AD-9). First public reads in the codebase.
+- **Task 2:** `src/data/entries.ts` (UPDATE) — `getEntryByTeam(tournamentId, teamId)`, scoped by both ids together, visibility-agnostic by design (mirrors `getEntryForAdmin`).
+- **Task 3:** `src/components/status-badge.tsx` (NEW) — `StatusBadge({ state })`, `LABELS` from `@/domain/tournamentState`, `DESIGN.md`-matched variants.
+- **Task 4:** `src/components/public-roster.tsx` (NEW) — read-only player list, shares `PLAYER_OPTIONAL_FIELDS` with the admin `roster.tsx`.
+- **Task 5:** `/classic/[tournament]/page.tsx` (NEW) — the tournament page; admin-preview fallback via `getSessionUser()`.
+- **Task 6:** `/classic/[tournament]/teams/[team]/page.tsx` (NEW) — the team roster page; same fallback.
+- **Task 7:** `/classic/page.tsx` (UPDATE) — replaced the permanent `NO_TOURNAMENTS` stub with a real `listPublicTournaments()` query.
+- **Task 8:** README updates in `src/{data,components}` + `AGENTS.md`.
+- **Task 9:** `deferred-work.md` — resolved the 2-1-review slug item (no); new "Story 2.9 implementation" section (4 items).
+- **Task 10:** `pnpm test` 5/5 files (68/68, unchanged) · `typecheck` · `lint` · `build` (2 new routes, `ƒ`) — all clean. New `scripts/verify-public-tournament.mts`: 12/12 live. All six verify scripts re-run together: 13/13 + 15/15 + 5/5 + 12/12 + 19/19 + 12/12, no regression. **First real, unblocked browser walkthrough this session** — see Debug Log.
+
 ### File List
+
+**New**
+- `src/components/status-badge.tsx`
+- `src/components/public-roster.tsx`
+- `src/app/classic/[tournament]/page.tsx`
+- `src/app/classic/[tournament]/teams/[team]/page.tsx`
+- `scripts/verify-public-tournament.mts`
+
+**Modified**
+- `src/data/tournaments.ts` — `getPublicTournament`, `listPublicTournaments` added
+- `src/data/entries.ts` — `getEntryByTeam` added
+- `src/app/classic/page.tsx` — real `listPublicTournaments()` query, replacing the permanent stub
+- `src/data/README.md` · `src/components/README.md` · `AGENTS.md`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+## Change Log
+
+| Date | Change |
+| --- | --- |
+| 2026-09-05 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
+| 2026-09-05 | Task 1 — `src/data/tournaments.ts`: `getPublicTournament`, `listPublicTournaments`. `bmad-dev-story`. |
+| 2026-09-05 | Task 2 — `src/data/entries.ts`: `getEntryByTeam(tournamentId, teamId)`. |
+| 2026-09-05 | Task 3 — `status-badge.tsx`. |
+| 2026-09-05 | Task 4 — `public-roster.tsx`. |
+| 2026-09-05 | Task 5 — `/classic/[tournament]/page.tsx`: name, badge, tab-chips, Команди panel, admin-preview fallback. |
+| 2026-09-05 | Task 6 — `/classic/[tournament]/teams/[team]/page.tsx`: read-only roster page. |
+| 2026-09-05 | Task 7 — `/classic/page.tsx`: real `listPublicTournaments()` listing, replacing the permanent stub. |
+| 2026-09-05 | Task 8 — README + `AGENTS.md` updates. |
+| 2026-09-05 | Task 9 — `deferred-work.md`: resolved the slug open item, new "Story 2.9 implementation" section. |
+| 2026-09-05 | Task 10/11 — verification gate green; new `scripts/verify-public-tournament.mts` (12/12). All six verify scripts re-run together, no regression. First real, OAuth-free browser walkthrough this session — both AC-3 branches (admin preview, anonymous 404) confirmed live. Status → review. |
