@@ -88,9 +88,9 @@ Translated from `epics.md` → Epic 2 → Story 2.9. The Ukrainian source is aut
   - [x] `src/components/README.md` — `status-badge.tsx` and `public-roster.tsx` entries.
   - [x] `AGENTS.md` — Stack-status bullet for Story 2.9.
   - [x] No `ARCHITECTURE-SPINE.md` edit needed — AD-7's public-read pattern is followed exactly as written, not extended; the admin-preview fallback is view-layer composition already permitted by the existing lint boundary, not a new invariant.
-- [ ] **Task 9 — `deferred-work.md` (UPDATE)**
-  - [ ] Resolve the 2-1-review "No public URL identifier" item: decided no slug (see Notes on AC interpretation) — mark resolved, don't delete the history.
-  - [ ] New "Story 2.9 implementation" section: no automated test for the two new pages' admin-preview branch (needs the same session-mock infra every action-layer test lacks); `status-badge.tsx`/`public-roster.tsx` untested at the component layer; the four-tab-chip row is inline JSX, not a component — revisit when Epic 3 gives a second tab real content; `getPublicTournament`/`listPublicTournaments`/`getEntryByTeam` have no automated test beyond the new verify script (Task 10) + a **real, OAuth-free browser walkthrough**, since the public flow needs no sign-in at all.
+- [x] **Task 9 — `deferred-work.md` (UPDATE)**
+  - [x] Resolve the 2-1-review "No public URL identifier" item: decided no slug (see Notes on AC interpretation) — mark resolved, don't delete the history.
+  - [x] New "Story 2.9 implementation" section: no automated test for the two new pages' admin-preview branch (needs the same session-mock infra every action-layer test lacks); `status-badge.tsx`/`public-roster.tsx` untested at the component layer; the four-tab-chip row is inline JSX, not a component — revisit when Epic 3 gives a second tab real content; `getPublicTournament`/`listPublicTournaments`/`getEntryByTeam` have no automated test beyond the new verify script (Task 10) + a **real, OAuth-free browser walkthrough**, since the public flow needs no sign-in at all.
 - [ ] **Task 10 — Verification gate** (AC: all)
   - [ ] `pnpm test` (unchanged — this story adds no `src/domain` module, the first since Story 2.1) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean.
   - [ ] Route table — `/classic/[tournament]` and `/classic/[tournament]/teams/[team]` (both NEW, `ƒ`) added; rest unchanged.
