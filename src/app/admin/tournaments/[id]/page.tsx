@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { DeleteTournamentButton } from "@/components/tournament-actions";
+import { DeleteTournamentButton, DrawTournamentButton } from "@/components/tournament-actions";
 import { TeamEnrollment } from "@/components/team-enrollment";
 import { TournamentForm } from "@/components/tournament-form";
 import { listEntriesForTournament } from "@/data/entries";
@@ -72,6 +72,18 @@ export default async function AdminTournamentPage({
             teamCount={tournament.teamCount}
             entries={entries}
             availableTeams={availableTeams}
+          />
+        </div>
+      </section>
+
+      <section className="mt-10 border-t pt-6">
+        <h2 className="text-lg font-semibold">Жеребкування</h2>
+        <div className="mt-4">
+          <DrawTournamentButton
+            tournamentId={tournament.id}
+            state={tournament.state}
+            entryCount={entries.length}
+            teamCount={tournament.teamCount}
           />
         </div>
       </section>

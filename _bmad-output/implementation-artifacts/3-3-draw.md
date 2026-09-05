@@ -65,10 +65,10 @@ Translated from `epics.md` → Epic 3 → Story 3.3. The Ukrainian source is aut
   - [x] `DrawTournamentButton({ tournamentId, state, entryCount, teamCount })` — `useTransition` + direct `drawTournament` call, the `team-enrollment.tsx`'s `enroll()` shape (`try`/`catch` around the call, `notify.success` + `router.refresh()` on `{ ok: true }`, `notify.error(res.message)` on `{ ok: false }`, a caught-exception fallback message). No `ConfirmDialog` (see Notes).
   - [x] Disabled + captioned via `checkTransition(state, "GROUP_STAGE", { entryCount, teamCount })` computed in the component (mirrors `team-enrollment.tsx`'s `checkCanEnroll` usage) — the exact same message the Server Action itself would produce if called anyway.
   - [x] `typecheck`/`lint` clean.
-- [ ] **Task 5 — `src/app/admin/tournaments/[id]/page.tsx` (UPDATE): render the draw button** (AC: 1, 2, 3)
-  - [ ] New section (below "Команди", above the delete button) rendering `<DrawTournamentButton tournamentId={tournament.id} state={tournament.state} entryCount={entries.length} teamCount={tournament.teamCount} />` — only `entries.length` is new data the page needs to pass down; `entries` itself is already fetched here (Story 2.7).
-  - [ ] No changes to `tournament-form.tsx`'s or `team-enrollment.tsx`'s own logic — their existing state-based locks already do the right thing once `router.refresh()` picks up `GROUP_STAGE` (see Notes).
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 5 — `src/app/admin/tournaments/[id]/page.tsx` (UPDATE): render the draw button** (AC: 1, 2, 3)
+  - [x] New section (below "Команди", above the delete button) rendering `<DrawTournamentButton tournamentId={tournament.id} state={tournament.state} entryCount={entries.length} teamCount={tournament.teamCount} />` — only `entries.length` is new data the page needs to pass down; `entries` itself is already fetched here (Story 2.7).
+  - [x] No changes to `tournament-form.tsx`'s or `team-enrollment.tsx`'s own logic — their existing state-based locks already do the right thing once `router.refresh()` picks up `GROUP_STAGE` (see Notes).
+  - [x] `typecheck`/`lint` clean.
 - [ ] **Task 6 — Docs**
   - [ ] `src/data/README.md` — `tournaments.ts`'s entry notes `setTournamentState`'s new transaction-client parameter; new `draw.ts` entry.
   - [ ] `src/actions/README.md` — new `draw.ts` entry (`drawTournament`).
@@ -191,6 +191,7 @@ claude-sonnet-5 (bmad-dev-story)
 - Task 2: `src/data/draw.ts` created with `saveDraw` — one `db.$transaction` seating `GroupSlot` rows, creating `GROUP`-stage `Match` rows, and calling `setTournamentState(..., tx)`. `typecheck`/`lint` clean.
 - Task 3: `src/actions/draw.ts` created with `drawTournament` — reuses `checkTransition` directly (not `transitionTournament`), calls `generateSchedule` then `saveDraw`. `typecheck`/`lint` clean.
 - Task 4: `DrawTournamentButton` added to `src/components/tournament-actions.tsx` — `useTransition` + `checkTransition` for disabled+captioned state, `team-enrollment.tsx`'s `enroll()` shape, no `ConfirmDialog`. `typecheck`/`lint` clean.
+- Task 5: `/admin/tournaments/[id]` renders a new "Жеребкування" section with `DrawTournamentButton`, passing `entries.length` (already-fetched `entries`). `typecheck`/`lint` clean.
 
 ### File List
 
@@ -198,6 +199,7 @@ claude-sonnet-5 (bmad-dev-story)
 - `src/data/draw.ts` (NEW)
 - `src/actions/draw.ts` (NEW)
 - `src/components/tournament-actions.tsx` (UPDATE)
+- `src/app/admin/tournaments/[id]/page.tsx` (UPDATE)
 
 ## Change Log
 
