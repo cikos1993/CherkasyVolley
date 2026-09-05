@@ -2,6 +2,12 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from / decided in: Story 2.7 implementation (2026-09-05)
+
+- **`enrollTeam`/`removeTeamEntry` have no automated action-level test.** Same class of gap as every prior action (no `requireAdmin`/session-mock infra). Narrower than usual this time — the actual business rules (`checkCanEnroll`/`checkCanRemoveEntry`) are unit-tested in `src/domain/teamEnrollment.test.ts`; what's untested is only the `requireAdmin` gate, the DB round-trip, and the `P2002`/`P2025` catches. Mitigated by `scripts/verify-team-enrollment.mts` + code review.
+- **`team-enrollment.tsx` has no component-level test.** Same "no component-test toolchain" gap tracked since the 2-2 review.
+- **"Field full" vs "team already enrolled" have no visual distinction beyond toast text.** Both `PRECONDITION_FAILED` outcomes render identically (a `notify.error` with a different message). A richer inline treatment (e.g. disabling the picker with different captions for each cause) is real polish, not required by the AC.
+
 ## Deferred from: code review of 2-6-team-directory (2026-09-04)
 
 _Implementation review (`bmad-code-review`, 4 layers) over `git diff 0e485ae..HEAD`. All 3 ACs met. 7 patches applied in the story, 2 items deferred, 6 dismissed._
@@ -97,7 +103,7 @@ _Pre-implementation review of the story draft (`bmad-code-review`, 4 layers). Th
 - ~~**`discipline` + `type` combination is unconstrained**~~ **Resolved in Story 2.4** — `allowedTournamentTypes(discipline)` in `src/domain/tournamentForm.ts` (BEACH → `[]`), and the create form hardcodes `discipline: "CLASSIC"`. The schema still permits any `(discipline, type)` pair at the DB level (unreachable — no BEACH create path); a DB `CHECK` was not added.
 - ~~**`Team.name @unique` has no normalization.**~~ **Resolved in Story 2.6** — `Team.name` dropped its own `@unique`; `nameKey` (trim + collapse whitespace + case-fold, `src/domain/teamForm.ts`) is the new dedup anchor. `createTeam` catches the `P2002` (via the now-shared `isUniqueViolation`) and returns "Команда з такою назвою вже існує.".
 - **`P2002` / `P2003` / `P2025` mapping** — partially addressed. Story 2.4 added `isUniqueViolation(error)`; Story 2.5 added `isRecordNotFound(error)` (P2025); Story 2.6 moved both into a shared `src/data/errors.ts` (three consumers now: `tournaments.ts`, `teams.ts`) and used `isUniqueViolation` for `Team.nameKey`. `Tournament` delete never hits `P2003` (its cascades all point away from `Team`, the only `Restrict` FK); `Team` has **no delete action at all** in v1 (Story 2.6 explicitly scoped it out), so `P2003` (deleting an entered `Team`, `TournamentEntry.team` `onDelete: Restrict`) still has no code path to hit it and stays open for whichever future story adds team delete.
-- **`TournamentEntry` count vs `Tournament.teamCount`.** The schema allows more entries than the configured field size. Story 2.7's enroll action asserts `count < teamCount` before insert.
+- ~~**`TournamentEntry` count vs `Tournament.teamCount`.**~~ **Resolved in Story 2.7** — `checkCanEnroll` (`src/domain/teamEnrollment.ts`) rejects enrollment once `currentEntryCount >= teamCount`, called from `enrollTeam` before `createEntry`.
 - ~~**`Tournament.state` is directly assignable in the schema.**~~ **Resolved in Story 2.3** — `transitionTournament` + `src/domain/tournamentState.ts` landed; `setTournamentState` is the sole `state` writer. Convention, not lint-enforced (see the Story 2.3 update note at the top).
 - **No public URL identifier** — tournaments/teams are addressed by raw `cuid`. Story 2.9 (public tournament page) decides if a `slug` is worth it.
 - **Auth tables are still `timestamp` without time zone.** Only the four Epic-2 tables get `@db.Timestamptz(3)` in this story's follow-up. A maintenance migration should convert `user` / `session` / `account` / `verification` too (low impact — audit fields, and Vercel runs UTC).

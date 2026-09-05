@@ -87,9 +87,9 @@ Translated from `epics.md` → Epic 2 → Story 2.7. The Ukrainian source is aut
   - [x] `src/components/README.md` — `team-enrollment.tsx` entry. **Also fixed a pre-existing Story 2.6 doc bug found while editing:** the "Edit mode" paragraph describing `tournament-form.tsx`'s edit mode was nested under the `## team-form.tsx` header instead of `## tournament-form.tsx` — moved to the correct section.
   - [x] `AGENTS.md` — Stack-status bullet for Story 2.7.
   - [x] No `ARCHITECTURE-SPINE.md` / `EXPERIENCE.md` / `epics.md` / `SPEC.md` edit.
-- [ ] **Task 7 — `deferred-work.md` (UPDATE)**
-  - [ ] Mark **resolved**: 2-1-review "`TournamentEntry` count vs `Tournament.teamCount`" (this story's `checkCanEnroll` capacity check).
-  - [ ] Add a **"Story 2.7 implementation"** section: `enrollTeam`/`removeTeamEntry` have no automated action-level test (same class of gap as every prior action; the domain preconditions **are** unit-tested this time, narrowing what's actually untested to the `requireAdmin` gate and the DB round-trip); `team-enrollment.tsx` untested at the component layer; no UI yet for "field full" vs "team already enrolled" visual distinction beyond the toast message (both currently surface identically as a `notify.error`).
+- [x] **Task 7 — `deferred-work.md` (UPDATE)**
+  - [x] Marked **resolved**: 2-1-review "`TournamentEntry` count vs `Tournament.teamCount`".
+  - [x] Added a **"Story 2.7 implementation"** section: action-level test gap (narrowed — domain preconditions now unit-tested); `team-enrollment.tsx` untested at the component layer; no visual distinction between "field full" and "team already enrolled" beyond toast text.
 - [ ] **Task 8 — Verification gate** (AC: all)
   - [ ] `pnpm test` (existing 3 domain files + the new `teamEnrollment.test.ts`) · `pnpm typecheck` · `pnpm lint` · `pnpm build` clean.
   - [ ] Route table unchanged (no new route — `/admin/tournaments/[id]` already exists).
