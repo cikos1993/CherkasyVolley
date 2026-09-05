@@ -74,12 +74,12 @@ Translated from `epics.md` → Epic 2 → Story 2.9. The Ukrainian source is aut
   - [x] Renders: back-link to `/classic`, tournament `name`, `<StatusBadge state={tournament.state} />`, the four inert/active tab-chips (Task above), then the "Команди" panel: `listEntriesForTournament(id)` → non-empty: a list of team names each `<Link href="/classic/${id}/teams/${entry.teamId}">`; empty: `<EmptyState {...NO_TEAMS} />`.
   - [x] `generateMetadata` — dynamic, `getPublicTournament(id)` for the `<title>` (a second small query; no auth-timing hazard here unlike the admin page, since this route has no layout-level redirect gate to race). Fallback title if not found (the page itself still 404s via the admin-preview logic above).
   - [x] `pnpm build` before `pnpm typecheck` (new nested route, the `.next/types` caveat carried since Story 2.4). Route table confirms `/classic/[tournament]` as `ƒ`.
-- [ ] **Task 6 — `src/app/classic/[tournament]/teams/[team]/page.tsx` (NEW)** (AC: 2)
-  - [ ] Server Component. Same visibility resolution as Task 5 (`getPublicTournament(tournamentId)` → admin-preview fallback → `notFound()` if neither), then `getEntryByTeam(tournamentId, teamId)` → `notFound()` if `null` (team never entered this tournament, or a stale/foreign id).
-  - [ ] `listPlayersForEntry(entry.id)` → `<PublicRoster players={...} />`.
-  - [ ] Back-link to `/classic/[tournament]`, `<h1>{entry.team.name}</h1>`.
-  - [ ] `generateMetadata` — team name in `<title>`.
-  - [ ] `pnpm build` before `pnpm typecheck` (second new nested route this story).
+- [x] **Task 6 — `src/app/classic/[tournament]/teams/[team]/page.tsx` (NEW)** (AC: 2)
+  - [x] Server Component. Same visibility resolution as Task 5 (`getPublicTournament(tournamentId)` → admin-preview fallback → `notFound()` if neither), then `getEntryByTeam(tournamentId, teamId)` → `notFound()` if `null` (team never entered this tournament, or a stale/foreign id).
+  - [x] `listPlayersForEntry(entry.id)` → `<PublicRoster players={...} />`.
+  - [x] Back-link to `/classic/[tournament]`, `<h1>{entry.team.name}</h1>`.
+  - [x] `generateMetadata` — team name in `<title>`.
+  - [x] `pnpm build` before `pnpm typecheck` (second new nested route this story). Route table confirms `/classic/[tournament]/teams/[team]` as `ƒ`.
 - [ ] **Task 7 — `src/app/classic/page.tsx` (UPDATE): real listing**
   - [ ] Replace the unconditional `<EmptyState {...NO_TOURNAMENTS} />` with `listPublicTournaments()` → empty: unchanged `NO_TOURNAMENTS`; non-empty: a list, each row → name, year, type label (`TOURNAMENT_TYPE_LABELS`, `@/lib/tournament-labels`), `<StatusBadge>`, linking to `/classic/[tournament]`.
   - [ ] `typecheck`/`lint` clean.
