@@ -1,4 +1,5 @@
 import { db } from "@/data/client";
+import { hasAnyGroupResult } from "@/data/matches";
 import { setTournamentState } from "@/data/tournaments";
 
 export interface DrawPairing {
@@ -54,9 +55,13 @@ export async function listGroupEntryIds(groupId: string): Promise<string[]> {
  * Deletes every `GROUP`-stage `Match` row for a tournament and recreates the
  * calendar from a fresh set of pairings, in one transaction. Never touches
  * `GroupSlot` or `Tournament.state` — a redraw only replaces the calendar,
- * not who's in the group or the tournament's lifecycle stage. Performs no
- * validation itself: the caller (`redrawTournament`) must already have
- * confirmed `checkCanRedraw` before calling this.
+ * not who's in the group or the tournament's lifecycle stage. The caller
+ * (`redrawTournament`) must already have confirmed `checkCanRedraw` before
+ * calling this — but that check runs before this transaction starts, so a
+ * result recorded in between would otherwise be silently cascade-deleted by
+ * the `match.deleteMany` below; this function re-checks `hasAnyGroupResult`
+ * inside its own transaction and refuses to proceed if one now exists
+ * (review fix, Story 3.4).
  */
 export function saveRedraw(
   tournamentId: string,
@@ -64,6 +69,9 @@ export function saveRedraw(
   pairings: DrawPairing[],
 ): Promise<void> {
   return db.$transaction(async (tx) => {
+    if (await hasAnyGroupResult(tournamentId, tx)) {
+      throw new Error("saveRedraw: a result was recorded after the precondition check — aborting");
+    }
     await tx.match.deleteMany({ where: { tournamentId, stage: "GROUP" } });
     await tx.match.createMany({
       data: pairings.map((pairing) => ({

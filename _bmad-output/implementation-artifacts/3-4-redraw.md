@@ -14,7 +14,7 @@ context:
 
 # Story 3.4: Redraw
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -97,7 +97,7 @@ _Code review (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Veri
 
 #### Patch
 
-- [ ] [Review][Patch] TOCTOU between `hasAnyGroupResult`'s check and `saveRedraw`'s transaction: a `SetScore` inserted in that narrow window is silently cascade-deleted by the redraw with no re-check inside the transaction — qualitatively worse than the already-accepted "ugly error message" TOCTOU class elsewhere, since this one can silently destroy a legitimately-entered match result rather than just fail an admin action. [`src/actions/draw.ts`, `src/data/draw.ts`] — 2-way convergence (Blind Hunter, Edge Case Hunter).
+- [x] [Review][Patch] TOCTOU between `hasAnyGroupResult`'s check and `saveRedraw`'s transaction: a `SetScore` inserted in that narrow window is silently cascade-deleted by the redraw with no re-check inside the transaction — qualitatively worse than the already-accepted "ugly error message" TOCTOU class elsewhere, since this one can silently destroy a legitimately-entered match result rather than just fail an admin action. [`src/actions/draw.ts`, `src/data/draw.ts`] — 2-way convergence (Blind Hunter, Edge Case Hunter). **Fixed:** `hasAnyGroupResult` gained an optional transaction-client parameter (mirroring `setTournamentState`'s established pattern); `saveRedraw` re-checks it inside its own transaction and throws before the delete if a result now exists. `scripts/verify-redraw.mts` extended with 2 new assertions proving the guard fires and the recorded result survives the rejected race.
 
 #### Defer
 
@@ -222,6 +222,7 @@ claude-sonnet-5 (bmad-dev-story)
 - Task 6: `/admin/tournaments/[id]` fetches `hasResults` via `hasAnyGroupResult` and renders a `GROUP_STAGE`-gated redraw section (sibling to the existing `DRAFT`-gated draw section). `typecheck`/`lint` clean.
 - Tasks 7-8: updated `src/domain/README.md`, `src/data/README.md`, `src/actions/README.md`, `src/components/README.md`, `AGENTS.md` (Stack-status bullet), and `deferred-work.md` (new Story 3.4 section).
 - Task 9: `pnpm test` 107/107, `pnpm typecheck`/`pnpm lint` clean, `pnpm build` clean (no new route). Import-boundary grep confirms no new Prisma-client import site outside `src/data/**`. New `scripts/verify-redraw.mts` — all 16 assertions pass (redraw allowed pre-result, correct match count before/after, old match ids gone, `GroupSlot` untouched, `Tournament.state` unchanged, `hasAnyGroupResult` flips true after a result, `checkCanRedraw` then refuses, full teardown). Re-ran all 9 prior verify scripts (`verify-admin-roles`, `verify-tournament-create`, `verify-tournament-edit-delete`, `verify-team-create`, `verify-team-enrollment`, `verify-roster`, `verify-public-tournament`, `verify-group-stage-schema`, `verify-draw`) — no regression.
+- Review fix pass: `hasAnyGroupResult` (`src/data/matches.ts`) gained an optional `Prisma.TransactionClient | typeof db` third parameter; `saveRedraw` (`src/data/draw.ts`) re-checks it inside its own transaction, throwing before the `Match` delete if a result now exists — closes the TOCTOU window between the action's outer `hasAnyGroupResult` check and the write. `verify-redraw.mts` extended with 2 assertions proving the guard fires and the recorded result's `Match` row survives. `pnpm test` 107/107, `typecheck`/`lint`/`build` clean, all 9 verify scripts (including the extended `verify-redraw.mts`, now 18 assertions) pass with no regression.
 
 ### File List
 
@@ -246,3 +247,4 @@ claude-sonnet-5 (bmad-dev-story)
 | --- | --- |
 | 2026-09-05 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-05 | Implementation complete (`bmad-dev-story`) — all 10 tasks done, `pnpm test`/`typecheck`/`lint`/`build` clean, all 9 verify scripts (8 prior + new `verify-redraw.mts`) pass. Status: review. |
+| 2026-09-06 | Code review (`bmad-code-review`, 4 layers) — 0 decision-needed, 1 patch applied (TOCTOU data-loss fix: `hasAnyGroupResult` re-checked inside `saveRedraw`'s transaction), 4 deferred, 12 dismissed. All checks green post-fix. |

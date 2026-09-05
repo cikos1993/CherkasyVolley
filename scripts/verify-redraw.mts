@@ -136,6 +136,26 @@ try {
     "checkCanRedraw refuses a further redraw once a result exists",
     !checkCanRedraw("GROUP_STAGE", await hasAnyGroupResult(tournamentId)).ok,
   );
+
+  // Simulates the TOCTOU race the review fix closes: a result recorded after
+  // the outer checkCanRedraw check but before saveRedraw's transaction
+  // commits. saveRedraw must re-check inside its own transaction and refuse
+  // to proceed -- proving the race no longer silently destroys the result.
+  const raceSchedule = generateSchedule(defaultShuffle(groupEntryIds), tournament.rounds);
+  const racePairings = raceSchedule.map(({ homeEntryId, awayEntryId }) => ({ homeEntryId, awayEntryId }));
+  let raceRedrawRejected = false;
+  try {
+    await saveRedraw(tournamentId, tournament.group.id, racePairings);
+  } catch {
+    raceRedrawRejected = true;
+  }
+  check("saveRedraw refuses to proceed once a result exists (TOCTOU guard)", raceRedrawRejected);
+
+  const matchesAfterRace = await db.match.findMany({ where: { tournamentId } });
+  check(
+    "the recorded result's match survives the rejected race redraw",
+    matchesAfterRace.some((match) => match.id === firstMatch.id),
+  );
 } finally {
   if (tournamentId) {
     for (const entryId of entryIds) {

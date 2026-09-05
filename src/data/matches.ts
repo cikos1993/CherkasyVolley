@@ -1,4 +1,5 @@
 import { db } from "@/data/client";
+import { Prisma } from "@/generated/prisma/client";
 import { computeStandings, type MatchResult } from "@/domain/scoring";
 import { orderStandings, type OrderedStandingsRow } from "@/domain/tiebreak";
 
@@ -68,10 +69,17 @@ export async function getStandings(tournamentId: string): Promise<OrderedStandin
 /**
  * Whether any `GROUP`-stage match of this tournament has a recorded set
  * score yet. The sole read backing `checkCanRedraw`'s (Story 3.4) "no
- * results yet" gate — once true, a redraw must be refused.
+ * results yet" gate — once true, a redraw must be refused. `client` defaults
+ * to the shared `db` instance; `saveRedraw` (`src/data/draw.ts`) passes its
+ * transaction client to re-check this inside the same transaction as the
+ * delete, closing the TOCTOU window between the action's outer check and
+ * the write (review fix, Story 3.4).
  */
-export async function hasAnyGroupResult(tournamentId: string): Promise<boolean> {
-  const setScore = await db.setScore.findFirst({
+export async function hasAnyGroupResult(
+  tournamentId: string,
+  client: Prisma.TransactionClient | typeof db = db,
+): Promise<boolean> {
+  const setScore = await client.setScore.findFirst({
     where: { match: { tournamentId, stage: "GROUP" } },
     select: { id: true },
   });

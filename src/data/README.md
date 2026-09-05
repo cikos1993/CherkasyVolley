@@ -96,9 +96,12 @@ goes through a named function exported from here — `getPublicTournament`,
   `schema.prisma`) → every `GROUP`-stage `Match` + `SetScore` → `src/domain/scoring.ts`'s
   `computeStandings` → `src/domain/tiebreak.ts`'s `orderStandings`. Returns
   `[]` pre-draw (no `GroupSlot` rows yet) — never stored (AD-4), recomputed
-  every call. **`hasAnyGroupResult(tournamentId)` (Story 3.4)** — whether any
-  `GROUP`-stage `Match` has a `SetScore` yet; the sole read backing
-  `checkCanRedraw`'s "no results yet" gate.
+  every call. **`hasAnyGroupResult(tournamentId, client?)` (Story 3.4)** — whether
+  any `GROUP`-stage `Match` has a `SetScore` yet; the sole read backing
+  `checkCanRedraw`'s "no results yet" gate. `client` defaults to the shared
+  `db`; `saveRedraw` (`draw.ts`) passes its transaction client to re-check
+  this inside its own transaction (review fix — closes the TOCTOU window
+  between the action's outer check and the write).
 - `draw.ts` — `saveDraw(tournamentId, groupId, entryIds, pairings)` (Story
   3.3), the first real writer of `GroupSlot`/`Match`. One `db.$transaction`:
   seats every entry into `GroupSlot`, creates one `GROUP`-stage `Match` per
@@ -112,8 +115,12 @@ goes through a named function exported from here — `getPublicTournament`,
   deletes every `GROUP`-stage `Match` for the tournament and recreates them
   from fresh pairings, in one transaction — never touches `GroupSlot` or
   `Tournament.state` (only the calendar changes on a redraw, not who's in the
-  group or the lifecycle stage). Also performs no validation itself; the
-  caller (`redrawTournament`) must already have confirmed `checkCanRedraw`.
+  group or the lifecycle stage). `redrawTournament` confirms `checkCanRedraw`
+  before calling this, but that check runs outside the transaction —
+  `saveRedraw` re-checks `hasAnyGroupResult` (via its transaction client)
+  right before the delete and aborts if a result now exists (review fix,
+  Story 3.4), closing the TOCTOU window rather than relying solely on the
+  caller's earlier check.
 
 The `Tournament`, `Team`, `TournamentEntry`, `Player`, `Group`, `GroupSlot`, `Match`
 and `SetScore` entities (schema landed across Story 2.1, 2.4, and 3.2, migrations
