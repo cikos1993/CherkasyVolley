@@ -67,6 +67,52 @@ export async function getStandings(tournamentId: string): Promise<OrderedStandin
 }
 
 /**
+ * Every `GROUP`-stage match of a tournament with the two team names, the
+ * planned time/venue, and any set scores — the shared read for the public
+ * «Розклад» tab and the admin schedule page. Ordered chronologically
+ * (`scheduledAt` ascending, unscheduled matches last), then `createdAt` for a
+ * stable order within each bucket. Visibility-agnostic: the caller resolves
+ * whether the tournament is public before calling this (the same split
+ * `getEntryByTeam` follows).
+ */
+export function listGroupMatchesForTournament(tournamentId: string) {
+  return db.match.findMany({
+    where: { tournamentId, stage: "GROUP" },
+    orderBy: [{ scheduledAt: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      scheduledAt: true,
+      venueText: true,
+      homeEntry: { select: { team: { select: { name: true } } } },
+      awayEntry: { select: { team: { select: { name: true } } } },
+      sets: {
+        select: { setNo: true, homePoints: true, awayPoints: true },
+        orderBy: { setNo: "asc" },
+      },
+    },
+  });
+}
+
+/**
+ * Sets the planned time and venue of one `GROUP` match. Scoped by
+ * `(tournamentId, matchId)` together and `stage: "GROUP"` via `updateMany`
+ * (never `update`, which needs a unique where) — a mismatched pair or a
+ * playoff match updates nothing and returns `{ count: 0 }`. Writes only the
+ * two scheduling columns; `SetScore` rows are a separate table and are never
+ * touched here, so an already-recorded result is unaffected.
+ */
+export function updateMatchSchedule(
+  tournamentId: string,
+  matchId: string,
+  input: { scheduledAt: Date | null; venueText: string | null },
+) {
+  return db.match.updateMany({
+    where: { id: matchId, tournamentId, stage: "GROUP" },
+    data: { scheduledAt: input.scheduledAt, venueText: input.venueText },
+  });
+}
+
+/**
  * Whether any `GROUP`-stage match of this tournament has a recorded set
  * score yet. The sole read backing `checkCanRedraw`'s (Story 3.4) "no
  * results yet" gate — once true, a redraw must be refused. `client` defaults

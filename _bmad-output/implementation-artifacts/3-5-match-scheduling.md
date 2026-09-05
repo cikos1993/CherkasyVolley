@@ -84,10 +84,10 @@ PRD §4.5 (`prd.md`, cited in context) makes the same three consequences explici
   - [x] `src/domain/matchSchedule.test.ts` (Vitest): summer instant (EEST → offset 180, `"2026-07-13T11:00"` → `2026-07-13T08:00:00.000Z`), winter instant (EET → offset 120, `"2026-01-13T11:00"` → `2026-01-13T09:00:00.000Z`), values around both DST switches (incl. the re-check branch — `2026-03-29T01:00` → `2026-03-28T23:00:00.000Z`), `null`/`""` → `null`, malformed + impossible-date → error, round-trip, `venueText` trim-to-null and over-max, `formatKyivDateTime` shape. 17 new cases.
   - [x] `pnpm test` green (124/124); `typecheck`/`lint` clean.
 
-- [ ] **Task 2 — `src/data/matches.ts` (UPDATE): `listGroupMatchesForTournament` + `updateMatchSchedule`** (AC: 1, 3)
-  - [ ] `listGroupMatchesForTournament(tournamentId: string)` — every `stage: "GROUP"` match of the tournament, `orderBy: [{ scheduledAt: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }]`, `select`: `id`, `scheduledAt`, `venueText`, `homeEntry: { select: { team: { select: { name: true } } } }`, `awayEntry: { select: { team: { select: { name: true } } } }`, `sets: { select: { homePoints: true, awayPoints: true, setNo: true }, orderBy: { setNo: "asc" } }`. Visibility-agnostic (no state/discipline filter) — same "scoping ≠ visibility" contract as `getEntryByTeam` (Story 2.9); the caller (`resolveTournament` on the public side, `requireAdminPage()` on the admin side) has already decided whether the tournament is visible. Doc comment: shared by the public «Розклад» tab and the admin schedule page.
-  - [ ] `updateMatchSchedule(tournamentId: string, matchId: string, input: { scheduledAt: Date | null; venueText: string | null })` — `db.match.updateMany({ where: { id: matchId, tournamentId, stage: "GROUP" }, data: { scheduledAt: input.scheduledAt, venueText: input.venueText } })` → `{ count }`. Doc comment: scoped by `(tournamentId, matchId)` together **and** `stage: "GROUP"` via `updateMany` (never `update`, which needs a unique where) — a mismatched pair or a non-group match updates nothing; writes **only** `scheduledAt`/`venueText`, never `SetScore` (AC 1).
-  - [ ] `typecheck`/`lint` clean. No new Prisma-client import site (file already imports `db`).
+- [x] **Task 2 — `src/data/matches.ts` (UPDATE): `listGroupMatchesForTournament` + `updateMatchSchedule`** (AC: 1, 3)
+  - [x] `listGroupMatchesForTournament(tournamentId)` — every `stage: "GROUP"` match, `orderBy: [{ scheduledAt: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }]`, joined team names + `sets`. Visibility-agnostic (the `getEntryByTeam` contract). The `nulls: "last"` modifier typechecks and is accepted by the `prisma-client` generator.
+  - [x] `updateMatchSchedule(tournamentId, matchId, input)` — `db.match.updateMany({ where: { id: matchId, tournamentId, stage: "GROUP" }, data: { scheduledAt, venueText } })` → `{ count }`. Scoped by the pair + `stage`; writes only the two scheduling columns.
+  - [x] `typecheck`/`lint` clean. No new Prisma-client import site.
 
 - [ ] **Task 3 — `src/actions/matches.ts` (NEW): `scheduleMatch`** (AC: 1, 2)
   - [ ] `"use server"`. `export type MatchScheduleFormState = { fieldErrors?: { scheduledAt?: string; venueText?: string }; formError?: string }`.
@@ -296,11 +296,13 @@ claude-sonnet-5 (bmad-dev-story)
 ### Completion Notes List
 
 - Task 1: `src/domain/matchSchedule.ts` — `kyivOffsetMinutes`, `parseKyivDateTimeLocal` (naive-guess + one DST re-check, rollover guard for impossible dates), `toKyivDateTimeLocalValue`, `formatKyivDateTime`, `validateMatchSchedule`, `VENUE_TEXT_MAX`. `matchSchedule.test.ts` — 17 cases (offsets, both DST switches incl. the re-check branch, null/empty, malformed, impossible date, round-trip, venue trim/over-max, display shape). `pnpm test` 124/124; `typecheck`/`lint` clean. No timezone library — `Intl.DateTimeFormat` only.
+- Task 2: `src/data/matches.ts` — `listGroupMatchesForTournament` (chronological, `nulls: "last"`, joined team names + sets) and `updateMatchSchedule` (`updateMany` scoped by `(tournamentId, matchId, stage:"GROUP")` → `{ count }`, writes only `scheduledAt`/`venueText`). `typecheck`/`lint` clean.
 
 ### File List
 
 - `src/domain/matchSchedule.ts` (NEW)
 - `src/domain/matchSchedule.test.ts` (NEW)
+- `src/data/matches.ts` (UPDATE)
 
 ## Change Log
 
