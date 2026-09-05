@@ -16,7 +16,7 @@ context:
 
 # Story 2.9: Public tournament page & Teams tab
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -297,3 +297,4 @@ claude-sonnet-5
 | 2026-09-05 | Task 8 — README + `AGENTS.md` updates. |
 | 2026-09-05 | Task 9 — `deferred-work.md`: resolved the slug open item, new "Story 2.9 implementation" section. |
 | 2026-09-05 | Task 10/11 — verification gate green; new `scripts/verify-public-tournament.mts` (12/12). All six verify scripts re-run together, no regression. First real, OAuth-free browser walkthrough this session — both AC-3 branches (admin preview, anonymous 404) confirmed live. Status → review. |
+| 2026-09-05 | `bmad-code-review` (4 layers) over `git diff 7d4950c..HEAD`. **All 4 layers independently converged on the same critical finding** — the strongest cross-layer convergence this project has seen. 0 decision-needed, 5 patch, 8 defer, 3 dismissed. Fixed: **the admin draft-preview fallback (`getTournamentForAdmin`) had no `discipline` filter**, letting a `BEACH` tournament render under the `CLASSIC`-only `/classic` route tree for an admin session (AD-9 violation) — closed by extracting the duplicated `resolveTournament` into `src/app/classic/_lib/resolve-tournament.ts` with a `discipline === "CLASSIC"` check on the fallback; verified live with a throwaway `BEACH` tournament (404s now, would have rendered before). Also fixed: `teams/[team]/page.tsx`'s `generateMetadata` leaked a `DRAFT` tournament's real team name into `<title>` for anonymous visitors (now calls `resolveTournament` first); `getTournamentForAdmin`'s stale doc comment; `src/data/README.md`'s near-miss placeholder function name; `eslint.config.mjs`'s stale "one sanctioned view→auth import" comment. 8 items added to `deferred-work.md` (no automated `BEACH`-fallback test, caching/revalidation strategy, `/archive` overlap, tab ARIA semantics, duplicate per-request queries, SEO/indexing, the AD-3 spine-reconciliation gap, `/classic` listing's own admin-preview asymmetry). Gate re-run clean: `test` 68/68, `typecheck`, `lint`, `build`; all six verify scripts green (13/13, 15/15, 5/5, 12/12, 19/19, 12/12). Status → done. |
