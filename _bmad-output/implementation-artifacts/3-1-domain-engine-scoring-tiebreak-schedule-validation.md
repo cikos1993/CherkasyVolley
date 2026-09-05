@@ -12,7 +12,7 @@ context:
 
 # Story 3.1: Domain engine — scoring, tiebreak, schedule, validation
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -244,3 +244,4 @@ claude-sonnet-5
 | 2026-09-05 | Task 5 — README + `AGENTS.md` updates. |
 | 2026-09-05 | Task 6 — `deferred-work.md`: new "Story 3.1 implementation" section. |
 | 2026-09-05 | Task 7/8 — verification gate green (`test` 99/99, `typecheck`, `lint`, `build`). No verify script needed — zero `src/data` involvement. Status → review. |
+| 2026-09-05 | `bmad-code-review` (4 layers) over `git diff 1b20a7a..HEAD`. 0 decision-needed, 8 patch, 5 defer, 2 dismissed. Fixed: **`schedule.ts`'s circle-method anchor entry was home in 100% of its matches** (Blind Hunter), contradicting the documented "arbitrary but stable" claim — closed by shuffling each pair's two elements too, with a regression test proving it; **`validateMatchScore` trusted array index for decisiveness while using `set.setNo` for the target score with no agreement check** (converged independently across Edge Case Hunter, Verification Gap Reviewer, Blind Hunter) — closed with an explicit `setNo` ordering guard. Also fixed: deduplicated "who won this set" logic into one `homeWonSet` helper; merged `SetValidation`/`MatchValidation` into one `Validation` type; added the missing `validateMatchScore`-level CUSTOM-margin test; closed two doc-comment gaps; corrected two inaccurate self-reported claims in this story file. 5 items added to `deferred-work.md` (schedule/standings input validation for degenerate/malformed calls, all judged "can't happen" given upstream `TEAM_COUNT_MIN`/DB-uniqueness guarantees; the win-by-2 rationale's textual support). Gate re-run clean: `test` 103/103, `typecheck`, `lint`, `build`. Status → done. |
