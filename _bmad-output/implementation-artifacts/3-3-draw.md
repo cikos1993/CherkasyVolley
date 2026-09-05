@@ -61,10 +61,10 @@ Translated from `epics.md` → Epic 3 → Story 3.3. The Ukrainian source is aut
   - [x] `drawTournament(tournamentId): Promise<ActionResult<undefined>>` — `requireAdmin()` → `getTournamentForAdmin` (not found → `NOT_FOUND`; no `group` → `NOT_FOUND`, defense-in-depth for the "shouldn't happen" case) → `listEntriesForTournament(tournamentId)` for the entry-id list and count → `checkTransition(tournament.state, "GROUP_STAGE", { entryCount, teamCount: tournament.teamCount })` (not ok → `{ ok: false, code: check.code, message: check.message }`) → `generateSchedule(entryIds, tournament.rounds)` (Story 3.1) → map the result's `{ homeEntryId, awayEntryId }` pairs (dropping `round`/`tour`) → `saveDraw(tournamentId, tournament.group.id, entryIds, pairings)` → `revalidatePath` (the tournament's public discipline section per `transitionTournament`'s exact precedent, plus `/admin/tournaments/${tournamentId}`) → `{ ok: true, data: undefined }`.
   - [x] `ActionResult<undefined>` shape (the `admin-roles.ts`/`entries.ts` family), not `useActionState` — a single-action button, not a form.
   - [x] `typecheck`/`lint` clean.
-- [ ] **Task 4 — `src/components/tournament-actions.tsx` (UPDATE): `DrawTournamentButton`** (AC: 1, 2, 3)
-  - [ ] `DrawTournamentButton({ tournamentId, state, entryCount, teamCount })` — `useTransition` + direct `drawTournament` call, the `team-enrollment.tsx`'s `enroll()` shape (`try`/`catch` around the call, `notify.success` + `router.refresh()` on `{ ok: true }`, `notify.error(res.message)` on `{ ok: false }`, a caught-exception fallback message). No `ConfirmDialog` (see Notes).
-  - [ ] Disabled + captioned via `checkTransition(state, "GROUP_STAGE", { entryCount, teamCount })` computed in the component (mirrors `team-enrollment.tsx`'s `checkCanEnroll` usage) — the exact same message the Server Action itself would produce if called anyway.
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 4 — `src/components/tournament-actions.tsx` (UPDATE): `DrawTournamentButton`** (AC: 1, 2, 3)
+  - [x] `DrawTournamentButton({ tournamentId, state, entryCount, teamCount })` — `useTransition` + direct `drawTournament` call, the `team-enrollment.tsx`'s `enroll()` shape (`try`/`catch` around the call, `notify.success` + `router.refresh()` on `{ ok: true }`, `notify.error(res.message)` on `{ ok: false }`, a caught-exception fallback message). No `ConfirmDialog` (see Notes).
+  - [x] Disabled + captioned via `checkTransition(state, "GROUP_STAGE", { entryCount, teamCount })` computed in the component (mirrors `team-enrollment.tsx`'s `checkCanEnroll` usage) — the exact same message the Server Action itself would produce if called anyway.
+  - [x] `typecheck`/`lint` clean.
 - [ ] **Task 5 — `src/app/admin/tournaments/[id]/page.tsx` (UPDATE): render the draw button** (AC: 1, 2, 3)
   - [ ] New section (below "Команди", above the delete button) rendering `<DrawTournamentButton tournamentId={tournament.id} state={tournament.state} entryCount={entries.length} teamCount={tournament.teamCount} />` — only `entries.length` is new data the page needs to pass down; `entries` itself is already fetched here (Story 2.7).
   - [ ] No changes to `tournament-form.tsx`'s or `team-enrollment.tsx`'s own logic — their existing state-based locks already do the right thing once `router.refresh()` picks up `GROUP_STAGE` (see Notes).
@@ -190,12 +190,14 @@ claude-sonnet-5 (bmad-dev-story)
 - Task 1: `setTournamentState` now accepts an optional `Prisma.TransactionClient | typeof db` third parameter (defaults to `db`); `getTournamentForAdmin` now includes `group: { select: { id: true } }`. `typecheck`/`lint` clean; `verify-tournament-edit-delete.mts` re-run with no regression.
 - Task 2: `src/data/draw.ts` created with `saveDraw` — one `db.$transaction` seating `GroupSlot` rows, creating `GROUP`-stage `Match` rows, and calling `setTournamentState(..., tx)`. `typecheck`/`lint` clean.
 - Task 3: `src/actions/draw.ts` created with `drawTournament` — reuses `checkTransition` directly (not `transitionTournament`), calls `generateSchedule` then `saveDraw`. `typecheck`/`lint` clean.
+- Task 4: `DrawTournamentButton` added to `src/components/tournament-actions.tsx` — `useTransition` + `checkTransition` for disabled+captioned state, `team-enrollment.tsx`'s `enroll()` shape, no `ConfirmDialog`. `typecheck`/`lint` clean.
 
 ### File List
 
 - `src/data/tournaments.ts` (UPDATE)
 - `src/data/draw.ts` (NEW)
 - `src/actions/draw.ts` (NEW)
+- `src/components/tournament-actions.tsx` (UPDATE)
 
 ## Change Log
 
