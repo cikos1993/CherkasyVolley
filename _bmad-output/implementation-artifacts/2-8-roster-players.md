@@ -78,10 +78,10 @@ Translated from `epics.md` → Epic 2 → Story 2.8. The Ukrainian source is aut
   - [x] Local state: `editingPlayerId`. Editing row swaps in `<PlayerForm mode="edit" ... onCancel={...} />`.
   - [x] **Read row** — optional fields rendered only when non-null; "Редагувати" + `ConfirmDialog`-gated "Видалити" (with `try`/`catch` around the confirm call, matching `TeamEnrollment`'s remove).
   - [x] Empty list → plain paragraph. Always renders `<PlayerForm mode="create">` below. `typecheck`/`lint` clean.
-- [ ] **Task 7 — `src/app/admin/tournaments/[id]/entries/[entryId]/page.tsx` (NEW)** (AC: 1, 2, 3, 4)
-  - [ ] Server Component. `const { id, entryId } = await params;` → `Promise.all([getEntryForAdmin(id, entryId), listPlayersForEntry(entryId)])` → `if (!entry) notFound()` (catches both "entry doesn't exist" and "entry belongs to a different tournament").
-  - [ ] Back-link to `/admin/tournaments/${id}`, `<h1>{entry.team.name}</h1>`, a `<p>` naming this as the roster ("Склад команди"), `<Roster tournamentId={id} entryId={entryId} players={players} />`.
-  - [ ] `export const metadata = { title: "Склад команди" }` (static — the `/admin/tournaments/[id]` stub's rationale for not reading admin data ahead of the layout's auth gate applies identically here).
+- [x] **Task 7 — `src/app/admin/tournaments/[id]/entries/[entryId]/page.tsx` (NEW)** (AC: 1, 2, 3, 4)
+  - [x] Server Component. `getEntryForAdmin(id, entryId)` → `notFound()` if null. `listPlayersForEntry(entryId)` → `<Roster>`.
+  - [x] Back-link, `<h1>{entry.team.name}</h1>`, "Склад команди" label. Static `metadata`.
+  - [x] `pnpm build` regenerated `.next/types` for the new nested route (the Story 2.4-carried caveat) — route table confirms `/admin/tournaments/[id]/entries/[entryId]` (`ƒ`). `typecheck`/`lint` clean.
 - [ ] **Task 8 — `src/components/team-enrollment.tsx` (UPDATE): link to the roster page** (AC: reachability)
   - [ ] Each entry row gets a "Склад" link (`<Link href={\`/admin/tournaments/${tournamentId}/entries/${entry.id}\`}>`) alongside the team name, **regardless of tournament state** (AC-interpretation: roster management isn't `DRAFT`-gated, unlike the "Зняти" button which still only renders in `DRAFT`).
   - [ ] No other change to `team-enrollment.tsx` — its own enroll/remove logic (and the Story 2.7 review fixes already in it) stay untouched.
