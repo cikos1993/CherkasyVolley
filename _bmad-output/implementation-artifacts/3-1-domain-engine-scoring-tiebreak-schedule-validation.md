@@ -68,8 +68,8 @@ Translated from `epics.md` → Epic 3 → Story 3.1. The Ukrainian source is aut
   - [x] `src/domain/README.md` — four new module entries (`scoring.ts`, `tiebreak.ts`, `schedule.ts`, `validation.ts`), each summarizing its exported functions and the one non-obvious rule (win-by-2 applies to both presets; no home/away swap across cycles; the mini-table tiebreak step).
   - [x] `AGENTS.md` — Stack-status bullet for Story 3.1 (the epic's own convention: "Перша історія — чистий двигун").
   - [x] No `ARCHITECTURE-SPINE.md` edit — this story implements AD-2/AD-4/NFR-3 exactly as already specified, no new invariant.
-- [ ] **Task 6 — `deferred-work.md` (UPDATE)**
-  - [ ] New "Story 3.1 implementation" section: no from-empty integration test yet (no `src/data`/`Match`/`SetScore` schema until Story 3.2 — this story is 100% unit-testable in isolation, unlike every prior story); the win-by-2-applies-to-both-presets decision flagged as a judgment call worth revisiting if a real regulation ever states otherwise; the no-home/away-swap decision flagged the same way.
+- [x] **Task 6 — `deferred-work.md` (UPDATE)**
+  - [x] New "Story 3.1 implementation" section: no from-empty integration test yet (no `src/data`/`Match`/`SetScore` schema until Story 3.2 — this story is 100% unit-testable in isolation, unlike every prior story); the win-by-2-applies-to-both-presets decision flagged as a judgment call worth revisiting if a real regulation ever states otherwise; the no-home/away-swap decision flagged the same way.
 - [ ] **Task 7 — Verification gate** (AC: all)
   - [ ] `pnpm test` — 4 new domain files (this story adds no component/action/page code, so this is the *entire* verification surface); `pnpm typecheck` · `pnpm lint` clean. No `pnpm build` needed (no new route, no route-table check) — still run once to confirm nothing broke.
   - [ ] Import-boundary greps: confirm `src/domain/{scoring,tiebreak,schedule,validation}.ts` import nothing from `next`, `@prisma/client`/`@/generated/prisma`, `react`, or any other `src/` layer.

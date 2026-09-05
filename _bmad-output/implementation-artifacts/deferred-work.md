@@ -15,6 +15,12 @@ _Implementation review (`bmad-code-review`, 4 layers) over `git diff 2c6517e..HE
 - **No test asserts `listPlayersForEntry`'s documented `fullName`-ascending order.** Low-value test gap, same class as every other "no action-level test" item already tracked below.
 - **`editPlayer`'s `formError` path doesn't auto-close the edit form.** If a player is deleted concurrently (`count === 0`), the edit form stays open referencing a gone player until the admin manually clicks "Скасувати". Rare race at this project's admin-only scale, same class as other accepted concurrency gaps.
 
+## Deferred from / decided in: Story 3.1 implementation (2026-09-05)
+
+- **No from-empty integration test yet** — this story is 100% unit-testable in isolation (no `src/data`/`Match`/`SetScore` schema until Story 3.2), unlike every prior story since 2.1. Story 3.2's `getStandings(tournamentId)` will be the first real integration point; a disposable-Neon-branch round-trip test belongs there, not here.
+- **The win-by-2-applies-to-both-presets decision is a judgment call, not an explicit PRD statement.** PRD's "різниця у 2 м'ячі" note sits under `CLASSIC`'s wording in FR-15; nothing there redefines what winning a set means under `CUSTOM`, so `validation.ts` applies it uniformly. Revisit if a real regulation ever states `CUSTOM` sets end differently.
+- **The no-home/away-swap-between-cycles decision is the same kind of judgment call.** `schedule.ts`'s `rounds` cycles repeat the identical pairing set; PRD/epics never mention alternating home/away for a multi-cycle group stage, and volleyball has no codified home-advantage stat this app tracks. Revisit if a real regulation requires it.
+
 ## Deferred from: code review of 2-9-public-tournament-page-teams-tab (2026-09-05)
 
 _Implementation review (`bmad-code-review`, 4 layers) over `git diff 7d4950c..HEAD`. **All 4 layers independently converged on the same critical finding** (patched — see the story file's Review Findings). 0 decision-needed, 5 patched, 8 deferred, 3 dismissed._
