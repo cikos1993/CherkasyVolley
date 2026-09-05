@@ -13,7 +13,7 @@ context:
 
 # Story 3.2: Group stage schema
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -80,7 +80,7 @@ Translated from `epics.md` → Epic 3 → Story 3.2. The Ukrainian source is aut
   - [x] `scripts/verify-group-stage-schema.mts` (NEW, self-cleaning) — 11/11 checks passed: throwaway tournament + 3 entered teams seated into the `Group` via `GroupSlot`, a hand-built 3-way stats-cycle round-robin (reusing Story 3.1's exact `tiebreak.test.ts` fixture) run through `getStandings`, confirming the real DB-backed pipeline reproduces the same order/points/needsManualSeed result as the pure domain test; a pre-draw tournament (no `GroupSlot` rows) returns `[]`; both new `CHECK` constraints (`match_group_stage_check`, `match_distinct_entries_check`) confirmed rejecting a bad insert each.
   - [x] Re-ran all six prior verify scripts (`verify-tournament-create.mts`, `verify-tournament-edit-delete.mts`, `verify-team-create.mts`, `verify-team-enrollment.mts`, `verify-roster.mts`, `verify-public-tournament.mts`) — 13/13, 15/15, 5/5, 12/12, 19/19, 12/12, no regression.
   - [x] Real command output + notes captured in the Dev Agent Record.
-- [ ] **Task 7 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
+- [x] **Task 7 — Commit(s)** — one commit + `git push origin main` per completed task. `build` gated each.
 
 ## Dev Notes
 
@@ -163,14 +163,46 @@ No `project-context.md`. Binding docs: `epics.md` (Story 3.2 AC), `ARCHITECTURE-
 
 ### Agent Model Used
 
+claude-sonnet-5
+
 ### Debug Log References
+
+**Task 1 — decided against a preemptive `KNOCKOUT`/Cup placeholder value in `MatchStage`, despite `ARCHITECTURE-SPINE.md`'s Deferred section saying the enum "лишає місце" for it.** Re-read that note carefully: it means the *type system* shouldn't structurally block a future knockout format (e.g. by hardcoding "exactly 4 playoff teams" somewhere unrelated to the enum), not that unused enum values should ship now. Combined with `AGENTS.md`'s own enum-migration-hygiene rule (a new label needs its own migration anyway, can't be used in the same transaction that adds it), the lower-risk and more consistent choice is to add exactly the four stages this story and Epic 4 actually need (`GROUP`/`SEMIFINAL`/`THIRD_PLACE`/`FINAL`) and let a real future Cup story add its own values when it exists.
+
+**Task 2 — migration applied cleanly on the first attempt.** The hand-written `migration.sql` (from `migrate diff`'s own output, plus the three appended `CHECK`s) needed no correction — `migrate deploy` succeeded, `migrate status` reported up to date, and a follow-up `migrate diff` printed "This is an empty migration," confirming no drift and that the three `CHECK` constraints (as expected, since Prisma 7 doesn't model them) didn't register as an outstanding difference.
+
+**Task 6 — reused Story 3.1's exact tiebreak fixture as the verify script's test data, not a new one.** The 3-way stats-cycle (A beats B, B beats C, C beats A, all 3:0) from `tiebreak.test.ts` was already hand-verified correct in Story 3.1's own review; reusing it here — this time through a real Prisma round-trip and `getStandings` end-to-end, with real team names substituted for the entry ids — gives high confidence the DB-backed pipeline reproduces the pure-function result exactly, rather than inventing a second fixture that would need its own independent verification.
 
 ### Completion Notes List
 
+- **Task 1:** `prisma/schema.prisma` (UPDATE) — `MatchStage` enum, `GroupSlot`, `Match`, `SetScore` models; back-relations on `Group`/`Tournament`/`TournamentEntry`. `homeEntryId`/`awayEntryId` nullable per AD-5.
+- **Task 2:** Migration `20260905125839_group_stage_schema` — hand-written from `migrate diff`, plus 3 raw-SQL `CHECK` constraints. Applied via `migrate deploy` against the `dev` Neon branch; `migrate status` clean, `migrate diff` empty.
+- **Task 3:** `src/data/matches.ts` (NEW) — `getStandings(tournamentId)`, the first `data → domain` value call (`GroupSlot` → `computeStandings` → `orderStandings`).
+- **Task 4:** README + `AGENTS.md` updates.
+- **Task 5:** `deferred-work.md` — new "Story 3.2 implementation" section (3 items).
+- **Task 6:** `pnpm test` 9/9 files (103/103, unchanged) · `typecheck` · `lint` · `build` (route table unchanged) — all clean. New `scripts/verify-group-stage-schema.mts`: 11/11 live, including both new `CHECK` constraints confirmed rejecting bad inserts. All seven verify scripts re-run together: 13/13 + 15/15 + 5/5 + 12/12 + 19/19 + 12/12 + 11/11, no regression.
+
 ### File List
+
+**New**
+- `src/data/matches.ts`
+- `prisma/migrations/20260905125839_group_stage_schema/migration.sql`
+- `scripts/verify-group-stage-schema.mts`
+
+**Modified**
+- `prisma/schema.prisma` — `MatchStage` enum, `GroupSlot`, `Match`, `SetScore` models + back-relations
+- `src/data/README.md` · `AGENTS.md`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ## Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-05 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
+| 2026-09-05 | Task 1 — `prisma/schema.prisma`: `MatchStage`, `GroupSlot`, `Match`, `SetScore`. `bmad-dev-story`. |
+| 2026-09-05 | Task 2 — migration `20260905125839_group_stage_schema` applied (`migrate deploy`, `dev` Neon branch). |
+| 2026-09-05 | Task 3 — `src/data/matches.ts`: `getStandings`, the first `data → domain` value call. |
+| 2026-09-05 | Task 4 — README + `AGENTS.md` updates. |
+| 2026-09-05 | Task 5 — `deferred-work.md`: new "Story 3.2 implementation" section. |
+| 2026-09-05 | Task 6/7 — verification gate green (`test` 103/103, `typecheck`, `lint`, `build`). New `scripts/verify-group-stage-schema.mts` (11/11). All seven verify scripts re-run together, no regression. Status → review. |
