@@ -82,9 +82,8 @@ Translated from `epics.md` → Epic 2 → Story 2.8. The Ukrainian source is aut
   - [x] Server Component. `getEntryForAdmin(id, entryId)` → `notFound()` if null. `listPlayersForEntry(entryId)` → `<Roster>`.
   - [x] Back-link, `<h1>{entry.team.name}</h1>`, "Склад команди" label. Static `metadata`.
   - [x] `pnpm build` regenerated `.next/types` for the new nested route (the Story 2.4-carried caveat) — route table confirms `/admin/tournaments/[id]/entries/[entryId]` (`ƒ`). `typecheck`/`lint` clean.
-- [ ] **Task 8 — `src/components/team-enrollment.tsx` (UPDATE): link to the roster page** (AC: reachability)
-  - [ ] Each entry row gets a "Склад" link (`<Link href={\`/admin/tournaments/${tournamentId}/entries/${entry.id}\`}>`) alongside the team name, **regardless of tournament state** (AC-interpretation: roster management isn't `DRAFT`-gated, unlike the "Зняти" button which still only renders in `DRAFT`).
-  - [ ] No other change to `team-enrollment.tsx` — its own enroll/remove logic (and the Story 2.7 review fixes already in it) stay untouched.
+- [x] **Task 8 — `src/components/team-enrollment.tsx` (UPDATE): link to the roster page** (AC: reachability)
+  - [x] "Склад" link per entry row, unconditional on `state`. No other change. `typecheck`/`lint` clean.
 - [ ] **Task 9 — Docs**
   - [ ] `src/domain/README.md` — `playerForm.ts` entry.
   - [ ] `src/data/README.md` — `entries.ts`'s entry gains `getEntryForAdmin`; new `players.ts` entry.

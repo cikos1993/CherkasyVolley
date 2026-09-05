@@ -128,7 +128,15 @@ export function TeamEnrollment({
         <ul className="divide-y">
           {entries.map((entry) => (
             <li key={entry.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-              <span>{entry.team.name}</span>
+              <span>
+                {entry.team.name}{" "}
+                <Link
+                  href={`/admin/tournaments/${tournamentId}/entries/${entry.id}`}
+                  className="text-muted-foreground underline underline-offset-4"
+                >
+                  Склад
+                </Link>
+              </span>
               {state === "DRAFT" ? (
                 <ConfirmDialog
                   trigger={
