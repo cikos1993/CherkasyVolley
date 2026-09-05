@@ -1,0 +1,60 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import { toActionError, type ActionResult } from "@/actions/result";
+import { requireAdmin } from "@/auth/requireAdmin";
+import { listEntriesForTournament } from "@/data/entries";
+import { saveDraw } from "@/data/draw";
+import { getTournamentForAdmin } from "@/data/tournaments";
+import { checkTransition } from "@/domain/tournamentState";
+import { generateSchedule } from "@/domain/schedule";
+
+/**
+ * Runs the group-stage draw: seats every entered team into the tournament's
+ * group, generates the round-robin calendar, and moves the tournament to
+ * `GROUP_STAGE` — all atomically via `saveDraw`. A dedicated action rather
+ * than a call into `transitionTournament` (see the story's Notes on AC
+ * interpretation): it does domain work (seating, scheduling) that has
+ * nothing to do with that action's generic shape, and reuses `checkTransition`
+ * directly instead of duplicating the precondition.
+ */
+export async function drawTournament(tournamentId: string): Promise<ActionResult<undefined>> {
+  try {
+    await requireAdmin();
+
+    const tournament = await getTournamentForAdmin(tournamentId);
+    if (!tournament) {
+      return { ok: false, code: "NOT_FOUND", message: "Турнір не знайдено." };
+    }
+    if (!tournament.group) {
+      return { ok: false, code: "NOT_FOUND", message: "Групу турніру не знайдено." };
+    }
+
+    const entries = await listEntriesForTournament(tournamentId);
+    const entryIds = entries.map((entry) => entry.id);
+
+    const check = checkTransition(tournament.state, "GROUP_STAGE", {
+      entryCount: entryIds.length,
+      teamCount: tournament.teamCount,
+    });
+    if (!check.ok) {
+      return { ok: false, code: check.code, message: check.message };
+    }
+
+    const schedule = generateSchedule(entryIds, tournament.rounds);
+    const pairings = schedule.map(({ homeEntryId, awayEntryId }) => ({
+      homeEntryId,
+      awayEntryId,
+    }));
+
+    await saveDraw(tournamentId, tournament.group.id, entryIds, pairings);
+
+    revalidatePath(tournament.discipline === "BEACH" ? "/beach" : "/classic");
+    revalidatePath(`/admin/tournaments/${tournamentId}`);
+
+    return { ok: true, data: undefined };
+  } catch (error) {
+    return toActionError(error);
+  }
+}

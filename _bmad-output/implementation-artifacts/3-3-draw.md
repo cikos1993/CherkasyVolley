@@ -57,10 +57,10 @@ Translated from `epics.md` → Epic 3 → Story 3.3. The Ukrainian source is aut
   - [x] `saveDraw(tournamentId, groupId, entryIds, pairings): Promise<void>` — `pairings: { homeEntryId: string; awayEntryId: string }[]`. Inside one `db.$transaction`: `tx.groupSlot.createMany({ data: entryIds.map((entryId) => ({ groupId, entryId })) })`, `tx.match.createMany({ data: pairings.map((p) => ({ tournamentId, groupId, stage: "GROUP", ...p })) })`, then `setTournamentState(tournamentId, "GROUP_STAGE", tx)`.
   - [x] Doc comment: performs no validation itself — the caller (`drawTournament`) must have already confirmed the precondition via `checkTransition`. Sole writer of a draw's initial data; never called again for the same tournament (Story 3.4's redraw is a separate, later data function that only replaces `Match` rows).
   - [x] `typecheck`/`lint` clean.
-- [ ] **Task 3 — `src/actions/draw.ts` (NEW): `drawTournament`** (AC: 1, 2, 3)
-  - [ ] `drawTournament(tournamentId): Promise<ActionResult<undefined>>` — `requireAdmin()` → `getTournamentForAdmin` (not found → `NOT_FOUND`) → `listEntriesForTournament(tournamentId)` for the entry-id list and count → `checkTransition(tournament.state, "GROUP_STAGE", { entryCount, teamCount: tournament.teamCount })` (not ok → `{ ok: false, code: check.code, message: check.message }`) → `generateSchedule(entryIds, tournament.rounds)` (Story 3.1) → map the result's `{ homeEntryId, awayEntryId }` pairs (dropping `round`/`tour`) → `saveDraw(tournamentId, tournament.group.id, entryIds, pairings)` → `revalidatePath` (the tournament's public discipline section per `transitionTournament`'s exact precedent, plus `/admin/tournaments/${tournamentId}`) → `{ ok: true, data: undefined }`.
-  - [ ] `ActionResult<undefined>` shape (the `admin-roles.ts`/`entries.ts` family), not `useActionState` — a single-action button, not a form.
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 3 — `src/actions/draw.ts` (NEW): `drawTournament`** (AC: 1, 2, 3)
+  - [x] `drawTournament(tournamentId): Promise<ActionResult<undefined>>` — `requireAdmin()` → `getTournamentForAdmin` (not found → `NOT_FOUND`; no `group` → `NOT_FOUND`, defense-in-depth for the "shouldn't happen" case) → `listEntriesForTournament(tournamentId)` for the entry-id list and count → `checkTransition(tournament.state, "GROUP_STAGE", { entryCount, teamCount: tournament.teamCount })` (not ok → `{ ok: false, code: check.code, message: check.message }`) → `generateSchedule(entryIds, tournament.rounds)` (Story 3.1) → map the result's `{ homeEntryId, awayEntryId }` pairs (dropping `round`/`tour`) → `saveDraw(tournamentId, tournament.group.id, entryIds, pairings)` → `revalidatePath` (the tournament's public discipline section per `transitionTournament`'s exact precedent, plus `/admin/tournaments/${tournamentId}`) → `{ ok: true, data: undefined }`.
+  - [x] `ActionResult<undefined>` shape (the `admin-roles.ts`/`entries.ts` family), not `useActionState` — a single-action button, not a form.
+  - [x] `typecheck`/`lint` clean.
 - [ ] **Task 4 — `src/components/tournament-actions.tsx` (UPDATE): `DrawTournamentButton`** (AC: 1, 2, 3)
   - [ ] `DrawTournamentButton({ tournamentId, state, entryCount, teamCount })` — `useTransition` + direct `drawTournament` call, the `team-enrollment.tsx`'s `enroll()` shape (`try`/`catch` around the call, `notify.success` + `router.refresh()` on `{ ok: true }`, `notify.error(res.message)` on `{ ok: false }`, a caught-exception fallback message). No `ConfirmDialog` (see Notes).
   - [ ] Disabled + captioned via `checkTransition(state, "GROUP_STAGE", { entryCount, teamCount })` computed in the component (mirrors `team-enrollment.tsx`'s `checkCanEnroll` usage) — the exact same message the Server Action itself would produce if called anyway.
@@ -189,11 +189,13 @@ claude-sonnet-5 (bmad-dev-story)
 
 - Task 1: `setTournamentState` now accepts an optional `Prisma.TransactionClient | typeof db` third parameter (defaults to `db`); `getTournamentForAdmin` now includes `group: { select: { id: true } }`. `typecheck`/`lint` clean; `verify-tournament-edit-delete.mts` re-run with no regression.
 - Task 2: `src/data/draw.ts` created with `saveDraw` — one `db.$transaction` seating `GroupSlot` rows, creating `GROUP`-stage `Match` rows, and calling `setTournamentState(..., tx)`. `typecheck`/`lint` clean.
+- Task 3: `src/actions/draw.ts` created with `drawTournament` — reuses `checkTransition` directly (not `transitionTournament`), calls `generateSchedule` then `saveDraw`. `typecheck`/`lint` clean.
 
 ### File List
 
 - `src/data/tournaments.ts` (UPDATE)
 - `src/data/draw.ts` (NEW)
+- `src/actions/draw.ts` (NEW)
 
 ## Change Log
 
