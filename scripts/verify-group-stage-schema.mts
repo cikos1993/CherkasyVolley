@@ -191,6 +191,101 @@ try {
   await db.team.delete({ where: { id: winnerTeam.id } });
   await db.team.delete({ where: { id: loserTeam.id } });
 
+  // The bug this closes: a scheduled-but-unplayed GROUP match (zero
+  // SetScore rows) — the normal state for most of a group stage, between
+  // the draw and result entry — must not be silently counted as a 0:0
+  // result. Three teams, only one match actually played; the other two
+  // pairings exist as Match rows (as Story 3.3's draw would create them
+  // all at once) but carry no sets yet.
+  const midTournament = await createTournamentRecord({
+    discipline: "CLASSIC",
+    type: "CHAMPIONSHIP",
+    name: `__verify_group_stage_unplayed__${stamp}`,
+    year: 2026,
+    scoringPreset: "CLASSIC",
+    teamCount: 3,
+    rounds: 1,
+  });
+  const midTeams = ["Дельта", "Епсилон", "Зета"];
+  const midTeamIds: string[] = [];
+  for (const name of midTeams) {
+    const teamName = `${name} ${stamp}`;
+    const team = await db.team.create({
+      data: { name: teamName, nameKey: teamName.toLowerCase() },
+    });
+    midTeamIds.push(team.id);
+  }
+  const midEntryIds: string[] = [];
+  for (const teamId of midTeamIds) {
+    const { id } = await createEntry(midTournament.id, teamId);
+    midEntryIds.push(id);
+  }
+  const [deltaEntryId, epsilonEntryId, zetaEntryId] = midEntryIds;
+  const { id: midGroupId } = await db.group.findUniqueOrThrow({
+    where: { tournamentId: midTournament.id },
+  });
+  for (const entryId of midEntryIds) {
+    await db.groupSlot.create({ data: { groupId: midGroupId, entryId } });
+  }
+  // Played: Delta beats Epsilon 3:0.
+  await db.match.create({
+    data: {
+      tournamentId: midTournament.id,
+      groupId: midGroupId,
+      stage: "GROUP",
+      homeEntryId: deltaEntryId,
+      awayEntryId: epsilonEntryId,
+      sets: { create: sweepSets },
+    },
+  });
+  // Scheduled, not yet played: no sets at all.
+  await db.match.create({
+    data: {
+      tournamentId: midTournament.id,
+      groupId: midGroupId,
+      stage: "GROUP",
+      homeEntryId: epsilonEntryId,
+      awayEntryId: zetaEntryId,
+    },
+  });
+  await db.match.create({
+    data: {
+      tournamentId: midTournament.id,
+      groupId: midGroupId,
+      stage: "GROUP",
+      homeEntryId: zetaEntryId,
+      awayEntryId: deltaEntryId,
+    },
+  });
+  const midStandings = await getStandings(midTournament.id);
+  const byEntryId = Object.fromEntries(midStandings.map((row) => [row.row.entryId, row.row]));
+  check(
+    "the winner of the one played match shows exactly 1 played, 1 win, 3 points",
+    byEntryId[deltaEntryId]?.played === 1 &&
+      byEntryId[deltaEntryId]?.wins === 1 &&
+      byEntryId[deltaEntryId]?.points === 3,
+  );
+  check(
+    "the loser of the one played match shows exactly 1 played, 1 loss, 0 points",
+    byEntryId[epsilonEntryId]?.played === 1 &&
+      byEntryId[epsilonEntryId]?.losses === 1 &&
+      byEntryId[epsilonEntryId]?.points === 0,
+  );
+  check(
+    "the team with two unplayed matches shows 0 played, 0 points -- not a phantom loss",
+    byEntryId[zetaEntryId]?.played === 0 &&
+      byEntryId[zetaEntryId]?.wins === 0 &&
+      byEntryId[zetaEntryId]?.losses === 0 &&
+      byEntryId[zetaEntryId]?.points === 0,
+  );
+  for (const entryId of midEntryIds) {
+    await deleteEntry(midTournament.id, entryId).catch(() => undefined);
+  }
+  await db.tournament.delete({ where: { id: midTournament.id } });
+  for (const teamId of midTeamIds) {
+    await db.team.delete({ where: { id: teamId } });
+  }
+
   // CHECK constraint: a GROUP-stage match must have a non-null groupId.
   let groupStageCheckRejected = false;
   try {

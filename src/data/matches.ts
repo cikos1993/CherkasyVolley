@@ -44,10 +44,17 @@ export async function getStandings(tournamentId: string): Promise<OrderedStandin
   });
 
   // GROUP matches always have both entries set at creation (Story 3.3's
-  // draw); the filter exists only to satisfy the type system's nullability
+  // draw, and enforced by the match_group_entries_required_check CHECK) —
+  // the entry filter exists only to satisfy the type system's nullability
   // (Match.homeEntryId/awayEntryId are nullable for Epic 4's playoff rows).
+  // The sets.length check is load-bearing: a scheduled-but-unplayed match
+  // (the normal state for most of a group stage, between the draw and
+  // result entry — Story 3.6/3.7) has zero SetScore rows. computeStandings
+  // trusts every MatchResult it's given represents a completed match — an
+  // empty sets array would count as a 0:0 result and, per its win/loss tie
+  // rule, silently credit the away side a win and match points.
   const matches: MatchResult[] = matchRows
-    .filter((match) => match.homeEntryId && match.awayEntryId)
+    .filter((match) => match.homeEntryId && match.awayEntryId && match.sets.length > 0)
     .map((match) => ({
       homeEntryId: match.homeEntryId!,
       awayEntryId: match.awayEntryId!,

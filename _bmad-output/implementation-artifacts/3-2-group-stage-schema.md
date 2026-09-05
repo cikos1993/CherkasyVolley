@@ -84,10 +84,13 @@ Translated from `epics.md` → Epic 3 → Story 3.2. The Ukrainian source is aut
 
 ### Review Findings
 
-Implementation review 2026-09-05 (`bmad-code-review`, 4 layers attempted) over `git diff 9e53089..HEAD`. **Verification Gap Reviewer and Acceptance Auditor failed** (session rate limit, resets 19:00 Europe/Kyiv) — findings below are from **Blind Hunter and Edge Case Hunter only**; the review is incomplete and should be re-run with all 4 layers once the limit resets, though the two completed layers already surfaced real, actionable issues. 0 decision-needed, 8 patch, 5 defer, 2 dismissed.
+Implementation review 2026-09-05 (`bmad-code-review`, 4 layers) over `git diff 9e53089..7d6a664`, run in two passes: Blind Hunter + Edge Case Hunter completed first; Verification Gap Reviewer and Acceptance Auditor initially failed on a session rate limit and were re-run separately once it reset, against the same diff. **All 4 layers now complete.** Combined: 0 decision-needed, 9 patch, 5 defer, 2 dismissed.
+
+**Second pass — Verification Gap Reviewer found a critical, previously-undetected bug**: `getStandings` counted a scheduled-but-unplayed `GROUP` match (zero `SetScore` rows — the normal state for most of a group stage, between the draw and result entry) as a decided 0:0 result, silently crediting the away side a win and match points. None of the first pass's fixes or the original verify script's scenarios (both fully-played) exercised this case. Acceptance Auditor's re-run found nothing new beyond what was already patched.
 
 #### Patch
 
+- [x] [Review][Patch] **`getStandings` counted an unplayed `GROUP` match (no `SetScore` rows) as a 0:0 result**, silently crediting the away side a win and points — the normal mid-tournament state (after the draw, before every match is played) would have produced a fabricated standings table. Found by Verification Gap Reviewer on the second review pass. [src/data/matches.ts]
 - [x] [Review][Patch] **No `CHECK` requires a `GROUP`-stage match to have non-null `homeEntryId`/`awayEntryId`** — only `groupId` consistency is enforced. A future bug in Story 3.3's draw could silently create an incomplete `GROUP` match; `getStandings` would then silently filter it out rather than fail loudly. [prisma/schema.prisma, new migration]
 - [x] [Review][Patch] **No index on `match.groupId`, `match.homeEntryId`, `match.awayEntryId`, or `group_slot.entryId`** — all four are `ON DELETE CASCADE` FKs; Postgres doesn't auto-index FK columns, so cascading deletes and future per-team match lookups need a sequential scan. [prisma/schema.prisma, new migration]
 - [x] [Review][Patch] **No `CHECK` bounds `SetScore.setNo` to a sane range** — asymmetric with `homePoints`/`awayPoints`, which do get a DB-level bound as documented defense-in-depth. [prisma/schema.prisma, new migration]
@@ -204,6 +207,8 @@ claude-sonnet-5
 
 **Code review — decided NOT to change `Match.homeEntryId`/`awayEntryId`'s `onDelete: Cascade` to `Restrict`, despite it being a real inconsistency with the `Team`/`TournamentEntry` precedent.** Traced why: `Match` also cascades directly from `Tournament` via its own `tournamentId` FK, so a `Tournament` delete cascades both `TournamentEntry` and `Match` in the same operation — introducing `Restrict` on the `Match → TournamentEntry` edge risks a foreign-key violation depending on Postgres's cascade-resolution order, which would need careful testing against the already-passing `verify-tournament-edit-delete.mts` cascade assertions, not a routine review-fix change. Deferred instead, with the reasoning recorded so a future story doesn't have to re-derive it.
 
+**Code review, second pass — the two layers that failed on a rate limit (Verification Gap Reviewer, Acceptance Auditor) were re-run against the exact same original diff (`9e53089..7d6a664`) once the limit reset, not the post-fix-pass state — kept the review's target consistent across both passes rather than reviewing a moving target.** Verification Gap Reviewer's finding was serious: `getStandings` had no filter for a match with zero `SetScore` rows, so a scheduled-but-unplayed `GROUP` match (the normal state for most of a group stage between the draw and result entry) was silently scored as a decided 0:0, crediting the away side a win and points. Neither the first review pass nor the original verify script's two scenarios (both fully-played matches) ever exercised an unplayed match, so this survived undetected until the second pass. Fixed by adding `match.sets.length > 0` to `getStandings`'s existing entry-nullability filter, and added a dedicated three-team "one match played, two scheduled but unplayed" scenario to the verify script — confirmed the fix by tracing the pre-fix arithmetic by hand (the unplayed matches would have credited the third team a win via `computeStandings`'s tie-goes-to-away default) before trusting the new test's pass. Acceptance Auditor's re-run independently confirmed every other patched item was correctly applied and live-verified against the real `dev` Neon branch, finding nothing further.
+
 ### Completion Notes List
 
 - **Task 1:** `prisma/schema.prisma` (UPDATE) — `MatchStage` enum, `GroupSlot`, `Match`, `SetScore` models; back-relations on `Group`/`Tournament`/`TournamentEntry`. `homeEntryId`/`awayEntryId` nullable per AD-5.
@@ -231,8 +236,8 @@ claude-sonnet-5
 
 **Modified (review fix pass only)**
 - `prisma/schema.prisma` — `GroupSlot` gains `updatedAt` + `@@index([entryId])`; `Match` gains `@@index([groupId])`/`@@index([homeEntryId])`/`@@index([awayEntryId])`
-- `src/data/matches.ts` — `getStandings`'s `sets` query now has an explicit `orderBy: { setNo: "asc" }`
-- `scripts/verify-group-stage-schema.mts` — new "clear winner" scenario through the real pipeline; tests for the two new `CHECK`s and the previously-untested `set_score_points_check`
+- `src/data/matches.ts` — `getStandings`'s `sets` query now has an explicit `orderBy: { setNo: "asc" }`; the `matches` filter now also excludes any match with zero `SetScore` rows (an unplayed match no longer counts as a phantom 0:0 loss for the away side — the critical fix from the review's second pass)
+- `scripts/verify-group-stage-schema.mts` — new "clear winner" scenario through the real pipeline; tests for the two new `CHECK`s and the previously-untested `set_score_points_check`; new "mid-tournament, one match unplayed" scenario proving the unplayed-match fix
 - `AGENTS.md` — corrected "два нові CHECK" to reflect all five (three original + two follow-up); corrected Story 3.1's stale "99 тестів" to note the post-review-fix 103 count; Story 3.2's bullet updated with the second migration and its additions
 
 ## Change Log
