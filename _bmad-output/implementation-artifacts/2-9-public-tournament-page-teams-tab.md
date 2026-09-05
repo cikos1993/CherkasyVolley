@@ -52,11 +52,11 @@ Translated from `epics.md` → Epic 2 → Story 2.9. The Ukrainian source is aut
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — `src/data/tournaments.ts` (UPDATE): `getPublicTournament`, `listPublicTournaments`** (AC: 1, 3)
-  - [ ] `getPublicTournament(id: string)` — `findFirst({ where: { id, state: { not: "DRAFT" }, discipline: "CLASSIC" } })`. `null` when not found, `DRAFT`, or `BEACH`.
-  - [ ] `listPublicTournaments()` — `findMany({ where: { state: { not: "DRAFT" }, discipline: "CLASSIC" }, orderBy: [{ year: "desc" }, { name: "asc" }] })`, same field selection shape as `listTournamentsForAdmin` minus `discipline` (always `CLASSIC` here).
-  - [ ] Doc comments state plainly these are the sole public (role-blind) tournament reads — AD-7.
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 1 — `src/data/tournaments.ts` (UPDATE): `getPublicTournament`, `listPublicTournaments`** (AC: 1, 3)
+  - [x] `getPublicTournament(id: string)` — `findFirst({ where: { id, state: { not: "DRAFT" }, discipline: "CLASSIC" } })`. `null` when not found, `DRAFT`, or `BEACH`.
+  - [x] `listPublicTournaments()` — `findMany({ where: { state: { not: "DRAFT" }, discipline: "CLASSIC" }, orderBy: [{ year: "desc" }, { name: "asc" }] })`, same field selection shape as `listTournamentsForAdmin` minus `discipline` (always `CLASSIC` here).
+  - [x] Doc comments state plainly these are the sole public (role-blind) tournament reads — AD-7.
+  - [x] `typecheck`/`lint` clean.
 - [ ] **Task 2 — `src/data/entries.ts` (UPDATE): `getEntryByTeam`** (AC: 2)
   - [ ] `getEntryByTeam(tournamentId: string, teamId: string)` — `findFirst({ where: { tournamentId, teamId }, select: { id: true, team: { select: { id: true, name: true } } } })`. Scoped by both ids together (never `teamId` alone) — the same discipline as `getEntryForAdmin`/`deleteEntry`. **No state/discipline filter** — visibility is the caller's job (see Notes on AC interpretation).
   - [ ] Doc comment states explicitly it is visibility-agnostic and why (mirrors `getEntryForAdmin`).

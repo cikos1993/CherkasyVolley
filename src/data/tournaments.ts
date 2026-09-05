@@ -51,6 +51,29 @@ export function listTournamentsForAdmin() {
 }
 
 /**
+ * The sole public (role-blind) single-tournament read — AD-7. Filters
+ * `state != DRAFT` and `discipline = CLASSIC` unconditionally; never accepts
+ * a role or session to relax that. Callers that need a draft-preview
+ * exception (e.g. an admin viewing their own draft's public page) fall back
+ * to `getTournamentForAdmin` themselves after this returns `null` — that
+ * decision belongs to the view layer, not here.
+ */
+export function getPublicTournament(id: string) {
+  return db.tournament.findFirst({
+    where: { id, state: { not: "DRAFT" }, discipline: "CLASSIC" },
+  });
+}
+
+/** The public `/classic` listing — same filter as `getPublicTournament`, every match. */
+export function listPublicTournaments() {
+  return db.tournament.findMany({
+    where: { state: { not: "DRAFT" }, discipline: "CLASSIC" },
+    orderBy: [{ year: "desc" }, { name: "asc" }],
+    select: { id: true, name: true, type: true, year: true, state: true },
+  });
+}
+
+/**
  * The second (and, alongside `createTournamentRecord`, only) writer of
  * `Tournament`. Never writes `discipline` (fixed at creation, AD-9) or `state`
  * (AD-8 — `setTournamentState` stays the sole writer of that column).
