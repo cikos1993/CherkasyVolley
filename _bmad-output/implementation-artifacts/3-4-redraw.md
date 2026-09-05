@@ -14,7 +14,7 @@ context:
 
 # Story 3.4: Redraw
 
-Status: ready-for-dev
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -51,11 +51,11 @@ PRD FR-12 (`prd.md` §4.4, cited in the story's context) adds two checkable cons
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — `src/domain/redraw.ts` (NEW): `checkCanRedraw`** (AC: 1, 2)
-  - [ ] `export type RedrawCheck = { ok: true } | { ok: false; message: string }` (same shape as `teamEnrollment.ts`'s `EnrollmentCheck`).
-  - [ ] `checkCanRedraw(state: TournamentState, hasResults: boolean): RedrawCheck` — `state !== "GROUP_STAGE"` → `{ ok: false, message: "Пережеребкування можливе лише у стані «Груповий етап»." }`; `hasResults` → `{ ok: false, message: "Пережеребкування недоступне: уже внесено результат матчу." }`; else `{ ok: true }`.
-  - [ ] Vitest: both false branches, the true branch, and that the state check is evaluated before the results check (matches `checkCanEnroll`'s ordering precedent — state gate first).
-  - [ ] `pnpm test` green; `typecheck`/`lint` clean.
+- [x] **Task 1 — `src/domain/redraw.ts` (NEW): `checkCanRedraw`** (AC: 1, 2)
+  - [x] `export type RedrawCheck = { ok: true } | { ok: false; message: string }` (same shape as `teamEnrollment.ts`'s `EnrollmentCheck`).
+  - [x] `checkCanRedraw(state: TournamentState, hasResults: boolean): RedrawCheck` — `state !== "GROUP_STAGE"` → `{ ok: false, message: "Пережеребкування можливе лише у стані «Груповий етап»." }`; `hasResults` → `{ ok: false, message: "Пережеребкування недоступне: уже внесено результат матчу." }`; else `{ ok: true }`.
+  - [x] Vitest: both false branches, the true branch, and that the state check is evaluated before the results check (matches `checkCanEnroll`'s ordering precedent — state gate first).
+  - [x] `pnpm test` green; `typecheck`/`lint` clean.
 - [ ] **Task 2 — `src/data/matches.ts` (UPDATE): `hasAnyGroupResult`** (AC: 1, 2)
   - [ ] `hasAnyGroupResult(tournamentId: string): Promise<boolean>` — `db.setScore.findFirst({ where: { match: { tournamentId, stage: "GROUP" } }, select: { id: true } })` mapped to `!== null`. Doc comment: the sole read backing `checkCanRedraw`'s "no results yet" gate.
   - [ ] `typecheck`/`lint` clean.
@@ -193,11 +193,18 @@ No `project-context.md`. Binding docs: `epics.md` (Story 3.4 AC, FR-12), `prd.md
 
 ### Agent Model Used
 
+claude-sonnet-5 (bmad-dev-story)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- Task 1: `src/domain/redraw.ts` created with `checkCanRedraw(state, hasResults)`, mirroring `checkCanEnroll`/`checkCanRemoveEntry`'s shape. `src/domain/redraw.test.ts` — 4 tests (allow, reject-wrong-state, reject-has-results, state-checked-first). `pnpm test` 107/107; `typecheck`/`lint` clean.
+
 ### File List
+
+- `src/domain/redraw.ts` (NEW)
+- `src/domain/redraw.test.ts` (NEW)
 
 ## Change Log
 
