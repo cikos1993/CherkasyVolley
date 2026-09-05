@@ -279,3 +279,44 @@ this page never checks for. Same non-null-optional-field filtering as
 specifically so a future consumer like this one wouldn't re-duplicate them).
 Empty roster → a plain line, not `EmptyState` — a team with zero players
 mid-setup is a data-quality state, not a "nothing here yet" product surface.
+
+## `tournament-tabs.tsx`
+
+`TournamentTabs({ tournamentId, active, showPlayoff })` (Story 3.5) — the
+`?tab=` chip nav on `/classic/[tournament]`, a **server** component (chips are
+`<Link href={`/classic/${id}?tab=${key}`}>`, so no `useSearchParams` and no
+client Suspense boundary). Active chip: `border-foreground text-foreground` +
+`aria-current="page"`; the rest `border-border text-muted-foreground` (DESIGN.md
+`tab-chip` / `tab-chip-active`). Order Команди · Розклад · Таблиця · Плейоф; the
+Плейоф chip is omitted (not disabled) unless `showPlayoff`
+(`state ∈ {PLAYOFF, COMPLETED}`) — EXPERIENCE.md's "Плейоф tab hidden until
+`PLAYOFF`+". `overflow-x-auto` container (UX-DR14). Also exports
+`TournamentTabKey` and `normalizeTournamentTab(raw)` (coerces a raw `?tab=`
+value to a known key, default `"teams"`). This is the reusable tab component
+deferred from Story 2.9 (built now that Розклад is the first real tab).
+
+## `match-schedule.tsx`
+
+`MatchScheduleList({ tournamentId, matches })` (Story 3.5) — the admin editor on
+`/admin/tournaments/[id]/schedule`. A local `MatchRow` view model (not
+Prisma-imported — the `team-enrollment.tsx` precedent), shaped server-side. Each
+row is a `MatchScheduleRow` with its own hooks: a header line (teams + a
+`·`-joined meta line: `scheduledAtDisplay ?? "час не визначено"`, venue, result
+tally) and an always-visible `<form action={formAction}>` (a `datetime-local`
+`Input`, a `venueText` `Input` with `maxLength={VENUE_TEXT_MAX}`, a "Зберегти"
+`Button`). `useActionState(scheduleMatch.bind(null, tournamentId, match.id), {})`;
+fully controlled inputs (`useState`, the `player-form.tsx` UX-DR11 pattern — the
+base-ui `Input` only rejects a *changed `defaultValue`*, a `value` is fine).
+Field errors under the field (`aria-invalid`/`aria-describedby`); `formError` →
+`notify.error`; a second effect on the falling edge of `pending` (a `useRef`) →
+`notify.success("Розклад оновлено")` + `router.refresh()`.
+
+## `public-schedule.tsx`
+
+`PublicSchedule({ matches })` (Story 3.5) — the read-only «Розклад» tab list, the
+`public-roster.tsx` precedent (no `@/actions`, no form, no session assumption).
+Each row: teams, the result tally (right, `tabular-nums`) if present, and a muted
+line with `scheduledAtDisplay ?? "час не визначено"` + venue. Empty list → a
+plain muted line, not `EmptyState` (a drawn tournament always has matches — the
+empty case is a should-not-happen edge, same treatment as `public-roster.tsx`'s
+zero-players line).

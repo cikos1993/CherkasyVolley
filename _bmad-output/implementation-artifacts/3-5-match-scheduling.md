@@ -128,17 +128,17 @@ PRD §4.5 (`prd.md`, cited in context) makes the same three consequences explici
   - [x] New "Розклад" section (`state !== "DRAFT"`) with a `<Link>` to `…/schedule` ("Керувати розкладом матчів"). No new data fetch. Four existing sections untouched.
   - [x] `typecheck`/`lint` clean.
 
-- [ ] **Task 11 — Docs**
-  - [ ] `src/domain/README.md` — new `matchSchedule.ts` entry.
-  - [ ] `src/data/README.md` — `matches.ts`'s entry gains `listGroupMatchesForTournament` / `updateMatchSchedule`.
-  - [ ] `src/actions/README.md` — new `matches.ts` entry (`scheduleMatch`); note the `draw.ts` revalidation addition.
-  - [ ] `src/components/README.md` — `match-schedule.tsx`, `public-schedule.tsx`, `tournament-tabs.tsx` entries.
-  - [ ] `AGENTS.md` — Stack-status bullet for Story 3.5 (no schema change; `?tab=` routing introduced; first user-facing date/time surface + `src/domain/matchSchedule.ts` conversion helpers).
-  - [ ] `src/lib/empty-states.ts` — only if a new const is actually used; otherwise leave it (the schedule-empty line is inline, per Task 6).
+- [x] **Task 11 — Docs**
+  - [x] `src/domain/README.md` — new `matchSchedule.ts` entry.
+  - [x] `src/data/README.md` — `matches.ts`'s entry gains `listGroupMatchesForTournament` / `updateMatchSchedule`.
+  - [x] `src/actions/README.md` — new `matches.ts` entry (`scheduleMatch`); noted the `draw.ts` revalidation addition.
+  - [x] `src/components/README.md` — `tournament-tabs.tsx`, `match-schedule.tsx`, `public-schedule.tsx` entries.
+  - [x] `AGENTS.md` — Stack-status bullet for Story 3.5.
+  - [x] `src/lib/empty-states.ts` — left unchanged (the schedule-empty line is inline).
 
-- [ ] **Task 12 — `deferred-work.md` (UPDATE)**
-  - [ ] New "Story 3.5 implementation" section: (a) no action-level test for `scheduleMatch` beyond the verify script (same class as every prior action); (b) the inline set-win tally for `resultSummary` is a placeholder — Story 3.6 owns the canonical "3:1 summary" helper and should replace both call sites; (c) `standings`/`playoff` tab panels are still placeholder lines — Story 3.8 / 4.6; (d) `TournamentTabs` has no ARIA `tablist`/`tab`/`tabpanel` semantics (chips are `<Link>`s, each tab is a full server render — a real tablist would need client JS; revisit if a11y review calls for it); (e) `parseKyivDateTimeLocal`'s DST-boundary behaviour for the one ambiguous/nonexistent wall-clock hour per year is defined by the offset-iteration but not exercised by a real admin flow.
-  - [ ] Mark the two carried "revalidate `/classic/[tournament]`" deferred items (Story 2.9 / 3.4 sections) as resolved by Task 4.
+- [x] **Task 12 — `deferred-work.md` (UPDATE)**
+  - [x] New "Story 3.5 implementation" section (inline `setSummary` dup, no `scheduleMatch` action test, no component tests, `TournamentTabs` ARIA, DST edge hour, placeholder standings/playoff panels).
+  - [x] Marked the "revalidate `/classic/[tournament]`" item (3.4-review section) and the "four-tab-chip row is inline JSX" item (2.9-review section) as resolved.
 
 - [ ] **Task 13 — Verification gate** (AC: all)
   - [ ] `pnpm test` (new `matchSchedule.test.ts`) · `pnpm typecheck` · `pnpm lint` · `pnpm build` — **`build` before `typecheck`** (new route).
@@ -304,6 +304,12 @@ claude-sonnet-5 (bmad-dev-story)
 - `src/app/classic/[tournament]/page.tsx` (UPDATE)
 - `src/app/admin/tournaments/[id]/schedule/page.tsx` (NEW)
 - `src/app/admin/tournaments/[id]/page.tsx` (UPDATE)
+- `src/domain/README.md` (UPDATE)
+- `src/data/README.md` (UPDATE)
+- `src/actions/README.md` (UPDATE)
+- `src/components/README.md` (UPDATE)
+- `AGENTS.md` (UPDATE)
+- `_bmad-output/implementation-artifacts/deferred-work.md` (UPDATE)
 
 ## Change Log
 

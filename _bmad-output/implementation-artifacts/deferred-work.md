@@ -2,12 +2,43 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from / decided in: Story 3.5 implementation (2026-09-06)
+
+- **The match result summary ("3:1") is an inline `setSummary` reducer duplicated in
+  two page files** (`src/app/classic/[tournament]/page.tsx`,
+  `src/app/admin/tournaments/[id]/schedule/page.tsx`). Deliberate — Story 3.6's AC
+  ("підсумковий рахунок у партіях («3:1») обчислюється й показується") owns the
+  canonical helper and should replace both call sites (likely a pure function in
+  `src/domain/scoring.ts` next to `matchPoints`). No sets can exist yet (3.6 not
+  shipped), so the tally is only exercised by `verify-match-schedule.mts`.
+- **`scheduleMatch` has no automated action-level test** beyond
+  `scripts/verify-match-schedule.mts`. Same class as every prior action (no
+  `requireAdmin` / session-mock infra). `validateMatchSchedule` is fully unit-tested;
+  untested is the `requireAdmin` gate, the not-found branches, and the
+  `count === 0` path.
+- **`match-schedule.tsx` / `public-schedule.tsx` / `tournament-tabs.tsx` have no
+  component test** — the standing "no component-test toolchain" gap.
+- **`TournamentTabs` has no ARIA `tablist` / `tab` / `tabpanel` semantics.** The chips
+  are `<Link>`s and each tab is a full server render (no client tab state), so a real
+  tablist would need client JS and a different interaction model. Revisit if an a11y
+  pass calls for it. (Supersedes the 2.9-review "tab-chip row has no ARIA tab
+  semantics" note, now that the chips are real navigation.)
+- **`parseKyivDateTimeLocal`'s behaviour for the one nonexistent / ambiguous
+  wall-clock hour per year** (the DST switch) is defined by the offset-iteration and
+  unit-tested for "doesn't throw", but not pinned to a product decision (skip forward
+  vs. clamp). No admin flow exercises it and volleyball matches are not scheduled at
+  03:00–04:00 on a DST Sunday.
+- **`standings` / `playoff` tab panels are one-line placeholders.** Story 3.8 / 4.6
+  own their real content. The `EXPERIENCE.md` "Групу буде сформовано після
+  жеребкування" pre-draw copy for the standings tab is not rendered yet (no public
+  route reaches a pre-draw tournament — `state = DRAFT` 404s for non-admins).
+
 ## Deferred from: code review of 3-4-redraw (2026-09-06)
 
 _Implementation review (`bmad-code-review`, 4 layers) over `git diff 7acfa77..8397d9b`. All 4 layers completed (2 required a retry after a session rate limit reset). 0 decision-needed, 1 patched, 4 deferred, 12 dismissed._
 
 - **`saveRedraw` deletes by `tournamentId + stage` only, not scoped by `groupId`** (unlike `saveDraw`'s consistent `groupId` scoping). Currently inert — v1 has exactly one `Group` per `Tournament` — but a latent inconsistency for the future multi-group format `GroupSlot`'s split from `TournamentEntry` was designed to allow.
-- **`drawTournament`/`redrawTournament` only revalidate the discipline index page, not the public tournament-detail route** (`/classic/[tournament]`). Pre-existing Story 3.3 gap, repeated verbatim here. Zero practical effect today since no public route displays `Match` data yet — becomes relevant once Story 3.5/3.8 render schedule/standings publicly.
+- ~~**`drawTournament`/`redrawTournament` only revalidate the discipline index page, not the public tournament-detail route** (`/classic/[tournament]`).~~ **Resolved in Story 3.5** — both now `revalidatePath(`/classic/${tournamentId}`)`, since the Розклад tab renders the calendar.
 - **`/admin/tournaments/[id]/page.tsx` fetches `hasAnyGroupResult` unconditionally**, even for `DRAFT`/`PLAYOFF`/`COMPLETED` tournaments where the redraw section never renders. An avoidable but negligible extra query at this project's scale.
 
 ## Deferred from / decided in: Story 3.4 implementation (2026-09-05)
@@ -92,7 +123,7 @@ _Implementation review (`bmad-code-review`, 4 layers) over `git diff 7d4950c..HE
 
 - **No automated test for the admin draft-preview fallback branch.** Both `/classic/[tournament]/page.tsx` and `.../teams/[team]/page.tsx` call `getSessionUser()` and branch on `user?.isAdmin` when the public read returns `null` — untested beyond a manual signed-in browser pass, the same class of gap as every prior admin-touching flow (no `requireAdmin`/session-mock infra).
 - **`status-badge.tsx`/`public-roster.tsx` have no component-level test.** Same "no component-test toolchain" gap tracked since the 2-2 review.
-- **The four-tab-chip row is inline JSX in the page, not a reusable component.** Deliberate — building a generic tab-switching component now, for one real tab out of four, is premature. Revisit when Epic 3 gives "Таблиця" or "Розклад" real content and `?tab=` shallow-routing becomes meaningful; that's also the point to implement `EXPERIENCE.md`'s "Плейоф tab hidden until `PLAYOFF`+" rule.
+- ~~**The four-tab-chip row is inline JSX in the page, not a reusable component.**~~ **Resolved in Story 3.5** — `src/components/tournament-tabs.tsx` (`TournamentTabs` + `normalizeTournamentTab`), `?tab=` routing on `/classic/[tournament]`, and the "Плейоф tab hidden until `PLAYOFF`+" rule all landed now that Розклад is the first real tab.
 - **`getPublicTournament`/`listPublicTournaments`/`getEntryByTeam` have no automated test beyond `scripts/verify-public-tournament.mts` and a live browser walkthrough.** Unlike every prior admin-only story, this one's core flow needed no `requireAdmin`/session-mock infra to test manually — a real, unblocked browser pass covered the non-admin path end to end.
 
 ## Deferred from / decided in: Story 2.8 implementation (2026-09-05)

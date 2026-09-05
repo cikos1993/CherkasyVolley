@@ -94,6 +94,17 @@ schedule generation, playoff seeding and bracket advancement.
   after that point is invalid); `CUSTOM` is always exactly 3 sets, no
   early-stop concept.
 
+- `matchSchedule.ts` — match date/time/venue rules (Story 3.5). `kyivOffsetMinutes(utc)`
+  resolves Europe/Kyiv's UTC offset (120 winter / 180 summer) per-date from
+  `Intl.DateTimeFormat` — no timezone library. `parseKyivDateTimeLocal(raw)` reads a
+  `datetime-local` string as Kyiv wall-clock and returns the UTC `Date` (empty → `null`;
+  a naive-guess + one DST re-check so a value near a switch lands on the right side;
+  rejects malformed and impossible calendar dates). `toKyivDateTimeLocalValue(date)` is
+  the inverse (seeds the edit input); `formatKyivDateTime(date)` is the `uk-UA` display
+  string. `validateMatchSchedule(raw)` combines the datetime parse with a trimmed,
+  `VENUE_TEXT_MAX`-bounded `venueText` (empty → `null`, the `playerForm.ts` rule),
+  returning `{ ok, value } | { ok: false, fieldErrors }`.
+
 - `redraw.ts` — `checkCanRedraw(state, hasResults)` (Story 3.4). Pure precondition
   for re-running the draw on an already-drawn tournament — **not** a
   `checkTransition` edge, since `Tournament.state` never changes during a

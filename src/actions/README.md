@@ -122,4 +122,18 @@ Actions are wired in their feature stories.
   `defaultShuffle` → `generateSchedule` → `saveRedraw` (deletes + recreates
   `GROUP`-stage `Match` rows in one transaction) → `revalidatePath` (discipline
   route + the tournament page only — **not** `/admin/tournaments`, since `state`
-  is unchanged so the list page's display is already correct).
+  is unchanged so the list page's display is already correct). Both `drawTournament`
+  and `redrawTournament` also `revalidatePath(`/classic/${id}`)` (Story 3.5) — the
+  public tournament page renders the match calendar on its Розклад tab.
+- `matches.ts` — `scheduleMatch(tournamentId, matchId, _prev, formData)` (Story 3.5):
+  the `MatchScheduleFormState` (`fieldErrors`/`formError`) shape, the same family as
+  `players.ts`'s form actions (a multi-field form, not `ActionResult`). `requireAdmin()`
+  caught narrowly (`instanceof AdminRequiredError` → `formError`, else rethrow) →
+  `getTournamentForAdmin` (not found → `formError`) → `validateMatchSchedule`
+  (`src/domain/matchSchedule` — not ok → `fieldErrors`) → `updateMatchSchedule`
+  (`count === 0` → not-found `formError`) → `revalidatePath`
+  (`/admin/tournaments/${id}/schedule` **and** `/classic/${id}`). No `Tournament.state`
+  gate — FR-13 says "будь-якого Матчу" and a match can't exist before the draw anyway
+  (same "no state restriction" latitude as `players.ts`). The data reads the pages
+  need stay imported from `@/data/matches` directly — a `"use server"` file exports
+  only callable actions.

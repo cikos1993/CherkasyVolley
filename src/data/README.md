@@ -121,6 +121,16 @@ goes through a named function exported from here — `getPublicTournament`,
   right before the delete and aborts if a result now exists (review fix,
   Story 3.4), closing the TOCTOU window rather than relying solely on the
   caller's earlier check.
+  **`listGroupMatchesForTournament(tournamentId)` / `updateMatchSchedule(tournamentId,
+  matchId, input)` (Story 3.5)** — `listGroupMatchesForTournament` is the shared read
+  for the public «Розклад» tab and the admin schedule page: every `GROUP` match with
+  the two team names, `scheduledAt`/`venueText`, and its `SetScore` rows, ordered
+  `scheduledAt` ascending (`nulls: "last"`) then `createdAt`. Visibility-agnostic —
+  the caller resolves whether the tournament is public first (the `getEntryByTeam`
+  contract). `updateMatchSchedule` sets just those two scheduling columns via
+  `updateMany` scoped by `(tournamentId, matchId)` **and** `stage: "GROUP"` →
+  `{ count }` (a mismatched pair or a playoff match writes nothing); never touches
+  `SetScore`, so an already-recorded result is unaffected (AC 1).
 
 The `Tournament`, `Team`, `TournamentEntry`, `Player`, `Group`, `GroupSlot`, `Match`
 and `SetScore` entities (schema landed across Story 2.1, 2.4, and 3.2, migrations
