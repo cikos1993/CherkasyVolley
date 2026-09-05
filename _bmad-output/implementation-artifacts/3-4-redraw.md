@@ -71,10 +71,10 @@ PRD FR-12 (`prd.md` §4.4, cited in the story's context) adds two checkable cons
   - [x] `RedrawTournamentButton({ tournamentId, state, hasResults })` — `ConfirmDialog` wrapping a call to `redrawTournament`, `DeleteTournamentButton`'s exact shape (`onConfirm` returns `false`/throws on failure so the dialog stays open, per `ConfirmDialog`'s own contract; success toasts and calls `router.refresh()` instead of `router.push` — this story stays on the same page, unlike delete's navigate-away). `title="Пережеребкувати?"`, `description` matching `EXPERIENCE.md`'s destructive-confirmation voice (a direct-speech sentence naming the consequence, e.g. "Поточний календар матчів буде видалено і згенеровано новий."), `confirmLabel="Пережеребкувати"`, `destructive`.
   - [x] Disabled + captioned via `checkCanRedraw(state, hasResults)` (`src/domain/redraw`) computed in the component — the same `view → domain` edge already established by `checkCanEnroll`/`checkTransition`.
   - [x] `typecheck`/`lint` clean.
-- [ ] **Task 6 — `src/app/admin/tournaments/[id]/page.tsx` (UPDATE): render the redraw button** (AC: 1, 2)
-  - [ ] Fetch `hasResults` via `hasAnyGroupResult(tournament.id)` alongside the existing `Promise.all` reads.
-  - [ ] New section, gated `tournament.state === "GROUP_STAGE"` (mirrors the existing `DRAFT`-gated draw section — mutually exclusive, both under a "Жеребкування" heading), rendering `<RedrawTournamentButton tournamentId={tournament.id} state={tournament.state} hasResults={hasResults} />`.
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 6 — `src/app/admin/tournaments/[id]/page.tsx` (UPDATE): render the redraw button** (AC: 1, 2)
+  - [x] Fetch `hasResults` via `hasAnyGroupResult(tournament.id)` alongside the existing `Promise.all` reads.
+  - [x] New section, gated `tournament.state === "GROUP_STAGE"` (mirrors the existing `DRAFT`-gated draw section — mutually exclusive, both under a "Жеребкування" heading), rendering `<RedrawTournamentButton tournamentId={tournament.id} state={tournament.state} hasResults={hasResults} />`.
+  - [x] `typecheck`/`lint` clean.
 - [ ] **Task 7 — Docs**
   - [ ] `src/domain/README.md` — new `redraw.ts` entry.
   - [ ] `src/data/README.md` — `matches.ts`'s entry gains `hasAnyGroupResult`; `draw.ts`'s entry gains `listGroupEntryIds`/`saveRedraw`.
@@ -204,6 +204,7 @@ claude-sonnet-5 (bmad-dev-story)
 - Task 3: `listGroupEntryIds(groupId)` and `saveRedraw(tournamentId, groupId, pairings)` added to `src/data/draw.ts` alongside `saveDraw`. `typecheck`/`lint` clean.
 - Task 4: `redrawTournament(tournamentId)` added to `src/actions/draw.ts` alongside `drawTournament` — reuses `checkCanRedraw`, `defaultShuffle`, `generateSchedule`, `saveRedraw`. `typecheck`/`lint` clean.
 - Task 5: `RedrawTournamentButton` added to `src/components/tournament-actions.tsx` — `ConfirmDialog` (destructive), disabled trigger + caption via `checkCanRedraw`, `router.refresh()` on success. `typecheck`/`lint` clean.
+- Task 6: `/admin/tournaments/[id]` fetches `hasResults` via `hasAnyGroupResult` and renders a `GROUP_STAGE`-gated redraw section (sibling to the existing `DRAFT`-gated draw section). `typecheck`/`lint` clean.
 
 ### File List
 
@@ -213,6 +214,7 @@ claude-sonnet-5 (bmad-dev-story)
 - `src/data/draw.ts` (UPDATE)
 - `src/actions/draw.ts` (UPDATE)
 - `src/components/tournament-actions.tsx` (UPDATE)
+- `src/app/admin/tournaments/[id]/page.tsx` (UPDATE)
 
 ## Change Log
 

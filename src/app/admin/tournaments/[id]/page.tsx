@@ -1,10 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { DeleteTournamentButton, DrawTournamentButton } from "@/components/tournament-actions";
+import {
+  DeleteTournamentButton,
+  DrawTournamentButton,
+  RedrawTournamentButton,
+} from "@/components/tournament-actions";
 import { TeamEnrollment } from "@/components/team-enrollment";
 import { TournamentForm } from "@/components/tournament-form";
 import { listEntriesForTournament } from "@/data/entries";
+import { hasAnyGroupResult } from "@/data/matches";
 import { listTeams } from "@/data/teams";
 import { getTournamentForAdmin } from "@/data/tournaments";
 import { LABELS as STATE_LABELS } from "@/domain/tournamentState";
@@ -22,10 +27,11 @@ export default async function AdminTournamentPage({
   params,
 }: PageProps<"/admin/tournaments/[id]">) {
   const { id } = await params;
-  const [tournament, teams, entries] = await Promise.all([
+  const [tournament, teams, entries, hasResults] = await Promise.all([
     getTournamentForAdmin(id),
     listTeams(),
     listEntriesForTournament(id),
+    hasAnyGroupResult(id),
   ]);
   if (!tournament) notFound();
 
@@ -85,6 +91,19 @@ export default async function AdminTournamentPage({
               state={tournament.state}
               entryCount={entries.length}
               teamCount={tournament.teamCount}
+            />
+          </div>
+        </section>
+      ) : null}
+
+      {tournament.state === "GROUP_STAGE" ? (
+        <section className="mt-10 border-t pt-6">
+          <h2 className="text-lg font-semibold">Жеребкування</h2>
+          <div className="mt-4">
+            <RedrawTournamentButton
+              tournamentId={tournament.id}
+              state={tournament.state}
+              hasResults={hasResults}
             />
           </div>
         </section>
