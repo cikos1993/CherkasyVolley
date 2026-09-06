@@ -145,21 +145,27 @@ try {
       ordered.slice(2).every((m) => m.scheduledAt === null),
   );
 
-  // A SEMIFINAL match on the same tournament must be invisible to the GROUP read
-  // and immune to the GROUP-scoped write.
+  // A SEMIFINAL match is invisible to the GROUP *read*, but `updateMatchSchedule`
+  // now serves playoff matches too (Story 4.3 — AD-5: they carry a schedule).
   const semifinal = await db.match.create({
     data: { tournamentId, stage: "SEMIFINAL", slot: "SF1", groupId: null, homeEntryId: null, awayEntryId: null },
   });
   const playoffWrite = await updateMatchSchedule(tournamentId, semifinal.id, {
     scheduledAt: earlier,
-    venueText: "не має спрацювати",
+    venueText: "СК «Плейоф»",
   });
-  check("updateMatchSchedule refuses a non-GROUP match (count 0)", playoffWrite.count === 0);
+  check("updateMatchSchedule accepts a SEMIFINAL match (Story 4.3)", playoffWrite.count === 1);
   const semifinalAfter = await db.match.findUniqueOrThrow({ where: { id: semifinal.id } });
   check(
-    "the SEMIFINAL match is untouched by the GROUP-scoped write",
-    semifinalAfter.scheduledAt === null && semifinalAfter.venueText === null,
+    "the SEMIFINAL match's schedule was written",
+    semifinalAfter.scheduledAt !== null && semifinalAfter.venueText === "СК «Плейоф»",
   );
+  // But the pair is still scoped: another tournament's id updates nothing.
+  const crossTournamentWrite = await updateMatchSchedule(otherTournamentId, semifinal.id, {
+    scheduledAt: earlier,
+    venueText: "wrong tournament",
+  });
+  check("updateMatchSchedule is still (tournamentId, matchId)-scoped", crossTournamentWrite.count === 0);
 
   const withPlayoff = await listGroupMatchesForTournament(tournamentId);
   check(

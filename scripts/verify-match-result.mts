@@ -152,14 +152,19 @@ try {
     !crossTournament.ok && crossTournament.reason === "not_found",
   );
 
-  // --- a SEMIFINAL match is refused (stage scope) ---
+  // --- a SEMIFINAL match now accepts a result (Story 4.3 un-scoped the CRUD) ---
+  const [homeEntry] = await db.tournamentEntry.findMany({
+    where: { tournamentId: classic.tournamentId },
+    select: { id: true },
+    take: 2,
+  });
   const semifinal = await db.match.create({
     data: {
       tournamentId: classic.tournamentId,
       stage: "SEMIFINAL",
       slot: "SF1",
       groupId: null,
-      homeEntryId: null,
+      homeEntryId: homeEntry.id,
       awayEntryId: null,
     },
   });
@@ -168,10 +173,9 @@ try {
     { setNo: 2, homePoints: 25, awayPoints: 20 },
     { setNo: 3, homePoints: 25, awayPoints: 20 },
   ]);
-  check(
-    "createMatchResult on a SEMIFINAL match → not_found",
-    !playoffResult.ok && playoffResult.reason === "not_found",
-  );
+  check("createMatchResult on a SEMIFINAL match succeeds (Story 4.3)", playoffResult.ok);
+  const semifinalSets = await db.setScore.count({ where: { matchId: semifinal.id } });
+  check("the SEMIFINAL match now has 3 SetScore rows", semifinalSets === 3);
 
   // --- CUSTOM: 2:1, 1 point per set won ---
   const customMatch = await db.match.findUniqueOrThrow({

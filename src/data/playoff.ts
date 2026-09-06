@@ -192,9 +192,35 @@ export function savePlayoffAdvancement(tournamentId: string): Promise<void> {
   return db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "tournament" WHERE id = ${tournamentId} FOR UPDATE`;
 
-    const rows = await readPlayoffRows(tx, tournamentId);
-    const bracket = advanceBracket(rows.map(toMatchState));
-    const bySlot = new Map(rows.map((row) => [row.slot, row]));
+    // Two flat queries (not a nested-relation `findMany`) — a relation load
+    // right after the raw lock trips a pg-driver "query while a query runs"
+    // warning; `getPlayoffBracket` (no transaction) keeps the nested read.
+    const matchRows = await tx.match.findMany({
+      where: { tournamentId, stage: { in: [...PLAYOFF_STAGES] } },
+      select: { id: true, slot: true, homeEntryId: true, awayEntryId: true },
+    });
+    const setRows = matchRows.length
+      ? await tx.setScore.findMany({
+          where: { matchId: { in: matchRows.map((row) => row.id) } },
+          select: { matchId: true, setNo: true, homePoints: true, awayPoints: true },
+        })
+      : [];
+    const setsByMatch = new Map<string, SetScore[]>();
+    for (const set of setRows) {
+      const list = setsByMatch.get(set.matchId) ?? [];
+      list.push({ setNo: set.setNo, homePoints: set.homePoints, awayPoints: set.awayPoints });
+      setsByMatch.set(set.matchId, list);
+    }
+
+    const bracket = advanceBracket(
+      matchRows.map((row) => ({
+        slot: row.slot!,
+        home: row.homeEntryId ? { entryId: row.homeEntryId, seed: null } : null,
+        away: row.awayEntryId ? { entryId: row.awayEntryId, seed: null } : null,
+        sets: setsByMatch.get(row.id) ?? [],
+      })),
+    );
+    const bySlot = new Map(matchRows.map((row) => [row.slot, row]));
 
     for (const slot of DOWNSTREAM_SLOTS) {
       const pair = slot === "FINAL" ? bracket.final : bracket.thirdPlace;

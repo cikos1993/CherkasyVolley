@@ -133,17 +133,19 @@ try {
       awayEntryId: null,
     },
   });
+  // The SEMIFINAL match is a valid target (Story 4.3 un-scoped the CRUD), but
+  // it has no result yet — the edit / delete paths still no-op on that.
   const playoffReplace = await replaceMatchResult(main.tournamentId, semifinal.id, [
     { setNo: 1, homePoints: 25, awayPoints: 20 },
     { setNo: 2, homePoints: 25, awayPoints: 20 },
     { setNo: 3, homePoints: 25, awayPoints: 20 },
   ]);
   check(
-    "replaceMatchResult on a SEMIFINAL match → not_found",
+    "replaceMatchResult on a resultless SEMIFINAL match → not_found",
     !playoffReplace.ok && playoffReplace.reason === "not_found",
   );
   check(
-    "deleteMatchResult on a SEMIFINAL match → count 0",
+    "deleteMatchResult on a resultless SEMIFINAL match → count 0",
     (await deleteMatchResult(main.tournamentId, semifinal.id)).count === 0,
   );
   check(
