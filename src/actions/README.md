@@ -48,7 +48,10 @@ Actions are wired in their feature stories.
   `GROUP_STAGE`; `finalAndThirdPlacePlayed` for `COMPLETED` — Story 4.5). Its
   first real caller is `FinishTournamentButton` (`PLAYOFF → COMPLETED`); the
   `GROUP_STAGE` / `PLAYOFF` edges have dedicated actions (`drawTournament` /
-  `formPlayoff`) because they do domain work — `COMPLETED` does not.
+  `formPlayoff`) because they do domain work — `COMPLETED` does not. On
+  `COMPLETED` it also revalidates every open match screen
+  (`/admin/tournaments/[id]/matches/[matchId]`, `"page"`) so their edit/entry
+  affordances flip.
   `createTournament(_prev, formData)` — a `useActionState` action:
   `requireAdmin()` → `validateNewTournament` (`src/domain/tournamentForm`) →
   `createTournamentRecord` → `redirect` to the new tournament page. Returns
@@ -59,6 +62,8 @@ Actions are wired in their feature stories.
   `updateTournament(tournamentId, _prev, formData)` — same `CreateTournamentState`
   shape, bound to a tournament id via `.bind(null, tournamentId)` in the form.
   `requireAdmin()` → `getTournamentForAdmin` (not found → `formError`) →
+  **refused entirely once `COMPLETED`** (`formError` — an archived tournament is
+  frozen, Story 4.5; `scoringPreset` especially drives the public standings) →
   `validateNewTournament`, substituting the tournament's **current**
   `teamCount`/`rounds` whenever `state !== "DRAFT"` (the fields the form
   disables outside `DRAFT` are re-enforced here, not just hidden client-side) →

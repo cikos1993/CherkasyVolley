@@ -106,14 +106,17 @@ try {
   await createMatchResult(tournamentId, sf2.id, sweep(true)); // seed2 beats seed3
   await savePlayoffAdvancement(tournamentId);
 
+  const beforeDeciders = await finalAndThirdPlacePlayed(tournamentId);
   check(
     "finalAndThirdPlacePlayed is false while the final and third-place have no result",
-    (await finalAndThirdPlacePlayed(tournamentId)) === false,
+    beforeDeciders === false,
   );
   check(
     "checkTransition PLAYOFF -> COMPLETED is refused (PRECONDITION_FAILED) before the deciders are played",
     (() => {
-      const r = checkTransition("PLAYOFF", "COMPLETED", { finalAndThirdPlacePlayed: false });
+      const r = checkTransition("PLAYOFF", "COMPLETED", {
+        finalAndThirdPlacePlayed: beforeDeciders,
+      });
       return !r.ok && r.code === "PRECONDITION_FAILED";
     })(),
   );
@@ -129,13 +132,14 @@ try {
 
   // --- play the third-place match ---
   await createMatchResult(tournamentId, bracket.thirdPlace.matchId!, sweep(true)); // seed4 wins
+  const afterDeciders = await finalAndThirdPlacePlayed(tournamentId);
   check(
     "finalAndThirdPlacePlayed is true once both the final and third-place have a result",
-    (await finalAndThirdPlacePlayed(tournamentId)) === true,
+    afterDeciders === true,
   );
   check(
     "checkTransition PLAYOFF -> COMPLETED is allowed once both deciders are played",
-    checkTransition("PLAYOFF", "COMPLETED", { finalAndThirdPlacePlayed: true }).ok === true,
+    checkTransition("PLAYOFF", "COMPLETED", { finalAndThirdPlacePlayed: afterDeciders }).ok === true,
   );
 
   // --- the result-edit lock ---

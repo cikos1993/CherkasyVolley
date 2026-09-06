@@ -8,6 +8,7 @@ import {
   FormPlayoffButton,
   RedrawTournamentButton,
 } from "@/components/tournament-actions";
+import { CompletedBanner } from "@/components/completed-banner";
 import { TeamEnrollment } from "@/components/team-enrollment";
 import { TournamentForm } from "@/components/tournament-form";
 import { listEntriesForTournament } from "@/data/entries";
@@ -66,11 +67,7 @@ export default async function AdminTournamentPage({
         Стан: {STATE_LABELS[tournament.state]}
       </p>
 
-      {isCompleted ? (
-        <p className="mt-4 rounded-md border border-muted-foreground/40 bg-muted px-3 py-2 text-sm">
-          Турнір завершено. Результати зафіксовано й редагуванню не підлягають.
-        </p>
-      ) : null}
+      {isCompleted ? <CompletedBanner className="mt-4" /> : null}
 
       <div className="mt-6">
         <TournamentForm
@@ -93,6 +90,7 @@ export default async function AdminTournamentPage({
                 ? []
                 : LOCKED_OUTSIDE_DRAFT
           }
+          lockedHint={isCompleted ? "Турнір завершено — дані зафіксовано." : undefined}
         />
       </div>
 

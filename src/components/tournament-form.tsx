@@ -49,12 +49,14 @@ function Field({
   label,
   error,
   locked,
+  lockedHint,
   children,
 }: {
   name: TournamentField;
   label: string;
   error?: string;
   locked?: boolean;
+  lockedHint?: string;
   children: (props: {
     id: string;
     "aria-invalid": boolean;
@@ -79,12 +81,21 @@ function Field({
         </p>
       ) : locked ? (
         <p id={lockedId} className="text-xs text-muted-foreground">
-          Змінити можна лише в стані «Чернетка».
+          {lockedHint ?? "Змінити можна лише в стані «Чернетка»."}
         </p>
       ) : null}
     </div>
   );
 }
+
+const EDITABLE_FIELDS: readonly TournamentField[] = [
+  "type",
+  "name",
+  "year",
+  "scoringPreset",
+  "teamCount",
+  "rounds",
+];
 
 type TournamentFormProps =
   | { mode?: "create" }
@@ -93,6 +104,8 @@ type TournamentFormProps =
       tournamentId: string;
       initial: FormValues;
       locked?: readonly TournamentField[];
+      /** Why the locked fields are locked (default: the pre-draw rule). */
+      lockedHint?: string;
     };
 
 export function TournamentForm(props: TournamentFormProps) {
@@ -102,6 +115,8 @@ export function TournamentForm(props: TournamentFormProps) {
   const [state, formAction, pending] = useActionState(action, {});
   const { fieldErrors } = state;
   const locked = props.mode === "edit" ? (props.locked ?? []) : [];
+  const lockedHint = props.mode === "edit" ? props.lockedHint : undefined;
+  const fullyLocked = EDITABLE_FIELDS.every((field) => locked.includes(field));
 
   // Controlled fields — React 19 resets an uncontrolled `<form action>` on
   // submit (and the base-ui Input ignores a changed `defaultValue`). Controlled
@@ -137,7 +152,13 @@ export function TournamentForm(props: TournamentFormProps) {
 
   return (
     <form action={formAction} className="grid max-w-md gap-5">
-      <Field name="type" label="Тип турніру" error={fieldErrors?.type} locked={locked.includes("type")}>
+      <Field
+        name="type"
+        label="Тип турніру"
+        error={fieldErrors?.type}
+        locked={locked.includes("type")}
+        lockedHint={lockedHint}
+      >
         {(props) => (
           <select {...props} {...bind("type")} name="type" className={selectClassName}>
             {TOURNAMENT_TYPES.map((type) => (
@@ -149,11 +170,23 @@ export function TournamentForm(props: TournamentFormProps) {
         )}
       </Field>
 
-      <Field name="name" label="Назва" error={fieldErrors?.name} locked={locked.includes("name")}>
+      <Field
+        name="name"
+        label="Назва"
+        error={fieldErrors?.name}
+        locked={locked.includes("name")}
+        lockedHint={lockedHint}
+      >
         {(props) => <Input {...props} {...bind("name")} name="name" maxLength={NAME_MAX} />}
       </Field>
 
-      <Field name="year" label="Рік" error={fieldErrors?.year} locked={locked.includes("year")}>
+      <Field
+        name="year"
+        label="Рік"
+        error={fieldErrors?.year}
+        locked={locked.includes("year")}
+        lockedHint={lockedHint}
+      >
         {(props) => (
           <Input {...props} {...bind("year")} name="year" type="number" min={YEAR_MIN} max={YEAR_MAX} />
         )}
@@ -164,6 +197,7 @@ export function TournamentForm(props: TournamentFormProps) {
         label="Система очок"
         error={fieldErrors?.scoringPreset}
         locked={locked.includes("scoringPreset")}
+        lockedHint={lockedHint}
       >
         {(props) => (
           <select
@@ -186,6 +220,7 @@ export function TournamentForm(props: TournamentFormProps) {
         label="Кількість команд"
         error={fieldErrors?.teamCount}
         locked={locked.includes("teamCount")}
+        lockedHint={lockedHint}
       >
         {(props) => (
           <Input
@@ -204,6 +239,7 @@ export function TournamentForm(props: TournamentFormProps) {
         label="Кількість кіл"
         error={fieldErrors?.rounds}
         locked={locked.includes("rounds")}
+        lockedHint={lockedHint}
       >
         {(props) => (
           <Input
@@ -217,10 +253,12 @@ export function TournamentForm(props: TournamentFormProps) {
         )}
       </Field>
 
-      <Button type="submit" disabled={pending} aria-busy={pending} className="w-fit">
-        {pending ? <Loader2Icon className="animate-spin" /> : null}
-        {mode === "edit" ? "Зберегти зміни" : "Створити турнір"}
-      </Button>
+      {fullyLocked ? null : (
+        <Button type="submit" disabled={pending} aria-busy={pending} className="w-fit">
+          {pending ? <Loader2Icon className="animate-spin" /> : null}
+          {mode === "edit" ? "Зберегти зміни" : "Створити турнір"}
+        </Button>
+      )}
     </form>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { CompletedBanner } from "@/components/completed-banner";
 import { EmptyState } from "@/components/empty-state";
 import { PublicSchedule } from "@/components/public-schedule";
 import { StandingsTable } from "@/components/standings-table";
@@ -76,11 +77,7 @@ export default async function PublicTournamentPage({
         <StatusBadge state={tournament.state} />
       </div>
 
-      {tournament.state === "COMPLETED" ? (
-        <p className="mt-4 rounded-md border border-muted-foreground/40 bg-muted px-3 py-2 text-sm">
-          Турнір завершено. Підсумкові результати нижче.
-        </p>
-      ) : null}
+      {tournament.state === "COMPLETED" ? <CompletedBanner className="mt-4" /> : null}
 
       <TournamentTabs tournamentId={id} active={activeTab} showPlayoff={showPlayoff} />
 

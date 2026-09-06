@@ -118,9 +118,13 @@ name) fires `notify.error`, keyed on the whole `state` object so two identical
 error strings in a row both toast.
 
 **Edit mode** additionally takes `tournamentId`, `initial` (a `FormValues`
-seed), and `locked` (a `TournamentField[]` — the fields to render `disabled`,
-with a "Змінити можна лише в стані «Чернетка»." caption; `[id]/page.tsx` passes
-`["teamCount", "rounds"]` outside `DRAFT`). There is no `redirect` on success
+seed), `locked` (a `TournamentField[]` — the fields to render `disabled`, with a
+caption; `[id]/page.tsx` passes `["teamCount", "rounds"]` outside `DRAFT`, and
+all six fields when `COMPLETED`), and `lockedHint` (the caption text; defaults
+to "Змінити можна лише в стані «Чернетка».", overridden to a "Турнір завершено"
+line when `COMPLETED`). When **every** editable field is locked the submit
+button is not rendered at all — the server (`updateTournament`) also refuses a
+`COMPLETED` edit, so there is nothing to submit. There is no `redirect` on success
 (edits stay on the same page), so success is detected by tracking the falling
 edge of `pending` (a `useRef`, not `state`'s identity) in a **second** effect
 kept separate from the `formError` one: on a clean completion it fires
@@ -291,6 +295,16 @@ that module's existing `LABELS`. Visual variant per `DESIGN.md`'s
 visitor); `GROUP_STAGE`/`PLAYOFF` → `border-primary`/`text-primary` outline;
 `COMPLETED` → `border-muted-foreground`/`text-muted-foreground` outline.
 Used on `/classic` (the listing) and `/classic/[tournament]`.
+
+## `completed-banner.tsx`
+
+`CompletedBanner({ className? })` (Story 4.5) — a **server** component, one
+canonical «Турнір завершено. Результати зафіксовано.» line in a bordered `muted`
+block with `role="status"` (so assistive tech announces why the edit controls
+below it are gone — EXPERIENCE State Patterns; Accessibility Floor: state never
+colour-only). Rendered above the tabs on `/classic/[tournament]` and under the
+`Стан:` line on `/admin/tournaments/[id]` when `state === "COMPLETED"`. One
+string, one markup — no per-page copy drift.
 
 ## `public-roster.tsx`
 

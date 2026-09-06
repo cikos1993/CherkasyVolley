@@ -70,6 +70,8 @@ export async function transitionTournament(
     revalidatePath("/admin/tournaments");
     revalidatePath(`/admin/tournaments/${tournamentId}`);
     revalidatePath(`/admin/tournaments/${tournamentId}/schedule`);
+    // Every open match screen — its edit/entry affordances flip once COMPLETED.
+    revalidatePath("/admin/tournaments/[id]/matches/[matchId]", "page");
 
     return { ok: true, data: { state: targetState } };
   } catch (error) {
@@ -121,11 +123,12 @@ export async function createTournament(
 }
 
 /**
- * Edits an existing tournament. `type` / `name` / `year` / `scoringPreset` are
- * editable in any state; `teamCount` / `rounds` are substituted from the
+ * Edits an existing tournament. Blocked entirely once `COMPLETED` (FR-7 — an
+ * archived tournament is frozen, `scoringPreset` especially: it drives how the
+ * public standings recompute). Otherwise `type` / `name` / `year` /
+ * `scoringPreset` are editable; `teamCount` / `rounds` are substituted from the
  * tournament's current DB values whenever `state !== "DRAFT"` — the fields the
- * form disables outside `DRAFT` are re-enforced here regardless of what a
- * forged request submits.
+ * form disables are re-enforced here regardless of what a forged request submits.
  */
 export async function updateTournament(
   tournamentId: string,
@@ -144,6 +147,9 @@ export async function updateTournament(
   const tournament = await getTournamentForAdmin(tournamentId);
   if (!tournament) {
     return { formError: "Турнір не знайдено." };
+  }
+  if (tournament.state === "COMPLETED") {
+    return { formError: "Турнір завершено — його дані редагувати не можна." };
   }
 
   const { teamCount, rounds } = resolveGroupStageFields(

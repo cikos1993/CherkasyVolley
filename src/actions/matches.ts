@@ -17,7 +17,7 @@ import { checkCanEditSemifinalResult, type PlayoffResultEditCheck } from "@/doma
 import { validateMatchSchedule, type MatchScheduleFieldErrors } from "@/domain/matchSchedule";
 import type { SetScore } from "@/domain/scoring";
 import type { Discipline, ScoringPreset, TournamentType } from "@/domain/tournamentForm";
-import { checkCanEditResults, type TournamentState } from "@/domain/tournamentState";
+import { checkCanEditResults } from "@/domain/tournamentState";
 import { MATCH_SETS_MAX, validateMatchScore } from "@/domain/validation";
 
 export type MatchScheduleFormState = {
@@ -134,16 +134,6 @@ async function checkSemifinalResultEditable(
   return checkCanEditSemifinalResult(await readPlayoffMatchStates(tournamentId));
 }
 
-/**
- * Blocks entering / correcting / removing a result (or changing a schedule)
- * once the tournament is `COMPLETED` (FR-7 — its results are frozen). Server
- * enforcement; the UI also disables the controls (NFR-1: the button state is
- * not the control).
- */
-function assertResultsEditable(state: TournamentState) {
-  return checkCanEditResults(state);
-}
-
 /** Sets a group match's planned date/time and venue. Leaves any recorded result untouched. */
 export async function scheduleMatch(
   tournamentId: string,
@@ -165,7 +155,7 @@ export async function scheduleMatch(
     return { formError: "Турнір не знайдено." };
   }
 
-  const editable = assertResultsEditable(tournament.state);
+  const editable = checkCanEditResults(tournament.state);
   if (!editable.ok) {
     return { formError: editable.message };
   }
@@ -219,16 +209,17 @@ export async function enterMatchResult(
   if (!match) {
     return { formError: "Матч не знайдено." };
   }
+
+  const editable = checkCanEditResults(match.tournament.state);
+  if (!editable.ok) {
+    return { formError: editable.message };
+  }
+
   if (match.stage !== "GROUP" && (!match.homeEntry || !match.awayEntry)) {
     return { formError: "Учасників матчу ще не визначено." };
   }
   if (match.sets.length > 0) {
     return { formError: "Результат уже внесено." };
-  }
-
-  const editable = assertResultsEditable(match.tournament.state);
-  if (!editable.ok) {
-    return { formError: editable.message };
   }
 
   const gate = await checkSemifinalResultEditable(match.stage, tournamentId);
@@ -281,13 +272,13 @@ export async function editMatchResult(
   if (!match) {
     return { formError: "Матч не знайдено." };
   }
-  if (match.sets.length === 0) {
-    return { formError: "Результат ще не внесено." };
-  }
-
-  const editable = assertResultsEditable(match.tournament.state);
+  const editable = checkCanEditResults(match.tournament.state);
   if (!editable.ok) {
     return { formError: editable.message };
+  }
+
+  if (match.sets.length === 0) {
+    return { formError: "Результат ще не внесено." };
   }
 
   const gate = await checkSemifinalResultEditable(match.stage, tournamentId);
@@ -331,7 +322,7 @@ export async function removeMatchResult(
       return { ok: false, code: "NOT_FOUND", message: "Матч не знайдено." };
     }
 
-    const editable = assertResultsEditable(match.tournament.state);
+    const editable = checkCanEditResults(match.tournament.state);
     if (!editable.ok) {
       return { ok: false, code: "PRECONDITION_FAILED", message: editable.message };
     }
