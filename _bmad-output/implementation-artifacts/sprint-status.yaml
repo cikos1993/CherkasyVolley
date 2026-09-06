@@ -14,7 +14,7 @@
 # Timestamps: MM-DD-YYYY HH:MM
 
 generated: 09-02-2026 12:00
-last_updated: 09-07-2026 11:00
+last_updated: 09-07-2026 11:30
 project: Платформа турнірів Федерації волейболу Черкащини
 project_key: NOKEY
 tracking_system: file-system
@@ -58,7 +58,7 @@ development_status:
   epic-4: in-progress
   4-1-domain-engine-bracket: done
   4-2-generate-playoff: done
-  4-3-auto-advance-final-third-place: backlog
+  4-3-auto-advance-final-third-place: ready-for-dev
   4-4-playoff-results-final-placements: backlog
   4-5-finish-tournament: backlog
   4-6-public-bracket: backlog
