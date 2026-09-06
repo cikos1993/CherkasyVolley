@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { MatchScheduleList } from "@/components/match-schedule";
+import { PlayoffSchedule, type PlayoffScheduleSlot } from "@/components/playoff-schedule";
 import { listGroupMatchesForTournament } from "@/data/matches";
+import { getPlayoffBracket, type PlayoffBracketPairView } from "@/data/playoff";
 import { getTournamentForAdmin } from "@/data/tournaments";
 import { formatKyivDateTime, toKyivDateTimeLocalValue } from "@/domain/matchSchedule";
 import { matchScoreLabel } from "@/domain/scoring";
@@ -47,6 +49,30 @@ export default async function AdminTournamentSchedulePage({
     resultSummary: matchScoreLabel(match.sets),
   }));
 
+  const inPlayoff = tournament.state === "PLAYOFF" || tournament.state === "COMPLETED";
+  const playoffSlots: PlayoffScheduleSlot[] = inPlayoff
+    ? await getPlayoffBracket(id).then((bracket) => {
+        const row = (
+          key: string,
+          label: string,
+          pair: PlayoffBracketPairView,
+        ): PlayoffScheduleSlot => ({
+          key,
+          label,
+          matchId: pair.matchId,
+          homeTeam: pair.homeTeam,
+          awayTeam: pair.awayTeam,
+          score: pair.score,
+        });
+        return [
+          row("SF1", "Півфінал 1", bracket.semifinals[0]),
+          row("SF2", "Півфінал 2", bracket.semifinals[1]),
+          row("THIRD_PLACE", "Матч за 3-тє місце", bracket.thirdPlace),
+          row("FINAL", "Фінал", bracket.final),
+        ];
+      })
+    : [];
+
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-8">
       {backLink}
@@ -57,6 +83,15 @@ export default async function AdminTournamentSchedulePage({
       <div className="mt-6">
         <MatchScheduleList tournamentId={id} matches={matches} />
       </div>
+
+      {inPlayoff ? (
+        <section className="mt-10 border-t pt-6">
+          <h2 className="text-lg font-semibold">Плейоф</h2>
+          <div className="mt-4">
+            <PlayoffSchedule tournamentId={id} slots={playoffSlots} />
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }

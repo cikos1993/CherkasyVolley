@@ -8,6 +8,13 @@ import { formatKyivDateTime } from "@/domain/matchSchedule";
 
 export const metadata = { title: "Матч" };
 
+const STAGE_LABELS: Record<string, string> = {
+  GROUP: "Груповий матч",
+  SEMIFINAL: "Півфінал",
+  THIRD_PLACE: "Матч за 3-тє місце",
+  FINAL: "Фінал",
+};
+
 export default async function AdminMatchPage({
   params,
 }: PageProps<"/admin/tournaments/[id]/matches/[matchId]">) {
@@ -16,13 +23,14 @@ export default async function AdminMatchPage({
   // `getMatchForResult` scopes by `tournamentId`; a non-null result means the
   // tournament exists (FK), so a separate tournament read would be dead weight.
   const match = await getMatchForResult(id, matchId);
-  if (!match || match.stage !== "GROUP") notFound();
+  if (!match) notFound();
 
   const homeTeam = match.homeEntry?.team.name ?? "—";
   const awayTeam = match.awayEntry?.team.name ?? "—";
   const hasResult = match.sets.length > 0;
 
   const meta = [
+    STAGE_LABELS[match.stage] ?? null,
     match.scheduledAt ? formatKyivDateTime(match.scheduledAt) : "час не визначено",
     match.venueText || null,
   ].filter(Boolean);

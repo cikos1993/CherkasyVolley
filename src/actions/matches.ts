@@ -11,6 +11,7 @@ import {
   replaceMatchResult,
   updateMatchSchedule,
 } from "@/data/matches";
+import { savePlayoffAdvancement } from "@/data/playoff";
 import { getTournamentForAdmin } from "@/data/tournaments";
 import { validateMatchSchedule, type MatchScheduleFieldErrors } from "@/domain/matchSchedule";
 import type { SetScore } from "@/domain/scoring";
@@ -102,6 +103,21 @@ function revalidateMatchSurfaces(discipline: Discipline, tournamentId: string, m
   revalidatePath(`/admin/tournaments/${tournamentId}`);
 }
 
+/**
+ * After a semifinal result is entered, edited, or removed, re-derive the final
+ * and third-place pairings (AD-5, "on write"). The `SetScore` write has
+ * already committed; a failure here is logged and swallowed — the render path
+ * re-runs `advanceBracket`, and the next result mutation retries this.
+ */
+async function advancePlayoffAfterSemifinal(stage: string, tournamentId: string) {
+  if (stage !== "SEMIFINAL") return;
+  try {
+    await savePlayoffAdvancement(tournamentId);
+  } catch (error) {
+    console.error("savePlayoffAdvancement failed after a semifinal result", error);
+  }
+}
+
 /** Sets a group match's planned date/time and venue. Leaves any recorded result untouched. */
 export async function scheduleMatch(
   tournamentId: string,
@@ -140,16 +156,15 @@ export async function scheduleMatch(
 }
 
 /**
- * Records a group match's result by set score. Validation is entirely
- * `src/domain/validation.ts`'s `validateMatchScore` — a set-specific message
- * ("Партія N: …") is mapped back under that set's row, anything else is a
- * form-level error. First-entry only; a match that already has a result is
- * refused (editing is Story 3.7).
+ * Records a match's result by set score — group or playoff (Story 4.3).
+ * Validation is entirely `src/domain/validation.ts`'s `validateMatchScore` — a
+ * set-specific message ("Партія N: …") is mapped back under that set's row,
+ * anything else is a form-level error. First-entry only; a match that already
+ * has a result is refused (editing is `editMatchResult`). When the match is a
+ * semifinal, the final / third-place pairings are re-derived afterwards.
  *
- * No `Tournament.state` guard: a group result is enterable in any state, the
- * same latitude `scheduleMatch` / `players.ts` take. Reaching `PLAYOFF` with an
- * unfilled group match is prevented upstream by the `allGroupMatchesPlayed`
- * precondition on the `GROUP_STAGE → PLAYOFF` transition (Story 4.2).
+ * No `Tournament.state` guard: a result is enterable in any state, the same
+ * latitude `scheduleMatch` / `players.ts` take (a `COMPLETED` lock is Story 4.5).
  */
 export async function enterMatchResult(
   tournamentId: string,
@@ -170,9 +185,6 @@ export async function enterMatchResult(
   if (!match) {
     return { formError: "Матч не знайдено." };
   }
-  if (match.stage !== "GROUP") {
-    return { formError: "Результат можна вносити лише для матчів групового етапу." };
-  }
   if (match.sets.length > 0) {
     return { formError: "Результат уже внесено." };
   }
@@ -190,15 +202,17 @@ export async function enterMatchResult(
     };
   }
 
+  await advancePlayoffAfterSemifinal(match.stage, tournamentId);
   revalidateMatchSurfaces(match.tournament.discipline, tournamentId, matchId);
   return {};
 }
 
 /**
- * Replaces a group match's recorded result (Story 3.7). Same validation and
- * revalidation as `enterMatchResult`; requires a result to already exist (the
- * create path handles a fresh match). No `Tournament.state` guard — a
- * `COMPLETED` lock on result editing is FR-7 / Story 4.5.
+ * Replaces a match's recorded result (group or playoff). Same validation and
+ * revalidation as `enterMatchResult`; requires a result to already exist. A
+ * semifinal edit re-derives the downstream pairings (only those not yet
+ * played — the freeze rule lives in `advanceBracket`). No `Tournament.state`
+ * guard — a `COMPLETED` lock is FR-7 / Story 4.5.
  */
 export async function editMatchResult(
   tournamentId: string,
@@ -219,9 +233,6 @@ export async function editMatchResult(
   if (!match) {
     return { formError: "Матч не знайдено." };
   }
-  if (match.stage !== "GROUP") {
-    return { formError: "Результат можна вносити лише для матчів групового етапу." };
-  }
   if (match.sets.length === 0) {
     return { formError: "Результат ще не внесено." };
   }
@@ -236,14 +247,16 @@ export async function editMatchResult(
     };
   }
 
+  await advancePlayoffAfterSemifinal(match.stage, tournamentId);
   revalidateMatchSurfaces(match.tournament.discipline, tournamentId, matchId);
   return {};
 }
 
 /**
- * Deletes a group match's recorded result (Story 3.7) — the match returns to
- * "not played" and the standings recompute on the next read. `ActionResult`
- * shape (a confirm-button action, not a form), the `removePlayer` template.
+ * Deletes a match's recorded result (group or playoff) — the match returns to
+ * "not played" and the standings / bracket recompute on the next read. A
+ * semifinal deletion clears any downstream pairing that was derived from it.
+ * `ActionResult` shape (a confirm-button action), the `removePlayer` template.
  */
 export async function removeMatchResult(
   tournamentId: string,
@@ -253,7 +266,7 @@ export async function removeMatchResult(
     await requireAdmin();
 
     const match = await getMatchForResult(tournamentId, matchId);
-    if (!match || match.stage !== "GROUP") {
+    if (!match) {
       return { ok: false, code: "NOT_FOUND", message: "Матч не знайдено." };
     }
 
@@ -262,6 +275,7 @@ export async function removeMatchResult(
       return { ok: false, code: "NOT_FOUND", message: "Результат уже видалено." };
     }
 
+    await advancePlayoffAfterSemifinal(match.stage, tournamentId);
     revalidateMatchSurfaces(match.tournament.discipline, tournamentId, matchId);
     return { ok: true, data: undefined };
   } catch (error) {

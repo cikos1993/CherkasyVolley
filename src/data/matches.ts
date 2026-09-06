@@ -103,12 +103,13 @@ export function listGroupMatchesForTournament(tournamentId: string) {
 }
 
 /**
- * Sets the planned time and venue of one `GROUP` match. Scoped by
- * `(tournamentId, matchId)` together and `stage: "GROUP"` via `updateMany`
- * (never `update`, which needs a unique where) — a mismatched pair or a
- * playoff match updates nothing and returns `{ count: 0 }`. Writes only the
- * two scheduling columns; `SetScore` rows are a separate table and are never
- * touched here, so an already-recorded result is unaffected.
+ * Sets the planned time and venue of one match — group or playoff (AD-5:
+ * playoff matches carry a schedule too, since Story 4.3). Scoped by
+ * `(tournamentId, matchId)` together via `updateMany` (never `update`, which
+ * needs a unique where) — a mismatched pair updates nothing and returns
+ * `{ count: 0 }`. Writes only the two scheduling columns; `SetScore` rows are a
+ * separate table and are never touched here, so an already-recorded result is
+ * unaffected.
  */
 export function updateMatchSchedule(
   tournamentId: string,
@@ -116,7 +117,7 @@ export function updateMatchSchedule(
   input: MatchScheduleInput,
 ) {
   return db.match.updateMany({
-    where: { id: matchId, tournamentId, stage: "GROUP" },
+    where: { id: matchId, tournamentId },
     data: { scheduledAt: input.scheduledAt, venueText: input.venueText },
   });
 }
@@ -194,13 +195,13 @@ export function getMatchForResult(tournamentId: string, matchId: string) {
 }
 
 /**
- * Records a group match's result. One transaction: the match must exist,
- * belong to `tournamentId`, be `stage: "GROUP"`, and have **no** `SetScore`
- * rows yet — this is first-entry only (editing is Story 3.7). The caller
- * (`enterMatchResult`) has already validated `sets` through
- * `src/domain/validation.ts`; this function performs no score validation. A
- * concurrent second entry that races past the `_count` check trips
- * `@@unique([matchId, setNo])` inside the transaction and is reported as
+ * Records a match's result (any stage — group or playoff, since Story 4.3).
+ * One transaction: the match must exist, belong to `tournamentId`, and have
+ * **no** `SetScore` rows yet — this is first-entry only (editing is
+ * `replaceMatchResult`). The caller (`enterMatchResult`) has already validated
+ * `sets` through `src/domain/validation.ts`; this function performs no score
+ * validation. A concurrent second entry that races past the `_count` check
+ * trips `@@unique([matchId, setNo])` inside the transaction and is reported as
  * `"exists"`; a concurrent redraw that deletes the match mid-transaction
  * trips a foreign-key / record-not-found error and is reported as
  * `"not_found"`. Neither is thrown.
@@ -213,7 +214,7 @@ export async function createMatchResult(
   try {
     return await db.$transaction(async (tx) => {
       const match = await tx.match.findFirst({
-        where: { id: matchId, tournamentId, stage: "GROUP" },
+        where: { id: matchId, tournamentId },
         select: { id: true, _count: { select: { sets: true } } },
       });
       if (!match) return { ok: false as const, reason: "not_found" as const };
@@ -244,9 +245,9 @@ function isMissingMatch(error: unknown): boolean {
 }
 
 /**
- * Replaces a group match's result with a fresh set of scores — the edit path
- * (Story 3.7). One transaction: the match must exist, belong to `tournamentId`,
- * be `stage: "GROUP"`, and **still have a result** (re-checked in the tx, so a
+ * Replaces a match's result with a fresh set of scores — the edit path (any
+ * stage since Story 4.3). One transaction: the match must exist, belong to
+ * `tournamentId`, and **still have a result** (re-checked in the tx, so a
  * `deleteMatchResult` landing between the caller's guard and this write can't
  * be silently resurrected); then every existing `SetScore` row is deleted and
  * the new ones inserted. An empty `sets` array is refused (that is a delete, not
@@ -262,7 +263,7 @@ export async function replaceMatchResult(
   try {
     return await db.$transaction(async (tx) => {
       const match = await tx.match.findFirst({
-        where: { id: matchId, tournamentId, stage: "GROUP" },
+        where: { id: matchId, tournamentId },
         select: { _count: { select: { sets: true } } },
       });
       if (!match || match._count.sets === 0) {
@@ -282,16 +283,16 @@ export async function replaceMatchResult(
 }
 
 /**
- * Deletes a group match's result (Story 3.7) — every `SetScore` row of the
- * match, returning it to the "not played" state. Scoped by the nested `match`
- * filter (`tournamentId` + `stage: "GROUP"`), so a cross-tournament `matchId`
- * or an already-empty match deletes nothing (`{ count: 0 }`).
+ * Deletes a match's result (any stage since Story 4.3) — every `SetScore` row
+ * of the match, returning it to the "not played" state. Scoped by the nested
+ * `match` filter on `tournamentId`, so a cross-tournament `matchId` or an
+ * already-empty match deletes nothing (`{ count: 0 }`).
  */
 export function deleteMatchResult(
   tournamentId: string,
   matchId: string,
 ): Promise<{ count: number }> {
   return db.setScore.deleteMany({
-    where: { matchId, match: { tournamentId, stage: "GROUP" } },
+    where: { matchId, match: { tournamentId } },
   });
 }
