@@ -197,12 +197,62 @@ export async function createMatchResult(
     if (isUniqueViolation(error, SET_SCORE_NATURAL_KEY_INDEX)) {
       return { ok: false, reason: "exists" };
     }
-    if (
-      isRecordNotFound(error) ||
-      (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003")
-    ) {
+    if (isMissingMatch(error)) {
       return { ok: false, reason: "not_found" };
     }
     throw error;
   }
+}
+
+function isMissingMatch(error: unknown): boolean {
+  return (
+    isRecordNotFound(error) ||
+    (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003")
+  );
+}
+
+/**
+ * Replaces a group match's result with a fresh set of scores — the edit path
+ * (Story 3.7). One transaction: the match must exist, belong to `tournamentId`
+ * and be `stage: "GROUP"`; then every existing `SetScore` row is deleted and
+ * the new ones inserted. No "already has a result" check — the caller
+ * (`editMatchResult`) has confirmed that; this is a plain delete-then-insert.
+ * A concurrent redraw that removes the match mid-transaction is reported as
+ * `"not_found"`, not thrown.
+ */
+export async function replaceMatchResult(
+  tournamentId: string,
+  matchId: string,
+  sets: { setNo: number; homePoints: number; awayPoints: number }[],
+): Promise<{ ok: true } | { ok: false; reason: "not_found" }> {
+  try {
+    return await db.$transaction(async (tx) => {
+      const match = await tx.match.findFirst({
+        where: { id: matchId, tournamentId, stage: "GROUP" },
+        select: { id: true },
+      });
+      if (!match) return { ok: false as const, reason: "not_found" as const };
+
+      await tx.setScore.deleteMany({ where: { matchId } });
+      await tx.setScore.createMany({ data: sets.map((set) => ({ ...set, matchId })) });
+      return { ok: true as const };
+    });
+  } catch (error) {
+    if (isMissingMatch(error)) {
+      return { ok: false, reason: "not_found" };
+    }
+    throw error;
+  }
+}
+
+/**
+ * Deletes a group match's result (Story 3.7) — every `SetScore` row of the
+ * match, returning it to the "not played" state. Scoped by the nested `match`
+ * filter (`tournamentId` + `stage: "GROUP"`), so a cross-tournament `matchId`
+ * or an already-empty match deletes nothing (`{ count: 0 }`).
+ */
+export function deleteMatchResult(tournamentId: string, matchId: string) {
+  return db.setScore.deleteMany({
+    where: { matchId, match: { tournamentId, stage: "GROUP" } },
+  });
 }

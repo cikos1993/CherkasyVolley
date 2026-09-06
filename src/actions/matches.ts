@@ -2,8 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 
+import { toActionError, type ActionResult } from "@/actions/result";
 import { AdminRequiredError, requireAdmin } from "@/auth/requireAdmin";
-import { createMatchResult, getMatchForResult, updateMatchSchedule } from "@/data/matches";
+import {
+  createMatchResult,
+  deleteMatchResult,
+  getMatchForResult,
+  replaceMatchResult,
+  updateMatchSchedule,
+} from "@/data/matches";
 import { getTournamentForAdmin } from "@/data/tournaments";
 import { validateMatchSchedule, type MatchScheduleFieldErrors } from "@/domain/matchSchedule";
 import { MATCH_SETS_MAX, validateMatchScore } from "@/domain/validation";
@@ -58,6 +65,41 @@ function parseSetsFromForm(formData: FormData): ParsedSets {
   // An empty list is valid to parse — `validateMatchScore` produces the
   // preset-correct "not enough sets" message.
   return { ok: true, sets };
+}
+
+/**
+ * Parses the form and runs the sole validator. A set-specific
+ * `validateMatchScore` message ("Партія N: …") is mapped back under that set's
+ * row; anything else is a form-level error. Shared by `enterMatchResult` and
+ * `editMatchResult`.
+ */
+function parseAndValidate(
+  formData: FormData,
+  preset: "CLASSIC" | "CUSTOM",
+  tournamentType: "CHAMPIONSHIP" | "VETERAN" | "WOMEN" | "YOUTH",
+): ParsedSets {
+  const parsed = parseSetsFromForm(formData);
+  if (!parsed.ok) return parsed;
+
+  const check = validateMatchScore(parsed.sets, preset, tournamentType);
+  if (check.ok) return parsed;
+
+  const setSpecific = /^Партія (\d+): (.+)$/.exec(check.message);
+  return {
+    ok: false,
+    state: setSpecific
+      ? { setErrors: { [Number(setSpecific[1])]: setSpecific[2] } }
+      : { formError: check.message },
+  };
+}
+
+/** Revalidates every surface a match result appears on. */
+function revalidateMatchSurfaces(discipline: string, tournamentId: string, matchId: string) {
+  const publicRoot = discipline === "BEACH" ? "/beach" : "/classic";
+  revalidatePath(`${publicRoot}/${tournamentId}`);
+  revalidatePath(`/admin/tournaments/${tournamentId}/schedule`);
+  revalidatePath(`/admin/tournaments/${tournamentId}/matches/${matchId}`);
+  revalidatePath(`/admin/tournaments/${tournamentId}`);
 }
 
 /** Sets a group match's planned date/time and venue. Leaves any recorded result untouched. */
@@ -135,20 +177,8 @@ export async function enterMatchResult(
     return { formError: "Результат уже внесено." };
   }
 
-  const parsed = parseSetsFromForm(formData);
+  const parsed = parseAndValidate(formData, match.tournament.scoringPreset, match.tournament.type);
   if (!parsed.ok) return parsed.state;
-
-  const check = validateMatchScore(
-    parsed.sets,
-    match.tournament.scoringPreset,
-    match.tournament.type,
-  );
-  if (!check.ok) {
-    const setSpecific = /^Партія (\d+): (.+)$/.exec(check.message);
-    return setSpecific
-      ? { setErrors: { [Number(setSpecific[1])]: setSpecific[2] } }
-      : { formError: check.message };
-  }
 
   const saved = await createMatchResult(tournamentId, matchId, parsed.sets);
   if (!saved.ok) {
@@ -160,10 +190,81 @@ export async function enterMatchResult(
     };
   }
 
-  const publicRoot = match.tournament.discipline === "BEACH" ? "/beach" : "/classic";
-  revalidatePath(`${publicRoot}/${tournamentId}`);
-  revalidatePath(`/admin/tournaments/${tournamentId}/schedule`);
-  revalidatePath(`/admin/tournaments/${tournamentId}/matches/${matchId}`);
-  revalidatePath(`/admin/tournaments/${tournamentId}`);
+  revalidateMatchSurfaces(match.tournament.discipline, tournamentId, matchId);
   return {};
+}
+
+/**
+ * Replaces a group match's recorded result (Story 3.7). Same validation and
+ * revalidation as `enterMatchResult`; requires a result to already exist (the
+ * create path handles a fresh match). No `Tournament.state` guard — a
+ * `COMPLETED` lock on result editing is FR-7 / Story 4.5.
+ */
+export async function editMatchResult(
+  tournamentId: string,
+  matchId: string,
+  _prev: MatchResultFormState,
+  formData: FormData,
+): Promise<MatchResultFormState> {
+  try {
+    await requireAdmin();
+  } catch (error) {
+    if (error instanceof AdminRequiredError) {
+      return { formError: "Потрібні права адміністратора." };
+    }
+    throw error;
+  }
+
+  const match = await getMatchForResult(tournamentId, matchId);
+  if (!match) {
+    return { formError: "Матч не знайдено." };
+  }
+  if (match.stage !== "GROUP") {
+    return { formError: "Результат можна вносити лише для матчів групового етапу." };
+  }
+  if (match.sets.length === 0) {
+    return { formError: "Результат ще не внесено." };
+  }
+
+  const parsed = parseAndValidate(formData, match.tournament.scoringPreset, match.tournament.type);
+  if (!parsed.ok) return parsed.state;
+
+  const saved = await replaceMatchResult(tournamentId, matchId, parsed.sets);
+  if (!saved.ok) {
+    return {
+      formError: "Матч більше не існує — можливо, проведено пережеребкування. Оновіть сторінку.",
+    };
+  }
+
+  revalidateMatchSurfaces(match.tournament.discipline, tournamentId, matchId);
+  return {};
+}
+
+/**
+ * Deletes a group match's recorded result (Story 3.7) — the match returns to
+ * "not played" and the standings recompute on the next read. `ActionResult`
+ * shape (a confirm-button action, not a form), the `removePlayer` template.
+ */
+export async function removeMatchResult(
+  tournamentId: string,
+  matchId: string,
+): Promise<ActionResult<undefined>> {
+  try {
+    await requireAdmin();
+
+    const match = await getMatchForResult(tournamentId, matchId);
+    if (!match || match.stage !== "GROUP") {
+      return { ok: false, code: "NOT_FOUND", message: "Матч не знайдено." };
+    }
+
+    const { count } = await deleteMatchResult(tournamentId, matchId);
+    if (count === 0) {
+      return { ok: false, code: "NOT_FOUND", message: "Результат уже видалено." };
+    }
+
+    revalidateMatchSurfaces(match.tournament.discipline, tournamentId, matchId);
+    return { ok: true, data: undefined };
+  } catch (error) {
+    return toActionError(error);
+  }
 }
