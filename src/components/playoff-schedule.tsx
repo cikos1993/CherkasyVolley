@@ -12,8 +12,9 @@ export type PlayoffScheduleSlot = {
 
 /**
  * Read-only list of the four playoff slots for the admin schedule page. A slot
- * with no `matchId` (the final / third-place match before both semifinals are
- * played) shows «очікує суперників» and carries no result link.
+ * whose participants are not yet decided (the final / third-place match before
+ * both semifinals are played, or after a semifinal result was undone) shows
+ * «очікує суперників» and carries no result link.
  */
 export function PlayoffSchedule({
   tournamentId,
@@ -37,7 +38,7 @@ export function PlayoffSchedule({
                 {decided ? `${slot.homeTeam} — ${slot.awayTeam}` : "очікує суперників"}
               </span>
             </span>
-            {slot.matchId ? (
+            {slot.matchId && decided ? (
               <Link
                 href={`/admin/tournaments/${tournamentId}/matches/${slot.matchId}`}
                 className="text-sm underline underline-offset-4"

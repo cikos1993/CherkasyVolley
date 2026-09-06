@@ -185,6 +185,9 @@ export async function enterMatchResult(
   if (!match) {
     return { formError: "Матч не знайдено." };
   }
+  if (match.stage !== "GROUP" && (!match.homeEntry || !match.awayEntry)) {
+    return { formError: "Учасників матчу ще не визначено." };
+  }
   if (match.sets.length > 0) {
     return { formError: "Результат уже внесено." };
   }

@@ -180,6 +180,17 @@ try {
       thirdAfterDelete?.awayEntryId === null,
   );
 
+  // getPlayoffBracket decorates the emptied-but-kept third-place row as AWAITING
+  // with no teams — the surface must render «очікує суперників» and no result
+  // link, so entering a result on a participant-less playoff match is blocked.
+  bracket = await getPlayoffBracket(tournamentId);
+  check(
+    "getPlayoffBracket reports the emptied third-place row as AWAITING with null teams",
+    bracket.thirdPlace.status === "AWAITING" &&
+      bracket.thirdPlace.homeTeam === null &&
+      bracket.thirdPlace.awayTeam === null,
+  );
+
   // --- CHECK match_slot_stage_check: a slot must match its stage ---
   let mismatchRejected = false;
   try {

@@ -17,7 +17,7 @@ context:
 
 # Story 4.3: Автоформування фіналу й матчу за 3-тє місце
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -157,6 +157,29 @@ FR / AD / SPEC anchors (in context):
   - _Residual (matches every prior admin story): no manual signed-in browser pass (no seeded `PLAYOFF` tournament). Mitigated by `verify-advance-bracket.mts` + the full gate. Recommended with code review: form a playoff, open a semifinal from the schedule page's «Плейоф» section, enter both results → the final and third-place rows appear with the right teams; correct a semifinal → they update._
 
 - [x] **Task 10 — Commit(s)** — one commit + `git push origin main` per completed task group (migration; data; actions; page; schedule section; verify script; docs). `build`/`typecheck`/`lint`/`test` gate each.
+
+### Review Findings
+
+_Code review (`bmad-code-review`). The 4 review subagents (Blind Hunter, Edge Case Hunter, Verification Gap Reviewer, Acceptance Auditor) all failed on a session rate limit; the review was performed in-session, sequentially, over `git diff c31c9fa..HEAD` (`src/` + `prisma/` + `scripts/`) across the same four lenses. Gate re-run clean: `typecheck` / `lint` pass, `pnpm test` 161/161, `verify-advance-bracket` + `verify-generate-playoff` + the three edited verify scripts green, `migrate status` up to date, no schema drift. 0 decision-needed, 1 patch, 2 deferred, 6 dismissed._
+
+#### Patch
+
+- [x] [Review][Patch] `enterMatchResult` accepts a result for a playoff match with no participants `[src/actions/matches.ts, src/data/matches.ts:createMatchResult]` — after a `FINAL`/`THIRD_PLACE` row is created (`READY`) and a semifinal result is then deleted, `savePlayoffAdvancement`'s `AWAITING` branch nulls the row's `homeEntryId`/`awayEntryId` but keeps the row. `getPlayoffBracket` then returns that pair with a non-null `matchId`, so `playoff-schedule.tsx` renders a «Внести результат» link; the match screen (`getMatchForResult` is un-scoped, no participant guard) shows «—» vs «—» and `createMatchResult` only guards `_count.sets === 0`. Once a score is entered, `advanceBracket` marks the pair `PLAYED` → frozen, so re-entering the semifinal result cannot recover it — the downstream match is wedged with null participants and an orphan result, and `getPlayoffBracket` reports a "played" match with «—» teams (violates NFR-3). Fix: in `enterMatchResult`, after the `getMatchForResult` fetch, reject a non-`GROUP` match whose `homeEntry`/`awayEntry` is null (e.g. «Учасників матчу ще не визначено.»). Also suppress the result link in `playoff-schedule.tsx` when `homeTeam`/`awayTeam` is null. (edge-case-hunter)
+  - _Applied: `enterMatchResult` now returns `{ formError: "Учасників матчу ще не визначено." }` for a non-`GROUP` match missing `homeEntry`/`awayEntry`; `PlayoffSchedule` gates the result link on `slot.matchId && decided`. `verify-advance-bracket.mts` gains an assertion that `getPlayoffBracket` reports an emptied-but-kept third-place row as `AWAITING` with null teams. Gate re-run: `typecheck` / `lint` / `build` clean, `pnpm test` 161/161, all 10 verify scripts green._
+
+#### Defer
+
+- [ ] [Review][Defer] No `@@unique([tournamentId, slot])` on `Match` — `getPlayoffBracket` turns a duplicate-slot bug into a render-path 500 `[src/data/playoff.ts, src/domain/bracket.ts:indexBySlot]` — `advanceBracket`'s `indexBySlot` throws on a duplicate slot, and `getPlayoffBracket` now runs on every admin schedule render in `PLAYOFF`/`COMPLETED` (and Story 4.6's public bracket). The tightened `match_slot_stage_check` still allows any number of `SEMIFINAL` rows with `slot IN ('SF1','SF2')`; only `savePlayoffFormation`'s `count > 0` + `SELECT … FOR UPDATE` guard prevents two `SF1` rows. A partial unique index would make the guarantee structural. Pre-existing (Story 4.2); fold into Story 4.6 hardening or a schema follow-up.
+- [ ] [Review][Defer] `savePlayoffAdvancement` runs in a separate transaction from the `SetScore` write, failures swallowed `[src/actions/matches.ts:advancePlayoffAfterSemifinal]` — already recorded in `deferred-work.md` (Story 4.3 section). Between the `createMatchResult` commit and `savePlayoffAdvancement` (or if the swallowed hook errors) the persisted `FINAL`/`THIRD_PLACE` rows lag the results; `getPlayoffBracket` always re-derives so every rendered surface is correct, and the next result mutation retries the persistence. No action — re-confirmed acceptable.
+
+#### Dismissed as noise / out of scope (6)
+
+- The "team in two places" hazard (play the final → correct a semifinal → play the third-place match) — explicitly scoped to Story 4.4 by this story's Notes and `deferred-work.md`; `savePlayoffAdvancement` faithfully applies `advanceBracket`'s freeze rule.
+- No action-level test for the `advancePlayoffAfterSemifinal` hook (verification-gap) — the standing "no `requireAdmin` / session-mock harness" limitation shared by every prior story; `verify-advance-bracket.mts` covers the `savePlayoffAdvancement` data path directly and the hook is one `if` + a log-and-swallow `try/catch`.
+- The `match_slot_stage_check` probe in `verify-advance-bracket.mts` relies on a bare `catch {}` that doesn't inspect which constraint fired — but `match_group_entries_required_check` is `stage != 'GROUP' OR …`, which passes for any non-`GROUP` row, so `match_slot_stage_check` is genuinely the constraint rejecting `stage: SEMIFINAL, slot: FINAL`. Valid probe.
+- `getPlayoffBracket(id).then(bracket => …)` inside a ternary in `schedule/page.tsx` (style) — an `await` expression would read more plainly, but it is correct and lint-clean.
+- `getPlayoffBracket`'s `decorate` falls back to «—» for a participant id absent from `teamNames` — only reachable with an already-inconsistent DB (a downstream row carrying an `entryId` that is not a semifinal participant); a defensive placeholder is appropriate.
+- Two hand-written migrations for one logical CHECK change (`20260907130000` + `_fix` at `20260907140000`) — migrations are append-only and both are already recorded in the dev DB's `_prisma_migrations`; a corrective follow-up is the sanctioned pattern (Story 2.4 / 3.2 precedent).
 
 ## Dev Notes
 
@@ -321,3 +344,4 @@ claude-sonnet-5 (bmad-dev-story)
 | --- | --- |
 | 2026-09-07 | Story drafted (`bmad-create-story`, 4 research subagents: epics 4.3/4.4 boundary / architecture+PRD+SPEC / UX / code precedent). Status: ready-for-dev. |
 | 2026-09-07 | Implementation complete (`bmad-dev-story`) — all 10 tasks. Two migrations tighten `match_slot_stage_check` per-stage (+ NULL-hole fix). `getPlayoffBracket` / `savePlayoffAdvancement` wire `advanceBracket` on read + write; result CRUD un-scoped for playoff stages; «Плейоф» section on the admin schedule page. `verify-advance-bracket.mts` (15 assertions). `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 161/161, all verify scripts green, `migrate status` clean. Status: review. |
+| 2026-09-07 | Code review (`bmad-code-review`; subagents rate-limited, run in-session across the 4 lenses) — 0 decision-needed, 1 patch, 2 deferred, 6 dismissed. Patch applied: `enterMatchResult` rejects a participant-less playoff match; `PlayoffSchedule` hides the result link until participants are decided; `verify-advance-bracket.mts` +1 assertion. Gate re-run clean (`typecheck`/`lint`/`build`, `pnpm test` 161/161, all 10 verify scripts, `migrate status`). Status: done. |

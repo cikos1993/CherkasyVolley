@@ -12,6 +12,13 @@ Items surfaced during reviews that are real but not actionable in the story that
 - **`getPlayoffBracket` returns `needsManualSeed: false`** — `advanceBracket`'s value, not the seed-time flag. Same open item as Story 4.2/4.6: persist it on `Group` at formation or re-run `seedPlayoff` on render.
 - **A nested-relation `findMany` right after a `$queryRaw … FOR UPDATE` in a transaction trips a `pg` "Calling client.query() when the client is already executing a query" deprecation warning** (`pg@9` will remove the tolerated behaviour). `savePlayoffAdvancement` works around it with two flat queries; the pattern (raw lock then ORM read) is fine with flat reads — revisit if the `@prisma/adapter-pg` / `pg` upgrade changes this.
 
+## Deferred from: code review of 4-3-auto-advance-final-third-place (2026-09-07)
+
+_Implementation review (`bmad-code-review`) over `git diff c31c9fa..HEAD`. The 4 review subagents failed on a session rate limit; the review was run in-session, sequentially, across the same four lenses. 0 decision-needed, 1 patch, 2 deferred, 6 dismissed._
+
+- **No `@@unique([tournamentId, slot])` on `Match`.** `advanceBracket`'s `indexBySlot` throws on a duplicate slot, and `getPlayoffBracket` now runs it on every admin schedule render in `PLAYOFF`/`COMPLETED` (and Story 4.6's public bracket) — so a stray second `SF1`/`FINAL`/`THIRD_PLACE` row becomes a render-path 500, not just a write anomaly. The tightened `match_slot_stage_check` still allows any number of `SEMIFINAL` rows with `slot IN ('SF1','SF2')`; only `savePlayoffFormation`'s `count > 0` + `SELECT … FOR UPDATE` keeps it single. A partial unique index would make the guarantee structural. Fold into Story 4.6 hardening or a schema follow-up.
+- **`savePlayoffAdvancement` runs in a separate transaction from the `SetScore` write** — re-confirmed acceptable (see the "Story 4.3 implementation" section above; `getPlayoffBracket` always re-derives, the next mutation retries the persistence). No new action.
+
 ## Deferred from: code review of 4-2-generate-playoff (2026-09-07)
 
 _Implementation review (`bmad-code-review`, 4 layers) over `git diff 3304f5f..HEAD`. 0 decision-needed, 9 patch, 4 deferred, 9 dismissed._
