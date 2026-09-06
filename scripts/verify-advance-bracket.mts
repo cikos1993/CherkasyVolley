@@ -1,14 +1,17 @@
 import { config } from "dotenv";
 config({ path: [".env.local", ".env"] });
 
-// Regression check for Story 4.3's playoff auto-advance — advanceBracket on the
-// write path (savePlayoffAdvancement) + the render read (getPlayoffBracket):
+// Regression check for playoff auto-advance (Story 4.3) + final placements and
+// the semifinal-edit gate (Story 4.4):
 //   pnpm exec tsx scripts/verify-advance-bracket.mts
 // Self-cleaning — one throwaway 4-team tournament: draw, record every group
 // result, form the playoff, then drive semifinal result entry / edit / delete
 // directly against src/data and assert the FINAL / THIRD_PLACE rows are
 // created, updated, frozen once played, and cleared when a semifinal result is
-// undone. Also probes the tightened match_slot_stage_check. Full teardown.
+// undone; that getPlayoffBracket().placements resolve to team names once the
+// deciding matches are played; and that checkCanEditSemifinalResult blocks a
+// semifinal edit once a downstream match has a result. Also probes the
+// tightened match_slot_stage_check. Full teardown.
 
 const { db } = await import("../src/data/client");
 const { createTournamentRecord, getTournamentForAdmin } = await import("../src/data/tournaments");
@@ -17,10 +20,9 @@ const { saveDraw } = await import("../src/data/draw");
 const { createMatchResult, deleteMatchResult, getStandings, replaceMatchResult } = await import(
   "../src/data/matches"
 );
-const { getPlayoffBracket, savePlayoffAdvancement, savePlayoffFormation } = await import(
-  "../src/data/playoff"
-);
-const { seedPlayoff } = await import("../src/domain/bracket");
+const { getPlayoffBracket, readPlayoffMatchStates, savePlayoffAdvancement, savePlayoffFormation } =
+  await import("../src/data/playoff");
+const { checkCanEditSemifinalResult, seedPlayoff } = await import("../src/domain/bracket");
 
 let failed = 0;
 function check(label: string, ok: boolean) {
@@ -139,6 +141,17 @@ try {
       bracket.final.homeTeam === standings[0].teamName &&
       bracket.final.awayTeam === standings[1].teamName,
   );
+  check(
+    "placements are all null while the final and third-place are unplayed",
+    bracket.placements.first === null &&
+      bracket.placements.second === null &&
+      bracket.placements.third === null &&
+      bracket.placements.fourth === null,
+  );
+  check(
+    "checkCanEditSemifinalResult allows the edit while no downstream match is played",
+    (checkCanEditSemifinalResult(await readPlayoffMatchStates(tournamentId))).ok === true,
+  );
 
   // --- edit a semifinal before the final is played: downstream re-derives ---
   await replaceMatchResult(tournamentId, sf1.id, sweep(false)); // seed4 now beats seed1
@@ -155,6 +168,21 @@ try {
 
   // --- play the final, then edit SF1 again: the final is frozen, third-place still moves ---
   await createMatchResult(tournamentId, finalAfterEdit!.id, sweep(true)); // seed4 wins the final
+
+  const gateAfterFinal = checkCanEditSemifinalResult(await readPlayoffMatchStates(tournamentId));
+  check(
+    "checkCanEditSemifinalResult blocks a semifinal edit once the final has a result",
+    !gateAfterFinal.ok && gateAfterFinal.message.length > 0,
+  );
+  bracket = await getPlayoffBracket(tournamentId);
+  check(
+    "placements 1 and 2 come from the played final; 3 and 4 stay null until the third-place match",
+    bracket.placements.first?.teamName === standings[3].teamName &&
+      bracket.placements.second?.teamName === standings[1].teamName &&
+      bracket.placements.third === null &&
+      bracket.placements.fourth === null,
+  );
+
   await replaceMatchResult(tournamentId, sf1.id, sweep(true)); // seed1 beats seed4 again
   await savePlayoffAdvancement(tournamentId);
   const finalAfterFreeze = await db.match.findFirst({ where: { tournamentId, stage: "FINAL" } });
@@ -189,6 +217,20 @@ try {
     bracket.thirdPlace.status === "AWAITING" &&
       bracket.thirdPlace.homeTeam === null &&
       bracket.thirdPlace.awayTeam === null,
+  );
+
+  // --- re-enter SF1, then play the third-place match: all four placements resolve ---
+  await createMatchResult(tournamentId, sf1.id, sweep(false)); // seed4 beats seed1 (SF1 had no result)
+  await savePlayoffAdvancement(tournamentId);
+  const thirdRederived = await db.match.findFirst({ where: { tournamentId, stage: "THIRD_PLACE" } });
+  await createMatchResult(tournamentId, thirdRederived!.id, sweep(true)); // seed1 wins third place
+  bracket = await getPlayoffBracket(tournamentId);
+  check(
+    "placements 1-4 resolve to the right team names once the final and third-place are played",
+    bracket.placements.first?.teamName === standings[3].teamName &&
+      bracket.placements.second?.teamName === standings[1].teamName &&
+      bracket.placements.third?.teamName === standings[0].teamName &&
+      bracket.placements.fourth?.teamName === standings[2].teamName,
   );
 
   // --- CHECK match_slot_stage_check: a slot must match its stage ---
