@@ -14,7 +14,10 @@ const { db } = await import("../src/data/client");
 const { createTournamentRecord, getTournamentForAdmin } = await import("../src/data/tournaments");
 const { createEntry, deleteEntry } = await import("../src/data/entries");
 const { saveDraw } = await import("../src/data/draw");
-const { getStandings, createMatchResult } = await import("../src/data/matches");
+const { getStandings, createMatchResult, SET_SCORE_NATURAL_KEY_INDEX } = await import(
+  "../src/data/matches"
+);
+const { isUniqueViolation } = await import("../src/data/errors");
 const { checkTransition } = await import("../src/domain/tournamentState");
 const { defaultShuffle, generateSchedule } = await import("../src/domain/schedule");
 
@@ -92,6 +95,23 @@ try {
 
   const setCount = await db.setScore.count({ where: { matchId: classic.matchIds[0] } });
   check("3 SetScore rows persisted", setCount === 3);
+
+  // The concurrent-race path in createMatchResult relies on
+  // SET_SCORE_NATURAL_KEY_INDEX matching the real constraint name — exercise
+  // it directly (the createMatchResult "exists" case exits via the _count
+  // branch and never reaches the P2002 catch).
+  let dupError: unknown;
+  try {
+    await db.setScore.create({
+      data: { matchId: classic.matchIds[0], setNo: 1, homePoints: 25, awayPoints: 15 },
+    });
+  } catch (error) {
+    dupError = error;
+  }
+  check(
+    "a duplicate (matchId, setNo) is recognised by isUniqueViolation(SET_SCORE_NATURAL_KEY_INDEX)",
+    isUniqueViolation(dupError, SET_SCORE_NATURAL_KEY_INDEX),
+  );
 
   const standings = await getStandings(classic.tournamentId);
   const homeRow = standings.find((s) => s.row.entryId === targetMatch.homeEntryId);

@@ -17,7 +17,7 @@ context:
 
 # Story 3.6: Внести результат матчу
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -158,6 +158,36 @@ PRD §4.6 (`prd.md`, in context) restates the same and adds precision:
 
 - [x] **Task 11 — Commit(s)** — one commit + `git push origin main` per completed task group. `build`/`typecheck`/`lint`/`test` gated each.
 
+### Review Findings
+
+_Code review (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Verification Gap Reviewer, Acceptance Auditor) over `git diff 8091c1a..HEAD`. All 4 layers completed. 0 decision-needed, 14 patch, 1 defer, 6 dismissed._
+
+_Dismissed (6): non-integer error string differs from the spec draft (the code's "цілим невідʼємним числом" is strictly more accurate); the schedule-row score moved from the meta line into the `<Link>` (still visible, and the link is the actionable target); static `metadata = { title: "Матч" }` (correct for `/admin/**` per the Story 2.5 rationale — `generateMetadata` would read admin-only data / leak a draft name ahead of the auth gate); `countSetsWon` as a thin `{home,away}` → `{homeSetsWon,awaySetsWon}` adapter (the naming reads better in the standings context — a semantic wrapper, not noise); `setErrors` keyed to a non-existent set row (`parseSetsFromForm` builds a contiguous `1..N` array and `validateMatchScore` enforces contiguity, so the message's `N` always maps to a rendered row); the client live-tally tie edge beyond what the `matchSetSummary` fix covers._
+
+#### Patch
+
+_All 14 patches applied in the review-fix pass. `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 135/135, `verify-match-result.mts` (13 assertions incl. the new `SET_SCORE_NATURAL_KEY_INDEX` check) + all 11 prior verify scripts green._
+
+- [x] [Review][Patch] `matchSetSummary` credits a tied set to the away side `[src/domain/scoring.ts]` — `homeWonSet` is a strict `>`, so the `else` branch counts a `home === away` set as an away win; the two deleted inline reducers used a 3-way check that credited neither. Unreachable for persisted data (`validateSetScore` enforces win-by-2) but this is now the *canonical* helper feeding `computeStandings` and every result surface. Fix: 3-way comparison (tie → neither side); reword the doc comment ("computed never typed" → "computed, not hand-entered — AC 2").
+- [x] [Review][Patch] A large digit string in a score field overflows Postgres `int4` → unhandled 500 `[src/actions/matches.ts parseSetsFromForm]` — `"99999999999999999999"` → `Number()` = `1e20`, `Number.isInteger(1e20)` is `true`, `/^\d+$/` matches, `validateSetScore` (no upper cap by design) passes, then `createMany` hits `int4` overflow with no catch. Fix: cap the score token at 3 digits (`/^\d{1,3}$/`) in `parseSetsFromForm`, plus `maxLength={3}` / `inputMode` on the form inputs (the "cheap client-side check" the Notes call for — also addresses the Acceptance Auditor's "per-field pre-check not implemented" finding).
+- [x] [Review][Patch] Empty-form submission returns a message wrong for `CUSTOM` and decides set count outside `validation.ts` `[src/actions/matches.ts parseSetsFromForm]` — zero filled rows → `{ formError: "Введіть рахунок хоча б трьох партій." }` short-circuits before `validateMatchScore`; for `CUSTOM` the rule is "рівно 3", and 1–2 filled rows already fall through to the domain's preset-correct message. Fix: drop the short-circuit, return `{ ok: true, sets: [] }`, let `validateMatchScore([], preset, type)` produce the message (it already does — "Кастомний пресет: рівно 3 партії." / "Класичний пресет: від 3 до 5 партій."). AC: "validated through `src/domain/validation.ts`".
+- [x] [Review][Patch] `createMatchResult` doesn't handle a mid-transaction match delete `[src/data/matches.ts, src/actions/matches.ts]` — a concurrent redraw that deletes the `GROUP` match between `findFirst` and `createMany` surfaces as an unhandled `P2003`/`P2025`. Fix: catch those (alongside the existing `P2002`) → `reason: "not_found"`; `enterMatchResult`'s `not_found` message gains a "оновіть сторінку" hint.
+- [x] [Review][Patch] The regex↔`validateMatchScore` message coupling is untested `[src/domain/validation.test.ts]` — `enterMatchResult` maps a per-set failure to `setErrors[N]` by parsing `/^Партія (\d+): (.+)$/`; `validation.test.ts` only asserts `.ok`, so a reword of `validation.ts`'s message template silently degrades every per-set error to a form-level one with no failing test. Fix: add a `validation.test.ts` case pinning the `Партія N:` prefix (`expect.stringMatching(/^Партія \d+: /)`). Already flagged in `deferred-work.md`.
+- [x] [Review][Patch] `SET_SCORE_NATURAL_KEY_INDEX` string is unverified by any test `[scripts/verify-match-result.mts]` — the "second entry → exists" case exits via the `_count` branch, never the `P2002` catch, so a wrong index name would only bite on the concurrent-race path (500 instead of "exists"). The name is correct (`set_score_matchId_setNo_key`, checked against `pg_indexes`) — add an assertion in the verify script that a duplicate `(matchId, setNo)` insert is caught by `isUniqueViolation(err, SET_SCORE_NATURAL_KEY_INDEX)`.
+- [x] [Review][Patch] `matchScoreLabel` — finish the dedup `[src/domain/scoring.ts + both pages]` — Story 3.6's goal was to kill the inline `setSummary`, but only the *counting* moved to `matchSetSummary`; the `{home,away}` → `"X:Y"` wrapper (`formatResult`) is still copy-pasted verbatim into `classic/[tournament]/page.tsx` and `admin/tournaments/[id]/schedule/page.tsx`. Add `matchScoreLabel(sets): string | null` next to `matchSetSummary` and use it in both.
+- [x] [Review][Patch] Set-count bounds (3–5) restated as literals in three layers `[src/domain/validation.ts, src/actions/matches.ts, src/components/match-result-form.tsx]` — `MAX_SETS = 5` (action), `MIN_SETS = 3` / `MAX_SETS = 5` (form), `sets.length < 3 || sets.length > 5` (domain). Export `MATCH_SETS_MIN` / `MATCH_SETS_MAX` from `validation.ts` and import them in the action + form (the domain owns the rule; this is a const export, not a rule change).
+- [x] [Review][Patch] The match screen drops venue context `[src/data/matches.ts getMatchForResult, src/app/admin/tournaments/[id]/matches/[matchId]/page.tsx]` — `getMatchForResult` doesn't select `venueText`, so the match page shows only date/time while the schedule list shows the venue. Add `venueText` to the select and render it next to the scheduled time.
+- [x] [Review][Patch] The per-set target is never shown before submit `[src/components/match-result-form.tsx]` — the target is 25 normally, 15 for a `CLASSIC` decisive 5th set, 15 for every set in a `VETERAN` tournament; the admin only learns this from a post-submit "Партія 5: Партія триває до 15 очок.". Thread `tournamentType` into `MatchResultForm` and show "(до N)" per row via `targetScore` (`@/domain/validation` — the established `view → domain` pure-fn edge).
+- [x] [Review][Patch] Dead heavy query on the match page `[src/app/admin/tournaments/[id]/matches/[matchId]/page.tsx]` — `getTournamentForAdmin(id)` is fetched (pulling `group`) but used only for a `!tournament` existence check that `getMatchForResult` (scoped by `tournamentId`, FK-guaranteed) already covers. Drop it.
+- [x] [Review][Patch] Repeated link text with no match context `[src/components/match-schedule.tsx]` — every schedule row's `<Link>` reads just "Внести результат" / "Результат: 3:1"; a screen-reader user hears the same phrase down the list. Add `aria-label` including the team names (same fix as the Story 3.5 review's "Зберегти" finding).
+- [x] [Review][Patch] `MatchResultForm` polish `[src/components/match-result-form.tsx]` — (a) success detection is `!state.formError && !state.setErrors`; harden to `Object.keys(state).length === 0` (the action returns `{}` on success); (b) `formError` renders both as a `notify.error` toast and a persistent inline `<p>` — the house pattern (`player-form.tsx`, `match-schedule.tsx`) is toast-only, drop the inline; (c) the live tally's `useMemo` should count only the contiguous run of filled rows from set 1 (matching the server), not every filled row.
+
+#### Defer
+
+- [x] [Review][Defer] `text-success` (#1F8A54) as body text on white is ≈ 4.35 : 1 — below WCAG AA (4.5 : 1) for 14px text `[src/components/match-schedule.tsx]` — deferred, folds into the existing design-system contrast pass (tracked since the 2.2 review — `--success` + white ≈ 4.32 : 1). This story is the first to put success-*colored text* (not a toast fill) on screen; the adjacent `CheckIcon` is a redundant cue (UX-DR13 satisfied) and `#1F8A54` is DESIGN.md's named token.
+
+- [x] [Review][Patch] Document the "no `Tournament.state` guard in `enterMatchResult`" decision `[src/actions/matches.ts]` — group results are enterable in `PLAYOFF`/`COMPLETED`. Matching `scheduleMatch` (Story 3.5) and `players.ts` (Story 2.8), which carry the same latitude; structurally, Story 4.2's `allGroupMatchesPlayed` precondition prevents reaching `PLAYOFF` with an unfilled group match. Add a one-line doc comment stating this.
+
 ## What this story is / is NOT
 
 **Is:** a preset-driven set-score input on a new admin match screen (`/admin/tournaments/[id]/matches/[matchId]`), validated solely through `src/domain/validation.ts`, persisting `SetScore` rows in one guarded transaction, with an auto-computed set tally and full revalidation so `getStandings` (and Story 3.8's table) recompute; plus the canonical `matchSetSummary` domain helper (closing a Story 3.5 deferral).
@@ -293,6 +323,7 @@ claude-sonnet-5 (bmad-dev-story)
 - Task 8: READMEs (`domain`/`data`/`actions`/`components`), `AGENTS.md` (Stack bullet + verify script), `deferred-work.md` (Story 3.6 section + both `setSummary` items resolved).
 - Task 9: `scripts/verify-match-result.mts` — 12 assertions green: `CLASSIC` 3:0 → `getStandings` (3 pts, 1 win, 3 sets), second entry → `exists`, cross-tournament + `SEMIFINAL` → `not_found`, `CUSTOM` 2:1 → `getStandings` (2 pts / 1 pt).
 - Task 10: `pnpm build` (new route registered) / `typecheck` / `lint` / `test` 131/131 clean. All 11 prior verify scripts green. No Prisma-client import in any `.tsx`.
+- Review-fix pass (`bmad-code-review`, 4 layers): 14 patches applied — `matchSetSummary` 3-way tie handling; score-token capped at 3 digits (server `/^\d{1,3}$/` + `maxLength={3}`) closing an `int4` overflow; empty-form submission now falls through to `validateMatchScore` for the preset-correct message; `createMatchResult` catches `P2003`/`P2025` → `not_found` with an "оновіть сторінку" hint; `validation.test.ts` pins the `Партія N:` prefix; `verify-match-result.mts` gained an `isUniqueViolation(SET_SCORE_NATURAL_KEY_INDEX)` assertion; `matchScoreLabel` in `scoring.ts` replaces the two duplicated `formatResult` wrappers; `MATCH_SETS_MIN`/`MATCH_SETS_MAX` exported from `validation.ts` and consumed by the action + form; the match screen shows `venueText`; per-set target ("до N") shown via `targetScore`; the dead `getTournamentForAdmin` query dropped from the match page; `aria-label` on the schedule-row link; `MatchResultForm` — success via `Object.keys(state).length === 0`, inline `formError` removed (toast only), live tally over the contiguous run; no-state-guard decision documented in a comment. `pnpm test` 135/135, `verify-match-result.mts` 13 assertions, all gates green.
 
 ### File List
 
@@ -309,6 +340,7 @@ claude-sonnet-5 (bmad-dev-story)
 - `src/domain/README.md` · `src/data/README.md` · `src/actions/README.md` · `src/components/README.md` (UPDATE)
 - `AGENTS.md` (UPDATE)
 - `_bmad-output/implementation-artifacts/deferred-work.md` (UPDATE)
+- `src/domain/validation.ts` · `src/domain/validation.test.ts` (UPDATE — review fix: `MATCH_SETS_MIN/MAX`, `Партія N:` pin)
 
 ## Change Log
 
@@ -317,3 +349,5 @@ claude-sonnet-5 (bmad-dev-story)
 | 2026-09-06 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-06 | Open question resolved by the user (option A): Story 3.6 makes standings correct + revalidated only; the visible «Таблиця» tab stays hidden until Story 3.8. No visible standings surface is built here. |
 | 2026-09-06 | Implementation complete (`bmad-dev-story`) — all 11 tasks done. `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 131/131 (+6), `scripts/verify-match-result.mts` (12 assertions) + all 11 prior verify scripts pass. Two carried `setSummary` deferred items closed. Status: review. |
+| 2026-09-06 | Code review (`bmad-code-review`, 4 layers) — 0 decision-needed, 14 patches applied, 1 deferred, 6 dismissed. Overflow guard, preset-correct empty message, `matchScoreLabel` dedup, per-set target display, P2003 handling, message-contract test, a11y label, and more. `pnpm test` 135/135, all gates green. Status: done. |
+

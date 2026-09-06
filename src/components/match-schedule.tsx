@@ -67,6 +67,11 @@ function MatchScheduleRow({ tournamentId, match }: { tournamentId: string; match
           <span>{scheduleMeta.join(" · ")}</span>
           <Link
             href={`/admin/tournaments/${tournamentId}/matches/${match.id}`}
+            aria-label={
+              match.resultSummary
+                ? `Результат матчу ${match.homeTeam} — ${match.awayTeam}: ${match.resultSummary}`
+                : `Внести результат матчу ${match.homeTeam} — ${match.awayTeam}`
+            }
             className="underline underline-offset-4"
           >
             {match.resultSummary ? (

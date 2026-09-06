@@ -8,6 +8,10 @@ import type { ScoringPreset, TournamentType } from "@/domain/tournamentForm";
 
 export type Validation = { ok: true } | { ok: false; message: string };
 
+/** A `CLASSIC` match is 3–5 sets; `CUSTOM` is always exactly `MATCH_SETS_MIN`. */
+export const MATCH_SETS_MIN = 3;
+export const MATCH_SETS_MAX = 5;
+
 /**
  * Target set score. `VETERAN` plays every set to 15, regardless of preset.
  * Otherwise `CLASSIC`'s decisive 5th set is always 15; every other set is
@@ -68,10 +72,10 @@ export function validateMatchScore(
   tournamentType: TournamentType,
 ): Validation {
   if (preset === "CUSTOM") {
-    if (sets.length !== 3) {
+    if (sets.length !== MATCH_SETS_MIN) {
       return { ok: false, message: "Кастомний пресет: рівно 3 партії." };
     }
-  } else if (sets.length < 3 || sets.length > 5) {
+  } else if (sets.length < MATCH_SETS_MIN || sets.length > MATCH_SETS_MAX) {
     return { ok: false, message: "Класичний пресет: від 3 до 5 партій." };
   }
 

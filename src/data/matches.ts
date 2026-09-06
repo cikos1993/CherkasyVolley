@@ -1,5 +1,5 @@
 import { db } from "@/data/client";
-import { isUniqueViolation } from "@/data/errors";
+import { isRecordNotFound, isUniqueViolation } from "@/data/errors";
 import { Prisma } from "@/generated/prisma/client";
 import type { MatchScheduleInput } from "@/domain/matchSchedule";
 import { computeStandings, type MatchResult } from "@/domain/scoring";
@@ -152,6 +152,7 @@ export function getMatchForResult(tournamentId: string, matchId: string) {
       id: true,
       stage: true,
       scheduledAt: true,
+      venueText: true,
       homeEntry: { select: { team: { select: { name: true } } } },
       awayEntry: { select: { team: { select: { name: true } } } },
       sets: {
@@ -171,7 +172,9 @@ export function getMatchForResult(tournamentId: string, matchId: string) {
  * `src/domain/validation.ts`; this function performs no score validation. A
  * concurrent second entry that races past the `_count` check trips
  * `@@unique([matchId, setNo])` inside the transaction and is reported as
- * `"exists"`, not thrown.
+ * `"exists"`; a concurrent redraw that deletes the match mid-transaction
+ * trips a foreign-key / record-not-found error and is reported as
+ * `"not_found"`. Neither is thrown.
  */
 export async function createMatchResult(
   tournamentId: string,
@@ -193,6 +196,12 @@ export async function createMatchResult(
   } catch (error) {
     if (isUniqueViolation(error, SET_SCORE_NATURAL_KEY_INDEX)) {
       return { ok: false, reason: "exists" };
+    }
+    if (
+      isRecordNotFound(error) ||
+      (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003")
+    ) {
+      return { ok: false, reason: "not_found" };
     }
     throw error;
   }

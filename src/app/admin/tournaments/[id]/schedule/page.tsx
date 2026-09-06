@@ -5,16 +5,10 @@ import { MatchScheduleList } from "@/components/match-schedule";
 import { listGroupMatchesForTournament } from "@/data/matches";
 import { getTournamentForAdmin } from "@/data/tournaments";
 import { formatKyivDateTime, toKyivDateTimeLocalValue } from "@/domain/matchSchedule";
-import { matchSetSummary } from "@/domain/scoring";
+import { matchScoreLabel } from "@/domain/scoring";
 import { GROUP_NOT_DRAWN } from "@/lib/empty-states";
 
 export const metadata = { title: "Розклад" };
-
-function formatResult(sets: { homePoints: number; awayPoints: number; setNo: number }[]): string | null {
-  if (sets.length === 0) return null;
-  const { home, away } = matchSetSummary(sets);
-  return `${home}:${away}`;
-}
 
 export default async function AdminTournamentSchedulePage({
   params,
@@ -50,7 +44,7 @@ export default async function AdminTournamentSchedulePage({
     scheduledAtLocal: match.scheduledAt ? toKyivDateTimeLocalValue(match.scheduledAt) : "",
     scheduledAtDisplay: match.scheduledAt ? formatKyivDateTime(match.scheduledAt) : null,
     venueText: match.venueText ?? "",
-    resultSummary: formatResult(match.sets),
+    resultSummary: matchScoreLabel(match.sets),
   }));
 
   return (

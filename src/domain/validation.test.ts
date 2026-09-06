@@ -106,4 +106,12 @@ describe("validateMatchScore", () => {
     ];
     expect(validateMatchScore(sets, "CLASSIC", "CHAMPIONSHIP").ok).toBe(false);
   });
+
+  it("prefixes a set-specific failure with 'Партія N: ' — the contract enterMatchResult parses", () => {
+    // Set 2 never reaches the 25-point target.
+    const sets = [set(1, 25, 20), set(2, 10, 8), set(3, 25, 18)];
+    const result = validateMatchScore(sets, "CLASSIC", "CHAMPIONSHIP");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.message).toMatch(/^Партія 2: /);
+  });
 });

@@ -57,7 +57,9 @@ schedule generation, playoff seeding and bracket advancement.
   — the sets-won-per-side `{ home, away }` tally shown next to a match
   ("3:1"), built on the same `homeWonSet` comparison `countSetsWon` uses; the
   canonical helper every result surface (admin screen, schedule list, public
-  page) derives the number from, so it can't drift.
+  page) derives the number from, so it can't drift (a tied set — impossible
+  for a validated result — counts for neither side). `matchScoreLabel(sets)` —
+  the `"X:Y"` string form, `null` when no sets are recorded.
 
 - `tiebreak.ts` — group standings ordering (Story 3.1, FR-17). `orderStandings(rows,
   matches, preset, teamNames)` implements the chain points → head-to-head
@@ -96,7 +98,10 @@ schedule generation, playoff seeding and bracket advancement.
   means under `CUSTOM`). `validateMatchScore(sets, preset, tournamentType)`
   — `CLASSIC` ends the instant one side reaches 3 set-wins (a set played
   after that point is invalid); `CUSTOM` is always exactly 3 sets, no
-  early-stop concept.
+  early-stop concept. `MATCH_SETS_MIN` / `MATCH_SETS_MAX` (3 / 5) are exported
+  so the Server Action and the score form don't restate the bound (Story 3.6
+  review); a per-set failure message is prefixed `Партія N: …` — the contract
+  `enterMatchResult` parses and `validation.test.ts` pins.
 
 - `matchSchedule.ts` — match date/time/venue rules (Story 3.5). `kyivOffsetMinutes(utc)`
   resolves Europe/Kyiv's UTC offset (120 winter / 180 summer) per-date from

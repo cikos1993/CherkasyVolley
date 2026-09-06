@@ -33,19 +33,28 @@ export function homeWonSet(set: SetScore): boolean {
 }
 
 /**
- * Sets won per side — the "3:1"-style tally shown next to a match, computed
- * never typed. Every surface that displays a match result derives it from
- * here so the number can't drift between the admin screen, the schedule list
- * and the public page.
+ * Sets won per side — the "3:1"-style tally shown next to a match, computed on
+ * read and never hand-entered (AC 2). Every surface that displays a match
+ * result derives it from here so the number can't drift between the admin
+ * screen, the schedule list and the public page. A tied set (impossible for a
+ * validated result — `validateSetScore` enforces win-by-2) counts for neither
+ * side rather than being silently credited to one.
  */
 export function matchSetSummary(sets: SetScore[]): { home: number; away: number } {
   let home = 0;
   let away = 0;
   for (const set of sets) {
-    if (homeWonSet(set)) home += 1;
-    else away += 1;
+    if (set.homePoints > set.awayPoints) home += 1;
+    else if (set.awayPoints > set.homePoints) away += 1;
   }
   return { home, away };
+}
+
+/** Human "X:Y" label for a match's set tally, or `null` when no sets are recorded. */
+export function matchScoreLabel(sets: SetScore[]): string | null {
+  if (sets.length === 0) return null;
+  const { home, away } = matchSetSummary(sets);
+  return `${home}:${away}`;
 }
 
 function countSetsWon(sets: SetScore[]): { homeSetsWon: number; awaySetsWon: number } {

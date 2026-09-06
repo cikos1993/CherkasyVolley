@@ -6,7 +6,7 @@ import { AdminRequiredError, requireAdmin } from "@/auth/requireAdmin";
 import { createMatchResult, getMatchForResult, updateMatchSchedule } from "@/data/matches";
 import { getTournamentForAdmin } from "@/data/tournaments";
 import { validateMatchSchedule, type MatchScheduleFieldErrors } from "@/domain/matchSchedule";
-import { validateMatchScore } from "@/domain/validation";
+import { MATCH_SETS_MAX, validateMatchScore } from "@/domain/validation";
 
 export type MatchScheduleFormState = {
   fieldErrors?: MatchScheduleFieldErrors;
@@ -18,7 +18,10 @@ export type MatchResultFormState = {
   formError?: string;
 };
 
-const MAX_SETS = 5;
+// A volleyball set score is at most two digits in practice; the cap also keeps
+// an over-long digit string from parsing to a value that overflows the int4
+// `SetScore` columns. The set-count decision is left to `validateMatchScore`.
+const SCORE_TOKEN = /^\d{1,3}$/;
 
 type ParsedSets =
   | { ok: true; sets: { setNo: number; homePoints: number; awayPoints: number }[] }
@@ -30,7 +33,7 @@ function parseSetsFromForm(formData: FormData): ParsedSets {
   const present: number[] = [];
   const raw: { setNo: number; home: string; away: string }[] = [];
 
-  for (let setNo = 1; setNo <= MAX_SETS; setNo++) {
+  for (let setNo = 1; setNo <= MATCH_SETS_MAX; setNo++) {
     const home = String(formData.get(`home-${setNo}`) ?? "").trim();
     const away = String(formData.get(`away-${setNo}`) ?? "").trim();
     if (home === "" && away === "") continue;
@@ -38,16 +41,13 @@ function parseSetsFromForm(formData: FormData): ParsedSets {
     raw.push({ setNo, home, away });
   }
 
-  if (present.length === 0) {
-    return { ok: false, state: { formError: "Введіть рахунок хоча б трьох партій." } };
-  }
   if (present.some((setNo, index) => setNo !== index + 1)) {
     return { ok: false, state: { formError: "Заповніть партії по порядку, без пропусків." } };
   }
 
   const sets: { setNo: number; homePoints: number; awayPoints: number }[] = [];
   for (const { setNo, home, away } of raw) {
-    if (!/^\d+$/.test(home) || !/^\d+$/.test(away)) {
+    if (!SCORE_TOKEN.test(home) || !SCORE_TOKEN.test(away)) {
       setErrors[setNo] = "Вкажіть рахунок партії цілим невідʼємним числом.";
       continue;
     }
@@ -55,6 +55,8 @@ function parseSetsFromForm(formData: FormData): ParsedSets {
   }
 
   if (Object.keys(setErrors).length > 0) return { ok: false, state: { setErrors } };
+  // An empty list is valid to parse — `validateMatchScore` produces the
+  // preset-correct "not enough sets" message.
   return { ok: true, sets };
 }
 
@@ -101,6 +103,11 @@ export async function scheduleMatch(
  * ("Партія N: …") is mapped back under that set's row, anything else is a
  * form-level error. First-entry only; a match that already has a result is
  * refused (editing is Story 3.7).
+ *
+ * No `Tournament.state` guard: a group result is enterable in any state, the
+ * same latitude `scheduleMatch` / `players.ts` take. Reaching `PLAYOFF` with an
+ * unfilled group match is prevented upstream by the `allGroupMatchesPlayed`
+ * precondition on the `GROUP_STAGE → PLAYOFF` transition (Story 4.2).
  */
 export async function enterMatchResult(
   tournamentId: string,
@@ -146,7 +153,10 @@ export async function enterMatchResult(
   const saved = await createMatchResult(tournamentId, matchId, parsed.sets);
   if (!saved.ok) {
     return {
-      formError: saved.reason === "exists" ? "Результат уже внесено." : "Матч не знайдено.",
+      formError:
+        saved.reason === "exists"
+          ? "Результат уже внесено."
+          : "Матч більше не існує — можливо, проведено пережеребкування. Оновіть сторінку.",
     };
   }
 

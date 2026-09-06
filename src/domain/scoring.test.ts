@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeStandings,
   matchPoints,
+  matchScoreLabel,
   matchSetSummary,
   type MatchResult,
   type SetScore,
@@ -45,6 +46,20 @@ describe("matchSetSummary", () => {
 
   it("counts a CUSTOM 2:1", () => {
     expect(matchSetSummary(sets([25, 20], [18, 25], [25, 22]))).toEqual({ home: 2, away: 1 });
+  });
+
+  it("credits a tied set to neither side", () => {
+    expect(matchSetSummary(sets([25, 20], [15, 15], [25, 18]))).toEqual({ home: 2, away: 0 });
+  });
+});
+
+describe("matchScoreLabel", () => {
+  it("is null with no sets", () => {
+    expect(matchScoreLabel([])).toBeNull();
+  });
+
+  it("formats the tally", () => {
+    expect(matchScoreLabel(sets([25, 20], [20, 25], [25, 18], [25, 22]))).toBe("3:1");
   });
 });
 

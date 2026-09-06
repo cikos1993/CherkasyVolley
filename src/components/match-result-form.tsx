@@ -8,31 +8,32 @@ import { enterMatchResult, type MatchResultFormState } from "@/actions/matches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { matchSetSummary } from "@/domain/scoring";
+import type { ScoringPreset, TournamentType } from "@/domain/tournamentForm";
+import { MATCH_SETS_MAX, MATCH_SETS_MIN, targetScore } from "@/domain/validation";
 import { notify } from "@/lib/notify";
 
 type Row = { home: string; away: string };
-
-const MIN_SETS = 3;
-const MAX_SETS = 5;
 
 function emptyRows(count: number): Row[] {
   return Array.from({ length: count }, () => ({ home: "", away: "" }));
 }
 
 function isScore(value: string): boolean {
-  return /^\d+$/.test(value);
+  return /^\d{1,3}$/.test(value);
 }
 
 export function MatchResultForm({
   tournamentId,
   matchId,
   preset,
+  tournamentType,
   homeTeam,
   awayTeam,
 }: {
   tournamentId: string;
   matchId: string;
-  preset: "CLASSIC" | "CUSTOM";
+  preset: ScoringPreset;
+  tournamentType: TournamentType;
   homeTeam: string;
   awayTeam: string;
 }) {
@@ -41,7 +42,7 @@ export function MatchResultForm({
     enterMatchResult.bind(null, tournamentId, matchId),
     {},
   );
-  const [rows, setRows] = useState<Row[]>(() => emptyRows(MIN_SETS));
+  const [rows, setRows] = useState<Row[]>(() => emptyRows(MATCH_SETS_MIN));
 
   useEffect(() => {
     if (state.formError) notify.error(state.formError);
@@ -49,29 +50,35 @@ export function MatchResultForm({
 
   const wasPending = useRef(false);
   useEffect(() => {
-    if (wasPending.current && !pending && !state.formError && !state.setErrors) {
+    if (wasPending.current && !pending && Object.keys(state).length === 0) {
       notify.success("Результат збережено");
       router.refresh();
     }
     wasPending.current = pending;
   }, [pending, state, router]);
 
+  // The live tally counts only the contiguous run of fully-filled sets from
+  // set 1 — the same shape the server accepts.
   const summary = useMemo(() => {
-    const complete = rows
-      .map((row, index) => ({ ...row, setNo: index + 1 }))
-      .filter((row) => isScore(row.home) && isScore(row.away))
-      .map((row) => ({ setNo: row.setNo, homePoints: Number(row.home), awayPoints: Number(row.away) }));
-    return matchSetSummary(complete);
+    const contiguous: { setNo: number; homePoints: number; awayPoints: number }[] = [];
+    for (const [index, row] of rows.entries()) {
+      if (!isScore(row.home) || !isScore(row.away)) break;
+      contiguous.push({ setNo: index + 1, homePoints: Number(row.home), awayPoints: Number(row.away) });
+    }
+    return matchSetSummary(contiguous);
   }, [rows]);
 
   function updateRow(index: number, field: keyof Row, value: string) {
     setRows((current) => current.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
   }
 
-  const canAddSet = preset === "CLASSIC" && rows.length < MAX_SETS;
+  const canAddSet = preset === "CLASSIC" && rows.length < MATCH_SETS_MAX;
   const lastRow = rows[rows.length - 1];
   const canRemoveSet =
-    preset === "CLASSIC" && rows.length > MIN_SETS && lastRow.home === "" && lastRow.away === "";
+    preset === "CLASSIC" &&
+    rows.length > MATCH_SETS_MIN &&
+    lastRow.home === "" &&
+    lastRow.away === "";
 
   return (
     <form action={formAction} className="grid max-w-md gap-4">
@@ -80,13 +87,18 @@ export function MatchResultForm({
           const setNo = index + 1;
           const error = state.setErrors?.[setNo];
           const errorId = error ? `set-${setNo}-error` : undefined;
+          const target = targetScore(preset, tournamentType, setNo);
           return (
             <div key={setNo} className="grid gap-1.5">
               <div className="flex items-center gap-3">
-                <span className="w-20 text-sm text-muted-foreground">Партія {setNo}</span>
+                <span className="w-28 text-sm text-muted-foreground">
+                  Партія {setNo}{" "}
+                  <span className="text-xs">(до {target})</span>
+                </span>
                 <Input
                   name={`home-${setNo}`}
                   inputMode="numeric"
+                  maxLength={3}
                   aria-label={`${homeTeam}, партія ${setNo}`}
                   aria-invalid={Boolean(error)}
                   aria-describedby={errorId}
@@ -100,6 +112,7 @@ export function MatchResultForm({
                 <Input
                   name={`away-${setNo}`}
                   inputMode="numeric"
+                  maxLength={3}
                   aria-label={`${awayTeam}, партія ${setNo}`}
                   aria-invalid={Boolean(error)}
                   aria-describedby={errorId}
@@ -149,8 +162,6 @@ export function MatchResultForm({
         </span>
         <span className="text-muted-foreground"> (рахується автоматично)</span>
       </p>
-
-      {state.formError ? <p className="text-sm text-destructive">{state.formError}</p> : null}
 
       <Button type="submit" disabled={pending} aria-busy={pending} className="w-fit">
         {pending ? <Loader2Icon className="animate-spin" /> : null}
