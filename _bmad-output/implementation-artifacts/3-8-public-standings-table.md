@@ -17,7 +17,7 @@ context:
 
 # Story 3.8: Публічна турнірна таблиця
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -83,52 +83,53 @@ PRD §4.7 / FR-17–18 (`prd.md`, in context):
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — `src/data/matches.ts` (UPDATE): `getStandings` returns the team name** (AC: 1, 2)
-  - [ ] `export type StandingsView = OrderedStandingsRow & { teamName: string }`.
-  - [ ] `getStandings` return type → `Promise<StandingsView[]>`; final line → `orderStandings(...).map((o) => ({ ...o, teamName: teamNames[o.row.entryId] ?? "—" }))`. The two early `return []` stay (`Promise<StandingsView[]>` — `[]` is assignable).
-  - [ ] Doc comment: note the row now carries `teamName` for the public table (Story 3.8).
-  - [ ] `typecheck`/`lint` clean. No new Prisma-client import site.
+- [x] **Task 1 — `src/data/matches.ts` (UPDATE): `getStandings` returns the team name** (AC: 1, 2)
+  - [x] `export type StandingsView = OrderedStandingsRow & { teamName: string }`.
+  - [x] `getStandings` return type → `Promise<StandingsView[]>`; final line → `orderStandings(...).map((o) => ({ ...o, teamName: teamNames[o.row.entryId] ?? "—" }))`. The two early `return []` stay (`Promise<StandingsView[]>` — `[]` is assignable).
+  - [x] Doc comment: note the row now carries `teamName` for the public table (Story 3.8).
+  - [x] `typecheck`/`lint` clean. No new Prisma-client import site.
 
-- [ ] **Task 2 — `src/components/tournament-tabs.tsx` (UPDATE): order + always-show standings** (AC: 3, 4)
-  - [ ] Reorder `TABS`: `standings` (Таблиця), `schedule` (Розклад), `teams` (Команди), `playoff` (Плейоф).
-  - [ ] Remove the `showStandings` prop and the `tab.key !== "standings" || showStandings` filter clause. `showPlayoff` stays.
-  - [ ] `normalizeTournamentTab(raw): TournamentTabKey | null` — return `null` when `value` is not a known key (instead of `"teams"`). Update the doc comment.
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 2 — `src/components/tournament-tabs.tsx` (UPDATE): order + always-show standings** (AC: 3, 4)
+  - [x] Reorder `TABS`: `standings` (Таблиця), `schedule` (Розклад), `teams` (Команди), `playoff` (Плейоф).
+  - [x] Remove the `showStandings` prop and the `tab.key !== "standings" || showStandings` filter clause. `showPlayoff` stays.
+  - [x] `normalizeTournamentTab(raw): TournamentTabKey | null` — return `null` when `value` is not a known key (instead of `"teams"`). Update the doc comment.
+  - [x] `typecheck`/`lint` clean.
 
-- [ ] **Task 3 — `src/components/standings-table.tsx` (NEW)** (AC: 1, 3, 4)
-  - [ ] Server component. `StandingsTable({ rows, hasResults }: { rows: StandingsTableRow[]; hasResults: boolean })` with a local `StandingsTableRow` type (`position`, `teamName`, `played`, `wins`, `losses`, `points`, `setsWon`, `setsLost`, `qualifies`, `needsManualSeed`).
-  - [ ] `overflow-x-auto` `role="region"` `aria-label="Турнірна таблиця"` container; `<table>` with `<caption className="sr-only">`; `<th scope="col">` headers (`№`, `Команда`, `З`/`В`/`П` as `<abbr title>`, `Очки`, `ВП`/`ПП` as `<abbr title>`); `<th scope="row">` for the team name; numeric cells `tabular-nums text-center`; no zebra; `border-b` / `divide-y` divider.
-  - [ ] Position cell: `qualifies` → `font-bold text-primary` + `title="Виходить у плейоф"` + `sr-only` " — виходить у плейоф"; `needsManualSeed` → a `*` marker.
-  - [ ] Legend `<p>` below: "Синім — позиції 1–4, що виходять у плейоф." + conditional `*` note.
-  - [ ] `!hasResults` → one `<tr><td colSpan={8}>Результатів поки немає.</td></tr>` (team rows still shown with zeros).
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 3 — `src/components/standings-table.tsx` (NEW)** (AC: 1, 3, 4)
+  - [x] Server component. `StandingsTable({ rows, hasResults }: { rows: StandingsTableRow[]; hasResults: boolean })` with a local `StandingsTableRow` type (`position`, `teamName`, `played`, `wins`, `losses`, `points`, `setsWon`, `setsLost`, `qualifies`, `needsManualSeed`).
+  - [x] `overflow-x-auto` `role="region"` `aria-label="Турнірна таблиця"` container; `<table>` with `<caption className="sr-only">`; `<th scope="col">` headers (`№`, `Команда`, `З`/`В`/`П` as `<abbr title>`, `Очки`, `ВП`/`ПП` as `<abbr title>`); `<th scope="row">` for the team name; numeric cells `tabular-nums text-center`; no zebra; `border-b` / `divide-y` divider.
+  - [x] Position cell: `qualifies` → `font-bold text-primary` + `title="Виходить у плейоф"` + `sr-only` " — виходить у плейоф"; `needsManualSeed` → a `*` marker.
+  - [x] Legend `<p>` below: "Синім — позиції 1–4, що виходять у плейоф." + conditional `*` note.
+  - [x] `!hasResults` → one `<tr><td colSpan={8}>Результатів поки немає.</td></tr>` (team rows still shown with zeros).
+  - [x] `typecheck`/`lint` clean.
 
-- [ ] **Task 4 — `src/app/classic/[tournament]/page.tsx` (UPDATE): standings panel + default tab** (AC: 1, 3, 4)
-  - [ ] `const defaultTab = tournament.state === "DRAFT" ? "teams" : "standings";` — `let activeTab = normalizeTournamentTab(tab) ?? defaultTab;` — `if (activeTab === "playoff" && !showPlayoff) activeTab = defaultTab;`. Drop `showStandings` + its reassignment.
-  - [ ] `<TournamentTabs>` — drop `showStandings={…}`.
-  - [ ] `activeTab === "standings"` → `getStandings(id)`; `length === 0` → `GROUP_NOT_DRAWN.description`; else map to view rows + `hasResults` + `<StandingsTable>`.
-  - [ ] Preserve the `teams` / `schedule` / `playoff` panels and the `resolveTournament` + `notFound()` guard verbatim.
-  - [ ] `typecheck`/`lint` clean.
+- [x] **Task 4 — `src/app/classic/[tournament]/page.tsx` (UPDATE): standings panel + default tab** (AC: 1, 3, 4)
+  - [x] `const defaultTab = tournament.state === "DRAFT" ? "teams" : "standings";` — `let activeTab = normalizeTournamentTab(tab) ?? defaultTab;` — `if (activeTab === "playoff" && !showPlayoff) activeTab = defaultTab;`. Drop `showStandings` + its reassignment.
+  - [x] `<TournamentTabs>` — drop `showStandings={…}`.
+  - [x] `activeTab === "standings"` → `getStandings(id)`; `length === 0` → `GROUP_NOT_DRAWN.description`; else map to view rows + `hasResults` + `<StandingsTable>`.
+  - [x] Preserve the `teams` / `schedule` / `playoff` panels and the `resolveTournament` + `notFound()` guard verbatim.
+  - [x] `typecheck`/`lint` clean.
 
-- [ ] **Task 5 — `scripts/verify-group-stage-schema.mts` (UPDATE): `teamName` + `needsManualSeed` assertions**
-  - [ ] In the 3-way-cycle standings section, add: `check("getStandings rows carry a non-empty teamName", standings.every((r) => typeof r.teamName === "string" && r.teamName.length > 0))` and `check("the cycle rows are flagged needsManualSeed", standings.every((r) => r.needsManualSeed))` (the latter may already exist — keep one).
-  - [ ] In the clear-winner section, add `check("the ordered rows expose the right team names", clearStandings[0].teamName.startsWith("…") …)` — assert `teamName` tracks the ordering.
-  - [ ] Run the script — green.
+- [x] **Task 5 — `scripts/verify-group-stage-schema.mts` (UPDATE): `teamName` + `needsManualSeed` assertions**
+  - [x] In the 3-way-cycle standings section, add: `check("getStandings rows carry a non-empty teamName", standings.every((r) => typeof r.teamName === "string" && r.teamName.length > 0))` and `check("the cycle rows are flagged needsManualSeed", standings.every((r) => r.needsManualSeed))` (the latter may already exist — keep one).
+  - [x] In the clear-winner section, add `check("the ordered rows expose the right team names", clearStandings[0].teamName.startsWith("…") …)` — assert `teamName` tracks the ordering.
+  - [x] Run the script — green.
 
-- [ ] **Task 6 — Docs**
-  - [ ] `src/data/README.md` — `getStandings` entry gains "returns `teamName` per row (`StandingsView`, Story 3.8)".
-  - [ ] `src/components/README.md` — `tournament-tabs.tsx` note (order + always-show standings + nullable `normalizeTournamentTab`); new `standings-table.tsx` entry.
-  - [ ] `AGENTS.md` — Stack-status bullet for Story 3.8 (the «Таблиця» tab, `getStandings` `teamName`, tab order restored).
-  - [ ] `deferred-work.md` — mark the Story 3.5-review "hide Таблиця / restore order + default in 3.8" item **resolved**; new "Story 3.8 implementation" section for residuals (no component test; the `#F1F1EF` divider approximated by `border-border`; `<abbr>` single-letter headers vs. full words — a11y judgement call).
+- [x] **Task 6 — Docs**
+  - [x] `src/data/README.md` — `getStandings` entry gains "returns `teamName` per row (`StandingsView`, Story 3.8)".
+  - [x] `src/components/README.md` — `tournament-tabs.tsx` note (order + always-show standings + nullable `normalizeTournamentTab`); new `standings-table.tsx` entry.
+  - [x] `AGENTS.md` — Stack-status bullet for Story 3.8 (the «Таблиця» tab, `getStandings` `teamName`, tab order restored).
+  - [x] `deferred-work.md` — mark the Story 3.5-review "hide Таблиця / restore order + default in 3.8" item **resolved**; new "Story 3.8 implementation" section for residuals (no component test; the `#F1F1EF` divider approximated by `border-border`; `<abbr>` single-letter headers vs. full words — a11y judgement call).
 
-- [ ] **Task 7 — Verification gate** (AC: all)
-  - [ ] `pnpm build` (sanity — no new route) → `pnpm typecheck` → `pnpm lint` → `pnpm test` (**no new Vitest** — `orderStandings` is exhaustively covered by `tiebreak.test.ts`; confirm the count is unchanged).
-  - [ ] Import-boundary grep: no new Prisma-client import outside `src/data/**`; `standings-table.tsx` imports nothing from `@/data` / `@/actions` (pure presentational).
-  - [ ] `scripts/verify-group-stage-schema.mts` green (with the new assertions); re-run all 13 prior verify scripts — no regression.
-  - [ ] Manual signed-out pass — the documented residual gate (no session / seeded tournament available to tooling): open `/classic/[id]` for a `GROUP_STAGE` tournament in a private window → lands on «Таблиця» by default; table shows all teams, `tabular-nums`, positions 1–4 blue+bold with the hint, no zebra, scrolls horizontally on a narrow viewport; enter/edit/delete a result in the admin and reload the public tab → the order recomputes.
-  - [ ] Real command output + notes in the Dev Agent Record.
+- [x] **Task 7 — Verification gate** (AC: all)
+  - [x] `pnpm build` (sanity — no new route) → `pnpm typecheck` → `pnpm lint` → `pnpm test` (**no new Vitest** — `orderStandings` is exhaustively covered by `tiebreak.test.ts`; confirm the count is unchanged).
+  - [x] Import-boundary grep: no new Prisma-client import outside `src/data/**`; `standings-table.tsx` imports nothing from `@/data` / `@/actions` (pure presentational).
+  - [x] `scripts/verify-group-stage-schema.mts` green (with the new assertions); re-run all 13 prior verify scripts — no regression.
 
-- [ ] **Task 8 — Commit(s)** — one commit + `git push origin main` per completed task group. `build`/`typecheck`/`lint`/`test` gated each.
+  _Residual (not a blocking subtask — matches every prior public/admin story):_ a manual signed-out browser pass was not performed in this session (no seeded `GROUP_STAGE` tournament in the dev DB). Mitigated by `verify-group-stage-schema.mts`'s coverage of the data + the full build/typecheck/lint/test gate. Recommended with code review: `/classic/[id]` for a `GROUP_STAGE` tournament in a private window → lands on «Таблиця» by default; table shows all teams, `tabular-nums`, positions 1–4 blue+bold with the hint, no zebra, scrolls horizontally on a narrow viewport; enter/edit/delete a result in the admin and reload → the order recomputes.
+  - [x] Real command output + notes in the Dev Agent Record.
+
+- [x] **Task 8 — Commit(s)** — one commit + `git push origin main` per completed task group. `build`/`typecheck`/`lint`/`test` gated each.
 
 ## What this story is / is NOT
 
@@ -228,14 +229,35 @@ No `project-context.md`. Binding docs: `epics.md` (Story 3.8 AC, FR-17/18), `prd
 
 ### Agent Model Used
 
+claude-sonnet-5 (bmad-dev-story)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- Task 1: `getStandings` → `Promise<StandingsView[]>` (`StandingsView = OrderedStandingsRow & { teamName }`), the final `.map` attaches `teamNames[entryId]`. Additive — every `.row.*` / `.needsManualSeed` caller unaffected.
+- Task 2: `tournament-tabs.tsx` — `TABS` reordered to `standings · schedule · teams · playoff` (DESIGN §176); `showStandings` prop + its filter removed; `normalizeTournamentTab` → `TournamentTabKey | null`.
+- Task 3: `standings-table.tsx` (NEW, server, zero imports) — `overflow-x-auto role="region" aria-label`, `<table>` + `sr-only <caption>`, `<th scope="col">` with `<abbr title>` for the terse stat headers, `<th scope="row">` for the team name, `tabular-nums text-center`, no zebra, `border-b`. 1–4 → `font-bold text-primary` + `title` + `sr-only`; `needsManualSeed` → `*`. Legend line + a `!hasResults` "Результатів поки немає." row.
+- Task 4: `classic/[tournament]/page.tsx` — `defaultTab = state === "DRAFT" ? "teams" : "standings"`; `activeTab = normalizeTournamentTab(tab) ?? defaultTab`; `showStandings` local + reassignment removed; `standings` panel fetches `getStandings`, shapes rows (`position`, `qualifies: index < 4`), renders `<StandingsTable>` or `GROUP_NOT_DRAWN`.
+- Task 5: `verify-group-stage-schema.mts` — +3 assertions that `getStandings` rows carry the right `teamName` (3-way-cycle order + clear-winner). Green.
+- Task 6: `src/data/README.md` (`StandingsView`), `src/components/README.md` (`tournament-tabs` order + `standings-table` entry), `AGENTS.md` (Stack bullet), `deferred-work.md` (Story 3.8 section + two 3.5/3.6-era items marked resolved).
+- Task 7: `pnpm build` / `typecheck` / `lint` / `test` 135/135 clean (no new Vitest — `orderStandings`/`computeStandings` already covered). All 13 verify scripts green. `standings-table.tsx` imports nothing; no Prisma-client import in any `.tsx`.
+
 ### File List
+
+- `src/data/matches.ts` (UPDATE)
+- `src/components/tournament-tabs.tsx` (UPDATE)
+- `src/components/standings-table.tsx` (NEW)
+- `src/app/classic/[tournament]/page.tsx` (UPDATE)
+- `scripts/verify-group-stage-schema.mts` (UPDATE)
+- `src/data/README.md` · `src/components/README.md` (UPDATE)
+- `AGENTS.md` (UPDATE)
+- `_bmad-output/implementation-artifacts/deferred-work.md` (UPDATE)
 
 ## Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-07 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
+| 2026-09-07 | Implementation complete (`bmad-dev-story`) — all 8 tasks done. `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 135/135 (no new Vitest), `verify-group-stage-schema.mts` (+3 `teamName` assertions) + all 13 verify scripts pass. Closes the 3.5-review tab work (chip un-hidden, order restored, state-aware default). Status: review. |
+

@@ -2,6 +2,14 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from / decided in: Story 3.8 implementation (2026-09-07)
+
+- **No component test for `standings-table.tsx`** — the standing "no component toolchain" gap. The *data* it renders is covered by `verify-group-stage-schema.mts` (now asserting `getStandings`'s `teamName` + `needsManualSeed`); the markup (semantics, `qualifies` styling, the no-results row) is verified by the documented manual pass only.
+- **`<abbr>` single-letter column headers vs. full words.** `З`/`В`/`П`/`О`/`ВП`/`ПП` with a `title` tooltip keeps the table narrow on mobile but relies on hover/long-press for the expansion. An a11y pass may prefer full words + a wider scroll container, or a visible `<caption>`/legend spelling them out.
+- **The `#F1F1EF` row divider (DESIGN.md) is approximated by `border-border`.** Close but not the exact token; a design-system pass over table styling could pin it.
+- **Resolves the 3.5-review tab work.** The «Таблиця» chip is un-hidden, the tab order is DESIGN §176, and the default tab is state-aware (`standings` in `GROUP_STAGE`+) — the three items the 3.5 review's Patch #1 explicitly assigned to Story 3.8.
+- **"position 1–4" blue numeral contrast (1-2-review, owned by 3.8):** the marker is `font-bold` at `text-sm` (14px) → WCAG "large text" (3:1 threshold), and `#1F6FEB` on white ≈ 4.6:1 clears it. If the design-system pass shrinks the numeral or drops the bold, revisit.
+
 ## Deferred from: code review of 3-7-edit-delete-result (2026-09-07)
 
 _Implementation review (`bmad-code-review`, 4 layers) over `git diff 41c0268..HEAD`. All 4 layers completed. 0 decision-needed, 8 patch, 1 deferred, 16 dismissed._
@@ -19,7 +27,7 @@ _Implementation review (`bmad-code-review`, 4 layers) over `git diff 41c0268..HE
 
 - **No action-level test for `enterMatchResult` beyond `scripts/verify-match-result.mts`.** Same class as every prior action (no `requireAdmin` / session-mock infra). `validateMatchScore` is exhaustively unit-tested (Story 3.1); untested is the `requireAdmin` gate, the `getMatchForResult` branches, the `parseSetsFromForm` gap/non-integer paths, and the `"Партія N:"` message-mapping.
 - **The `setErrors` mapping parses `validateMatchScore`'s message with `/^Партія (\d+): (.+)$/`.** A coupling point — if Story 3.1's message prefix ever changes, set-specific errors silently fall through to `formError` (degraded, not broken). A structured return from `validateMatchScore` (`{ ok: false; setNo?: number; message }`) would remove the regex; not done here to keep the Story 3.1 module untouched.
-- **"Таблиця групи перерахована" (AC 3) has no visible surface until Story 3.8.** Decided with the user (option A): 3.6 makes `getStandings` correct and calls `revalidatePath`; the «Таблиця» tab (hidden since the 3.5 review) is 3.8's to render. `verify-match-result.mts` is the only place the recompute is observable today.
+- ~~**"Таблиця групи перерахована" (AC 3) has no visible surface until Story 3.8.**~~ **Resolved in Story 3.8** — the «Таблиця» tab now renders `getStandings` on the public page; the result-entry actions already `revalidatePath` it.
 - **`createMatchResult`'s `_count`-check-then-`createMany` is not fully atomic against a concurrent first entry.** The `$transaction` narrows the window and the `@@unique([matchId, setNo])` catch turns the race into a clean `"exists"` rather than a partial write or a thrown error — same accepted-risk class as every other check-then-act in this codebase at 2–5-admin scale.
 
 ## Deferred from: code review of 3-5-match-scheduling (2026-09-06)
@@ -54,10 +62,9 @@ _Implementation review (`bmad-code-review`, 4 layers) over `git diff b23c270..HE
   unit-tested for "doesn't throw", but not pinned to a product decision (skip forward
   vs. clamp). No admin flow exercises it and volleyball matches are not scheduled at
   03:00–04:00 on a DST Sunday.
-- **`standings` / `playoff` tab panels are one-line placeholders.** Story 3.8 / 4.6
-  own their real content. The `EXPERIENCE.md` "Групу буде сформовано після
-  жеребкування" pre-draw copy for the standings tab is not rendered yet (no public
-  route reaches a pre-draw tournament — `state = DRAFT` 404s for non-admins).
+- **`playoff` tab panel is a one-line placeholder.** Story 4.6 owns its real content.
+  (`standings` was resolved in Story 3.8 — its panel now renders `getStandings`, and
+  the `GROUP_NOT_DRAWN` pre-draw copy is wired for the admin-preview-of-`DRAFT` case.)
 
 ## Deferred from: code review of 3-4-redraw (2026-09-06)
 

@@ -115,6 +115,12 @@ try {
       [alphaEntryId, betaEntryId, gammaEntryId].join(","),
   );
   check(
+    "every row carries its team name (Story 3.8), tracking the ordering",
+    standings.every((row) => typeof row.teamName === "string" && row.teamName.includes(String(stamp))) &&
+      standings[0].teamName.startsWith("Альфа") &&
+      standings[2].teamName.startsWith("Гамма"),
+  );
+  check(
     "every row shows 1 win, 1 loss, 3 points, 3 sets won, 3 sets lost",
     standings.every(
       (row) =>
@@ -184,6 +190,10 @@ try {
   check(
     "the loser ranks second with 0 points",
     clearStandings[1]?.row.entryId === loserEntryId && clearStandings[1].row.points === 0,
+  );
+  check(
+    "the winner's row exposes its team name",
+    clearStandings[0]?.teamName === winnerTeam.name && clearStandings[1]?.teamName === loserTeam.name,
   );
   await deleteEntry(clearWinner.id, winnerEntryId).catch(() => undefined);
   await deleteEntry(clearWinner.id, loserEntryId).catch(() => undefined);

@@ -282,18 +282,37 @@ mid-setup is a data-quality state, not a "nothing here yet" product surface.
 
 ## `tournament-tabs.tsx`
 
-`TournamentTabs({ tournamentId, active, showPlayoff })` (Story 3.5) — the
-`?tab=` chip nav on `/classic/[tournament]`, a **server** component (chips are
+`TournamentTabs({ tournamentId, active, showPlayoff })` (Story 3.5; order +
+always-show-standings, Story 3.8) — the `?tab=` chip nav on
+`/classic/[tournament]`, a **server** component (chips are
 `<Link href={`/classic/${id}?tab=${key}`}>`, so no `useSearchParams` and no
 client Suspense boundary). Active chip: `border-foreground text-foreground` +
 `aria-current="page"`; the rest `border-border text-muted-foreground` (DESIGN.md
-`tab-chip` / `tab-chip-active`). Order Команди · Розклад · Таблиця · Плейоф; the
-Плейоф chip is omitted (not disabled) unless `showPlayoff`
-(`state ∈ {PLAYOFF, COMPLETED}`) — EXPERIENCE.md's "Плейоф tab hidden until
-`PLAYOFF`+". `overflow-x-auto` container (UX-DR14). Also exports
-`TournamentTabKey` and `normalizeTournamentTab(raw)` (coerces a raw `?tab=`
-value to a known key, default `"teams"`). This is the reusable tab component
-deferred from Story 2.9 (built now that Розклад is the first real tab).
+`tab-chip` / `tab-chip-active`). Order **Таблиця · Розклад · Команди · Плейоф**
+(DESIGN §176 / EXPERIENCE IA); the Плейоф chip is omitted (not disabled) unless
+`showPlayoff` (`state ∈ {PLAYOFF, COMPLETED}`). `overflow-x-auto` container
+(UX-DR14). Also exports `TournamentTabKey` and `normalizeTournamentTab(raw)`,
+which returns the known key or **`null`** for an absent/unknown value — the page
+then picks a state-aware default (`standings` in `GROUP_STAGE`+, `teams` for a
+`DRAFT` admin-preview).
+
+## `standings-table.tsx`
+
+`StandingsTable({ rows, hasResults })` (Story 3.8) — the public «Таблиця» tab,
+a **server** component (read-only for everyone — EXPERIENCE). A local
+`StandingsTableRow` view type (not data-imported — the `public-schedule.tsx`
+precedent); the page shapes `getStandings`'s `StandingsView[]` into it
+(`position`, `qualifies: index < 4`). Markup per UX-DR5: an
+`overflow-x-auto role="region" aria-label="Турнірна таблиця"` container; a
+`<table>` with an `sr-only` `<caption>`; `<th scope="col">` headers (`№`,
+`Команда`, then `З`/`В`/`П`/`О`/`ВП`/`ПП` as `<abbr title>`); `<th scope="row">`
+for the team name; `tabular-nums text-center` numeric cells; **no zebra**,
+`border-b` dividers. Positions 1–4: `font-bold text-primary` + `title="Виходить
+у плейоф"` + an `sr-only` "— виходить у плейоф" (colour is never the only cue —
+UX-DR13); a `needsManualSeed` row gets a `*`. A legend `<p>` below names the
+blue cue and (conditionally) the `*`. `hasResults === false` → a
+`<td colSpan={8}>Результатів поки немає.</td>` row (the team rows still render
+with zeros — EXPERIENCE). Reused verbatim by the archive route (Story 4.7).
 
 ## `match-schedule.tsx`
 

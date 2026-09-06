@@ -96,7 +96,8 @@ goes through a named function exported from here — `getPublicTournament`,
   `schema.prisma`) → every `GROUP`-stage `Match` + `SetScore` → `src/domain/scoring.ts`'s
   `computeStandings` → `src/domain/tiebreak.ts`'s `orderStandings`. Returns
   `[]` pre-draw (no `GroupSlot` rows yet) — never stored (AD-4), recomputed
-  every call. **`hasAnyGroupResult(tournamentId, client?)` (Story 3.4)** — whether
+  every call. Each row is a `StandingsView` (`OrderedStandingsRow & { teamName }`
+  — the name for the public «Таблиця» tab, Story 3.8). **`hasAnyGroupResult(tournamentId, client?)` (Story 3.4)** — whether
   any `GROUP`-stage `Match` has a `SetScore` yet; the sole read backing
   `checkCanRedraw`'s "no results yet" gate. `client` defaults to the shared
   `db`; `saveRedraw` (`draw.ts`) passes its transaction client to re-check
