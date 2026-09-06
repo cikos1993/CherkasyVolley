@@ -7,6 +7,7 @@ import { getMatchForResult } from "@/data/matches";
 import { readPlayoffMatchStates } from "@/data/playoff";
 import { checkCanEditSemifinalResult } from "@/domain/bracket";
 import { formatKyivDateTime } from "@/domain/matchSchedule";
+import { checkCanEditResults } from "@/domain/tournamentState";
 
 export const metadata = { title: "Матч" };
 
@@ -31,11 +32,15 @@ export default async function AdminMatchPage({
   const awayTeam = match.awayEntry?.team.name ?? "—";
   const hasResult = match.sets.length > 0;
 
-  // A semifinal result cannot be corrected/removed once a downstream playoff
-  // match has been played — the server actions enforce it; disable the controls
-  // here too so the admin sees it before acting.
+  // Results are frozen once the tournament is COMPLETED (FR-7); and a semifinal
+  // result cannot be corrected/removed once a downstream playoff match has been
+  // played. The server actions enforce both — disable the controls here too so
+  // the admin sees it before acting.
   let editLockedReason: string | undefined;
-  if (hasResult && match.stage === "SEMIFINAL") {
+  const completedCheck = checkCanEditResults(match.tournament.state);
+  if (!completedCheck.ok) {
+    editLockedReason = completedCheck.message;
+  } else if (hasResult && match.stage === "SEMIFINAL") {
     const gate = checkCanEditSemifinalResult(await readPlayoffMatchStates(id));
     if (!gate.ok) editLockedReason = gate.message;
   }
@@ -79,6 +84,7 @@ export default async function AdminMatchPage({
             tournamentType={match.tournament.type}
             homeTeam={homeTeam}
             awayTeam={awayTeam}
+            lockedReason={editLockedReason}
           />
         )}
       </div>

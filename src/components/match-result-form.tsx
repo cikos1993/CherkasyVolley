@@ -21,6 +21,8 @@ type MatchResultFormProps = {
   tournamentType: TournamentType;
   homeTeam: string;
   awayTeam: string;
+  /** When set, the form is replaced by this read-only reason (e.g. the tournament is completed). */
+  lockedReason?: string;
 } & (
   | { mode?: "create" }
   | { mode: "edit"; initialSets: SetScore[]; onCancel: () => void }
@@ -82,6 +84,10 @@ export function MatchResultForm(props: MatchResultFormProps) {
 
   function updateRow(index: number, field: keyof Row, value: string) {
     setRows((current) => current.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+  }
+
+  if (props.lockedReason) {
+    return <p className="text-sm text-muted-foreground">{props.lockedReason}</p>;
   }
 
   const canAddSet = preset === "CLASSIC" && rows.length < MATCH_SETS_MAX;

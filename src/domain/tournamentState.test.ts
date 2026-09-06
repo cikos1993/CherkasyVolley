@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   canTransition,
+  checkCanEditResults,
   checkTransition,
   TRANSITIONS,
   type TournamentState,
@@ -133,6 +134,23 @@ describe("checkTransition — illegal edges", () => {
   it("every transition out of COMPLETED is rejected", () => {
     for (const to of ALL_STATES) {
       expect(checkTransition("COMPLETED", to)).toMatchObject({ ok: false });
+    }
+  });
+});
+
+describe("checkCanEditResults", () => {
+  it("allows result editing in every non-completed state", () => {
+    expect(checkCanEditResults("DRAFT")).toEqual({ ok: true });
+    expect(checkCanEditResults("GROUP_STAGE")).toEqual({ ok: true });
+    expect(checkCanEditResults("PLAYOFF")).toEqual({ ok: true });
+  });
+
+  it("blocks result editing once the tournament is completed", () => {
+    const result = checkCanEditResults("COMPLETED");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.message.length).toBeGreaterThan(0);
+      expect(result.message).toMatch(/[а-яіїєґ]/i);
     }
   });
 });

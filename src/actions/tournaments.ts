@@ -7,6 +7,7 @@ import { toActionError, type ActionResult } from "@/actions/result";
 import { AdminRequiredError, requireAdmin } from "@/auth/requireAdmin";
 import { isRecordNotFound, isUniqueViolation } from "@/data/errors";
 import { countTournamentEntries } from "@/data/entries";
+import { finalAndThirdPlacePlayed } from "@/data/matches";
 import {
   createTournamentRecord,
   deleteTournamentRecord,
@@ -47,6 +48,9 @@ export async function transitionTournament(
       context.entryCount = await countTournamentEntries(tournamentId);
       context.teamCount = tournament.teamCount;
     }
+    if (targetState === "COMPLETED") {
+      context.finalAndThirdPlacePlayed = await finalAndThirdPlacePlayed(tournamentId);
+    }
 
     const check = checkTransition(tournament.state, targetState, context);
     if (!check.ok) {
@@ -55,11 +59,17 @@ export async function transitionTournament(
 
     await setTournamentState(tournamentId, targetState);
 
-    // Refresh the public discipline section, and the archive once a tournament is
-    // completed. The per-tournament admin page arrives with a later story.
-    revalidatePath(tournament.discipline === "BEACH" ? "/beach" : "/classic");
+    // Refresh every surface the transition changes: the public discipline list
+    // and the per-tournament page (the «Плейоф» tab, the «Турнір завершено»
+    // banner), the admin tournament list + schedule page, and the archive once
+    // a tournament is completed.
+    const publicRoot = tournament.discipline === "BEACH" ? "/beach" : "/classic";
+    revalidatePath(publicRoot);
+    revalidatePath(`${publicRoot}/${tournamentId}`);
     if (targetState === "COMPLETED") revalidatePath("/archive");
+    revalidatePath("/admin/tournaments");
     revalidatePath(`/admin/tournaments/${tournamentId}`);
+    revalidatePath(`/admin/tournaments/${tournamentId}/schedule`);
 
     return { ok: true, data: { state: targetState } };
   } catch (error) {

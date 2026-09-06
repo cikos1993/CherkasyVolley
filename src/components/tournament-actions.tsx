@@ -6,7 +6,7 @@ import { Loader2Icon } from "lucide-react";
 
 import { drawTournament, redrawTournament } from "@/actions/draw";
 import { formPlayoff } from "@/actions/playoff";
-import { deleteTournament } from "@/actions/tournaments";
+import { deleteTournament, transitionTournament } from "@/actions/tournaments";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { checkCanRedraw } from "@/domain/redraw";
@@ -135,6 +135,58 @@ export function FormPlayoffButton({
         {pending ? <Loader2Icon className="animate-spin" /> : null}
         Сформувати плейоф
       </Button>
+      {caption ? <p className="text-xs text-muted-foreground">{caption}</p> : null}
+    </div>
+  );
+}
+
+export function FinishTournamentButton({
+  tournamentId,
+  state,
+  finalAndThirdPlacePlayed,
+}: {
+  tournamentId: string;
+  state: TournamentState;
+  finalAndThirdPlacePlayed: boolean;
+}) {
+  const router = useRouter();
+
+  const check = checkTransition(state, "COMPLETED", { finalAndThirdPlacePlayed });
+  const caption =
+    !check.ok && check.code === "PRECONDITION_FAILED"
+      ? "Доступно коли зіграно фінал і матч за 3-тє місце"
+      : check.ok
+        ? null
+        : check.message;
+
+  async function finish(): Promise<boolean | void> {
+    const res = await transitionTournament(tournamentId, "COMPLETED").catch((): null => {
+      notify.error("Не вдалося завершити турнір. Спробуйте ще раз.");
+      return null;
+    });
+    if (res === null) throw new Error("finish request failed");
+    if (!res.ok) {
+      notify.error(res.message);
+      return false;
+    }
+    notify.success("Турнір завершено");
+    router.refresh();
+  }
+
+  return (
+    <div className="grid gap-2">
+      <ConfirmDialog
+        trigger={
+          <Button variant="destructive" disabled={!check.ok}>
+            Завершити турнір
+          </Button>
+        }
+        title="Завершити турнір?"
+        description="Після цього результати редагувати не можна."
+        confirmLabel="Завершити турнір"
+        destructive
+        onConfirm={finish}
+      />
       {caption ? <p className="text-xs text-muted-foreground">{caption}</p> : null}
     </div>
   );

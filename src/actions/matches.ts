@@ -17,6 +17,7 @@ import { checkCanEditSemifinalResult, type PlayoffResultEditCheck } from "@/doma
 import { validateMatchSchedule, type MatchScheduleFieldErrors } from "@/domain/matchSchedule";
 import type { SetScore } from "@/domain/scoring";
 import type { Discipline, ScoringPreset, TournamentType } from "@/domain/tournamentForm";
+import { checkCanEditResults, type TournamentState } from "@/domain/tournamentState";
 import { MATCH_SETS_MAX, validateMatchScore } from "@/domain/validation";
 
 export type MatchScheduleFormState = {
@@ -133,6 +134,16 @@ async function checkSemifinalResultEditable(
   return checkCanEditSemifinalResult(await readPlayoffMatchStates(tournamentId));
 }
 
+/**
+ * Blocks entering / correcting / removing a result (or changing a schedule)
+ * once the tournament is `COMPLETED` (FR-7 — its results are frozen). Server
+ * enforcement; the UI also disables the controls (NFR-1: the button state is
+ * not the control).
+ */
+function assertResultsEditable(state: TournamentState) {
+  return checkCanEditResults(state);
+}
+
 /** Sets a group match's planned date/time and venue. Leaves any recorded result untouched. */
 export async function scheduleMatch(
   tournamentId: string,
@@ -152,6 +163,11 @@ export async function scheduleMatch(
   const tournament = await getTournamentForAdmin(tournamentId);
   if (!tournament) {
     return { formError: "Турнір не знайдено." };
+  }
+
+  const editable = assertResultsEditable(tournament.state);
+  if (!editable.ok) {
+    return { formError: editable.message };
   }
 
   const parsed = validateMatchSchedule({
@@ -181,8 +197,8 @@ export async function scheduleMatch(
  * match is a semifinal, the final / third-place pairings are re-derived
  * afterwards.
  *
- * No `Tournament.state` guard: a result is enterable in any state, the same
- * latitude `scheduleMatch` / `players.ts` take (a `COMPLETED` lock is Story 4.5).
+ * Refused once the tournament is `COMPLETED` (`checkCanEditResults` — FR-7):
+ * a completed tournament's results are frozen. Enterable in every earlier state.
  */
 export async function enterMatchResult(
   tournamentId: string,
@@ -208,6 +224,11 @@ export async function enterMatchResult(
   }
   if (match.sets.length > 0) {
     return { formError: "Результат уже внесено." };
+  }
+
+  const editable = assertResultsEditable(match.tournament.state);
+  if (!editable.ok) {
+    return { formError: editable.message };
   }
 
   const gate = await checkSemifinalResultEditable(match.stage, tournamentId);
@@ -238,8 +259,8 @@ export async function enterMatchResult(
  * revalidation as `enterMatchResult`; requires a result to already exist. A
  * semifinal edit re-derives the downstream pairings (only those not yet
  * played — the freeze rule lives in `advanceBracket`), and is refused once a
- * downstream match has been played (`checkCanEditSemifinalResult`). No
- * `Tournament.state` guard — a `COMPLETED` lock is FR-7 / Story 4.5.
+ * downstream match has been played (`checkCanEditSemifinalResult`). Refused
+ * once the tournament is `COMPLETED` (`checkCanEditResults` — FR-7).
  */
 export async function editMatchResult(
   tournamentId: string,
@@ -262,6 +283,11 @@ export async function editMatchResult(
   }
   if (match.sets.length === 0) {
     return { formError: "Результат ще не внесено." };
+  }
+
+  const editable = assertResultsEditable(match.tournament.state);
+  if (!editable.ok) {
+    return { formError: editable.message };
   }
 
   const gate = await checkSemifinalResultEditable(match.stage, tournamentId);
@@ -289,7 +315,8 @@ export async function editMatchResult(
  * "not played" and the standings / bracket recompute on the next read. A
  * semifinal deletion clears any downstream pairing that was derived from it,
  * and is refused once a downstream match has been played
- * (`checkCanEditSemifinalResult`). `ActionResult` shape (a confirm-button
+ * (`checkCanEditSemifinalResult`) or once the tournament is `COMPLETED`
+ * (`checkCanEditResults` — FR-7). `ActionResult` shape (a confirm-button
  * action), the `removePlayer` template.
  */
 export async function removeMatchResult(
@@ -302,6 +329,11 @@ export async function removeMatchResult(
     const match = await getMatchForResult(tournamentId, matchId);
     if (!match) {
       return { ok: false, code: "NOT_FOUND", message: "Матч не знайдено." };
+    }
+
+    const editable = assertResultsEditable(match.tournament.state);
+    if (!editable.ok) {
+      return { ok: false, code: "PRECONDITION_FAILED", message: editable.message };
     }
 
     const gate = await checkSemifinalResultEditable(match.stage, tournamentId);

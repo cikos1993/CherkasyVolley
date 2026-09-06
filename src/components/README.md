@@ -190,6 +190,15 @@ was settled by team name. `router.refresh()` runs on every outcome (`finally`)
 failed race. Rendered only while `state === "GROUP_STAGE"` (the page gates it,
 alongside the redraw section).
 
+`FinishTournamentButton({ tournamentId, state, finalAndThirdPlacePlayed })`
+(Story 4.5) — `RedrawTournamentButton`'s shape (`ConfirmDialog`, `destructive`)
+crossed with `FormPlayoffButton`'s `checkTransition`-driven disabled + caption.
+Calls `transitionTournament(tournamentId, "COMPLETED")` — the first real caller
+of that action. Client gate `checkTransition(state, "COMPLETED",
+{ finalAndThirdPlacePlayed })`; `PRECONDITION_FAILED` caption → «Доступно коли
+зіграно фінал і матч за 3-тє місце». Dialog copy «Завершити турнір? Після цього
+результати редагувати не можна.» Rendered only while `state === "PLAYOFF"`.
+
 ## `team-enrollment.tsx`
 
 `TeamEnrollment({ tournamentId, state, teamCount, entries, availableTeams })`
@@ -339,7 +348,8 @@ Reused verbatim by the archive route (Story 4.7).
 
 ## `match-schedule.tsx`
 
-`MatchScheduleList({ tournamentId, matches })` (Story 3.5) — the admin editor on
+`MatchScheduleList({ tournamentId, matches, locked? })` (Story 3.5; `locked`
+since Story 4.5) — the admin editor on
 `/admin/tournaments/[id]/schedule`. A local `MatchRow` view model (not
 Prisma-imported — the `team-enrollment.tsx` precedent), shaped server-side. Each
 row is a `MatchScheduleRow` with its own hooks: a header line (teams + a
@@ -351,7 +361,11 @@ fully controlled inputs (`useState`, the `player-form.tsx` UX-DR11 pattern — t
 base-ui `Input` only rejects a *changed `defaultValue`*, a `value` is fine).
 Field errors under the field (`aria-invalid`/`aria-describedby`); `formError` →
 `notify.error`; a second effect on the falling edge of `pending` (a `useRef`) →
-`notify.success("Розклад оновлено")` + `router.refresh()`.
+`notify.success("Розклад оновлено")` + `router.refresh()`. When `locked` (the
+tournament is `COMPLETED`), the schedule `<form>` is dropped from every row and
+a muted "Турнір завершено — розклад зафіксовано." line heads the list; the
+`<Link>` to the match screen stays (viewing the recorded result is fine, and
+that screen is itself locked).
 
 ## `playoff-schedule.tsx`
 
@@ -406,7 +420,10 @@ inputs get `aria-invalid` / `aria-describedby`); `state.formError` renders above
 the submit button and `notify.error`s. Falling-edge-of-`pending` success effect
 (the `player-form.tsx` `useRef` technique) → `notify.success` +
 `router.refresh()` (the page re-renders read-only). Submit `disabled` + spinner
-while pending (EXPERIENCE — synchronous edit, no optimistic UI).
+while pending (EXPERIENCE — synchronous edit, no optimistic UI). A `lockedReason`
+prop (Story 4.5) replaces the whole form with that muted line — the match page
+passes it when the tournament is `COMPLETED` (also for the semifinal-edit gate,
+via `MatchResultPanel`).
 
 The `match-schedule.tsx` row (Story 3.5) gained a `<Link>` to this screen —
 «Внести результат» when no result, else a `text-success` `CheckIcon` + «Результат:

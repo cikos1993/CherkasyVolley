@@ -109,6 +109,11 @@ goes through a named function exported from here — `getPublicTournament`,
   `checkTransition(…, "PLAYOFF", …)`, distinct from `hasAnyGroupResult`'s
   "any". Takes a transaction client so `savePlayoffFormation` can re-check it
   inside its own transaction.
+  **`finalAndThirdPlacePlayed(tournamentId, client?)` (Story 4.5)** — whether
+  **both** the `FINAL` and the `THIRD_PLACE` match exist and each has a
+  `SetScore` (playing only the final is not finishable); the precondition input
+  for `checkTransition(…, "COMPLETED", …)` (FR-7). Same shape as
+  `allGroupMatchesPlayed`.
 - `playoff.ts` — `savePlayoffFormation(tournamentId, bracket)` (Story 4.2), the
   `saveDraw` twin for the playoff. Takes the seeded `PlayoffBracket` (domain
   type) and does the `semifinals → row` mapping in one place. One
@@ -172,7 +177,8 @@ goes through a named function exported from here — `getPublicTournament`,
   **`getMatchForResult(tournamentId, matchId)` / `createMatchResult(tournamentId,
   matchId, sets)` (Story 3.6)** — `getMatchForResult` is the match screen's read
   (team names, stage, schedule, existing `SetScore` rows, the tournament's
-  `scoringPreset`/`type`/`discipline`), scoped by the `(tournamentId, matchId)`
+  `scoringPreset`/`type`/`discipline`/`state` — `state` since Story 4.5, for the
+  `COMPLETED` result-edit lock), scoped by the `(tournamentId, matchId)`
   pair. `createMatchResult` records a result in one `db.$transaction`: the match
   must exist, belong to the tournament (any stage — group or playoff, since
   Story 4.3), and have zero `SetScore` rows (first-entry only); then `createMany`.

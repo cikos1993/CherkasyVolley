@@ -27,7 +27,15 @@ type MatchRow = {
   resultSummary: string | null;
 };
 
-function MatchScheduleRow({ tournamentId, match }: { tournamentId: string; match: MatchRow }) {
+function MatchScheduleRow({
+  tournamentId,
+  match,
+  locked,
+}: {
+  tournamentId: string;
+  match: MatchRow;
+  locked: boolean;
+}) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState<MatchScheduleFormState, FormData>(
     scheduleMatch.bind(null, tournamentId, match.id),
@@ -86,6 +94,7 @@ function MatchScheduleRow({ tournamentId, match }: { tournamentId: string; match
         </span>
       </div>
 
+      {locked ? null : (
       <form
         action={formAction}
         aria-label={`Розклад матчу: ${match.homeTeam} — ${match.awayTeam}`}
@@ -134,6 +143,7 @@ function MatchScheduleRow({ tournamentId, match }: { tournamentId: string; match
           Зберегти
         </Button>
       </form>
+      )}
     </li>
   );
 }
@@ -141,23 +151,33 @@ function MatchScheduleRow({ tournamentId, match }: { tournamentId: string; match
 export function MatchScheduleList({
   tournamentId,
   matches,
+  locked = false,
 }: {
   tournamentId: string;
   matches: MatchRow[];
+  locked?: boolean;
 }) {
   if (matches.length === 0) {
     return <p className="text-sm text-muted-foreground">Матчів у розкладі немає.</p>;
   }
 
   return (
-    <ul className="divide-y">
-      {matches.map((match) => (
-        <MatchScheduleRow
-          key={`${match.id}-${match.updatedAt}`}
-          tournamentId={tournamentId}
-          match={match}
-        />
-      ))}
-    </ul>
+    <>
+      {locked ? (
+        <p className="mb-3 text-sm text-muted-foreground">
+          Турнір завершено — розклад зафіксовано.
+        </p>
+      ) : null}
+      <ul className="divide-y">
+        {matches.map((match) => (
+          <MatchScheduleRow
+            key={`${match.id}-${match.updatedAt}`}
+            tournamentId={tournamentId}
+            match={match}
+            locked={locked}
+          />
+        ))}
+      </ul>
+    </>
   );
 }

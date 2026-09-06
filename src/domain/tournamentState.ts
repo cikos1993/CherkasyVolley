@@ -90,6 +90,23 @@ export function canTransition(from: TournamentState, to: TournamentState): boole
   return (TRANSITIONS[from] ?? []).includes(to);
 }
 
+export type ResultEditCheck = { ok: true } | { ok: false; message: string };
+
+/**
+ * Whether match results (and their schedule) may still be entered, corrected,
+ * or removed in this state. Blocked once the tournament is `COMPLETED`: it is
+ * archived and its results are frozen (FR-7; PRD Open Question #3 — resolved
+ * for v1 as a full block, not a correct-with-recompute path). Every other
+ * state allows it — a group-result edit during `PLAYOFF` is fine (it never
+ * re-seeds the bracket; the semifinal-edit hazard is `checkCanEditSemifinalResult`).
+ */
+export function checkCanEditResults(state: TournamentState): ResultEditCheck {
+  if (state === "COMPLETED") {
+    return { ok: false, message: "Турнір завершено — результати редагувати не можна." };
+  }
+  return { ok: true };
+}
+
 /**
  * The authoritative transition gate. Returns `{ ok: true }` only when the edge
  * is legal and the target state's precondition (if any) is satisfied.

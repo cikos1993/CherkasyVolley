@@ -165,6 +165,28 @@ export async function allGroupMatchesPlayed(
   return matches.length > 0 && matches.every((match) => match._count.sets > 0);
 }
 
+/**
+ * Whether both the `FINAL` and the `THIRD_PLACE` match exist and each has a
+ * recorded result — the precondition for `checkTransition(..., "COMPLETED", ...)`
+ * (FR-7). Both rows must be present *and* non-empty: a bracket where only the
+ * final has been played is not finishable. "Has a result" means "has a
+ * `SetScore` row" (`createMatchResult` writes all sets in one transaction, so
+ * a partial set list can't occur). `client` takes a transaction client for
+ * symmetry with `allGroupMatchesPlayed` / `hasAnyGroupResult`, though no caller
+ * needs the transactional form yet.
+ */
+export async function finalAndThirdPlacePlayed(
+  tournamentId: string,
+  client: Prisma.TransactionClient | typeof db = db,
+): Promise<boolean> {
+  const rows = await client.match.findMany({
+    where: { tournamentId, stage: { in: ["FINAL", "THIRD_PLACE"] } },
+    select: { stage: true, _count: { select: { sets: true } } },
+  });
+  const played = new Set(rows.filter((row) => row._count.sets > 0).map((row) => row.stage));
+  return played.has("FINAL") && played.has("THIRD_PLACE");
+}
+
 /** The Postgres index backing `SetScore`'s `@@unique([matchId, setNo])`. */
 export const SET_SCORE_NATURAL_KEY_INDEX = "set_score_matchId_setNo_key";
 
@@ -189,7 +211,7 @@ export function getMatchForResult(tournamentId: string, matchId: string) {
         select: { setNo: true, homePoints: true, awayPoints: true },
         orderBy: { setNo: "asc" },
       },
-      tournament: { select: { scoringPreset: true, type: true, discipline: true } },
+      tournament: { select: { scoringPreset: true, type: true, discipline: true, state: true } },
     },
   });
 }

@@ -43,7 +43,12 @@ Actions are wired in their feature stories.
 - `tournaments.ts` — `transitionTournament(id, targetState)`: `requireAdmin()` →
   `getTournamentForAdmin` → `checkTransition` (`src/domain/tournamentState`) →
   `setTournamentState`. The only path that changes `Tournament.state` (AD-8);
-  an illegal edge or unmet precondition returns `{ ok: false, code }`.
+  an illegal edge or unmet precondition returns `{ ok: false, code }`. It
+  populates the precondition context per target (`entryCount`/`teamCount` for
+  `GROUP_STAGE`; `finalAndThirdPlacePlayed` for `COMPLETED` — Story 4.5). Its
+  first real caller is `FinishTournamentButton` (`PLAYOFF → COMPLETED`); the
+  `GROUP_STAGE` / `PLAYOFF` edges have dedicated actions (`drawTournament` /
+  `formPlayoff`) because they do domain work — `COMPLETED` does not.
   `createTournament(_prev, formData)` — a `useActionState` action:
   `requireAdmin()` → `validateNewTournament` (`src/domain/tournamentForm`) →
   `createTournamentRecord` → `redirect` to the new tournament page. Returns
@@ -182,5 +187,6 @@ Actions are wired in their feature stories.
   once the final or third-place match has a result
   (`checkCanEditSemifinalResult` over `readPlayoffMatchStates`, before the
   write → `formError` / `PRECONDITION_FAILED`) — the "team in two places"
-  guard. Neither has a `Tournament.state` guard (a `COMPLETED` lock is FR-7 /
-  Story 4.5).
+  guard. **Since Story 4.5** all four (`enter`/`edit`/`removeMatchResult` +
+  `scheduleMatch`) also run `checkCanEditResults(tournament.state)` first —
+  a `COMPLETED` tournament's results and schedule are frozen (FR-7).

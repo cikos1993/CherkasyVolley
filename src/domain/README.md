@@ -13,8 +13,12 @@ placements 1–4.
   `checkTransition(from, to, ctx)` (the authoritative gate — edge plus the target
   state's precondition). `TransitionContext` carries the precondition inputs; the
   `DRAFT → GROUP_STAGE` precondition (enrolled entries equal the field size) is
-  live, the later ones are fail-closed predicates until match results are
-  modelled. The Server Action `transitionTournament` is the only caller.
+  live; `PLAYOFF` gates on `allGroupMatchesPlayed` (Story 4.2) and `COMPLETED` on
+  `finalAndThirdPlacePlayed` (Story 4.5). The Server Action `transitionTournament`
+  is the only caller. Also `checkCanEditResults(state)` (Story 4.5, `checkCanRedraw`
+  shape) — whether match results / schedule may still be entered / corrected /
+  removed; blocked once `COMPLETED` (FR-7, PRD Open Question #3 resolved for v1),
+  enforced in the four result Server Actions (`src/actions/matches.ts`).
 
 - `tournamentForm.ts` — rules for the create/edit tournament form. `allowedTournamentTypes(discipline)`
   (CLASSIC → the four types, BEACH → none), the numeric bounds (`YEAR_MIN/MAX`,

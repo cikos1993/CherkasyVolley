@@ -93,7 +93,11 @@ export default async function AdminTournamentSchedulePage({
         Дата, час і місце проведення матчів групового етапу. Час — київський.
       </p>
       <div className="mt-6">
-        <MatchScheduleList tournamentId={id} matches={matches} />
+        <MatchScheduleList
+          tournamentId={id}
+          matches={matches}
+          locked={tournament.state === "COMPLETED"}
+        />
       </div>
 
       {inPlayoff ? (

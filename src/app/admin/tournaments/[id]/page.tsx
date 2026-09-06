@@ -4,13 +4,14 @@ import { notFound } from "next/navigation";
 import {
   DeleteTournamentButton,
   DrawTournamentButton,
+  FinishTournamentButton,
   FormPlayoffButton,
   RedrawTournamentButton,
 } from "@/components/tournament-actions";
 import { TeamEnrollment } from "@/components/team-enrollment";
 import { TournamentForm } from "@/components/tournament-form";
 import { listEntriesForTournament } from "@/data/entries";
-import { allGroupMatchesPlayed, hasAnyGroupResult } from "@/data/matches";
+import { allGroupMatchesPlayed, finalAndThirdPlacePlayed, hasAnyGroupResult } from "@/data/matches";
 import { listTeams } from "@/data/teams";
 import { getTournamentForAdmin } from "@/data/tournaments";
 import { LABELS as STATE_LABELS } from "@/domain/tournamentState";
@@ -23,19 +24,31 @@ import type { TournamentField } from "@/domain/tournamentForm";
 export const metadata = { title: "Турнір" };
 
 const LOCKED_OUTSIDE_DRAFT: readonly TournamentField[] = ["teamCount", "rounds"];
+const LOCKED_WHEN_COMPLETED: readonly TournamentField[] = [
+  "type",
+  "name",
+  "year",
+  "scoringPreset",
+  "teamCount",
+  "rounds",
+];
 
 export default async function AdminTournamentPage({
   params,
 }: PageProps<"/admin/tournaments/[id]">) {
   const { id } = await params;
-  const [tournament, teams, entries, hasResults, groupStageComplete] = await Promise.all([
-    getTournamentForAdmin(id),
-    listTeams(),
-    listEntriesForTournament(id),
-    hasAnyGroupResult(id),
-    allGroupMatchesPlayed(id),
-  ]);
+  const [tournament, teams, entries, hasResults, groupStageComplete, playoffComplete] =
+    await Promise.all([
+      getTournamentForAdmin(id),
+      listTeams(),
+      listEntriesForTournament(id),
+      hasAnyGroupResult(id),
+      allGroupMatchesPlayed(id),
+      finalAndThirdPlacePlayed(id),
+    ]);
   if (!tournament) notFound();
+
+  const isCompleted = tournament.state === "COMPLETED";
 
   const enrolledTeamIds = new Set(entries.map((entry) => entry.teamId));
   const availableTeams = teams.filter((team) => !enrolledTeamIds.has(team.id));
@@ -53,6 +66,12 @@ export default async function AdminTournamentPage({
         Стан: {STATE_LABELS[tournament.state]}
       </p>
 
+      {isCompleted ? (
+        <p className="mt-4 rounded-md border border-muted-foreground/40 bg-muted px-3 py-2 text-sm">
+          Турнір завершено. Результати зафіксовано й редагуванню не підлягають.
+        </p>
+      ) : null}
+
       <div className="mt-6">
         <TournamentForm
           key={tournament.updatedAt.getTime()}
@@ -67,7 +86,13 @@ export default async function AdminTournamentPage({
             teamCount: String(tournament.teamCount),
             rounds: String(tournament.rounds),
           }}
-          locked={tournament.state === "DRAFT" ? [] : LOCKED_OUTSIDE_DRAFT}
+          locked={
+            isCompleted
+              ? LOCKED_WHEN_COMPLETED
+              : tournament.state === "DRAFT"
+                ? []
+                : LOCKED_OUTSIDE_DRAFT
+          }
         />
       </div>
 
@@ -134,6 +159,19 @@ export default async function AdminTournamentPage({
             >
               Керувати розкладом матчів
             </Link>
+          </div>
+        </section>
+      ) : null}
+
+      {tournament.state === "PLAYOFF" ? (
+        <section className="mt-10 border-t pt-6">
+          <h2 className="text-lg font-semibold">Завершення</h2>
+          <div className="mt-4">
+            <FinishTournamentButton
+              tournamentId={tournament.id}
+              state={tournament.state}
+              finalAndThirdPlacePlayed={playoffComplete}
+            />
           </div>
         </section>
       ) : null}

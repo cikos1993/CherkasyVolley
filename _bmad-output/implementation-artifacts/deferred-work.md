@@ -2,6 +2,18 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from / decided in: Story 4.5 implementation (2026-09-07)
+
+- **PRD Open Question #3 resolved for v1 — full block.** `checkCanEditResults(state)` (`src/domain/tournamentState.ts`) refuses `enter`/`edit`/`removeMatchResult` + `scheduleMatch` once `COMPLETED`. The "allow a correction with a re-recompute of places" alternative is **not** built — SPEC Assumptions + PRD §11 both state the block outright.
+- **PRD Open Question #4 (un-complete / return a tournament from the archive to active) stays open — out of scope.** No backward `COMPLETED → PLAYOFF` edge; `TRANSITIONS.COMPLETED = []`. If a real need surfaces, it is a new transition action + a re-open UX, not a tweak here.
+- **`scheduleMatch` is blocked in `COMPLETED` by an EXPERIENCE decision, not a literal epics AC.** FR-13 says "будь-якого Матчу"; EXPERIENCE's State Patterns row «Турнір завершено» says «усі дії редагування зникають; для адміна теж», and both spines win over any mock. A completed tournament's schedule is history.
+- **`/classic` still lists `COMPLETED` tournaments.** `listPublicTournaments()` / `getPublicTournament` were left untouched — whether completed tournaments leave the active list once `/archive` exists is Story 4.7's call (the 2.9-review item "will completed tournaments need to disappear from `/classic`").
+- **The finish gate is check-then-act, not transactional.** `transitionTournament` reads `finalAndThirdPlacePlayed` → `checkTransition` → `setTournamentState`. A downstream result deleted in the sub-second window would let `COMPLETED` be set on a tournament whose third-place match is now unplayed — the same accepted 2–5-admin race class as every other `checkCanX` / transition precondition in the repo (`checkCanRedraw`, `formPlayoff`'s stale-standings window). Not worth a transactional guard at v1 scale.
+- **No action-level regression test for the `COMPLETED` result-lock.** `verify-finish-tournament.mts` asserts `checkCanEditResults` + `finalAndThirdPlacePlayed` + `checkTransition` directly and does its writes through the un-gated `src/data` functions — the action wiring (`if (!editable.ok)` early returns in `enter/edit/removeMatchResult` + `scheduleMatch`) has no coverage. Same standing "no `requireAdmin` / session-mock harness" gap as Stories 3.6 / 3.7 / 4.3 / 4.4.
+- **No component test for `FinishTournamentButton` / the `locked` / `lockedReason` props on `MatchScheduleList` / `MatchResultForm`.** The standing "no component toolchain" gap.
+- **The `COMPLETED` banner has no design token.** DESIGN.md defines no banner/`--warning` colour — it renders as `border` + `bg-muted` + text (Accessibility Floor: state never colour-only). Same open item as `notify.warning` (4.2 review). A design-system pass should pin banner styling.
+- **`finalAndThirdPlacePlayed(id)` is fetched on every admin `[id]` render regardless of state** — like `allGroupMatchesPlayed` / `hasAnyGroupResult` on the same page (2/3 wasted count queries for `DRAFT`/`GROUP_STAGE`/`COMPLETED`). Same class as the already-tracked "gate all three, or a `state`-shaped data function" item (3.4 / 4.2 reviews).
+
 ## Deferred from: code review of 4-4-playoff-results-final-placements (2026-09-07)
 
 _Implementation review (`bmad-code-review`, 4 layers) over `git diff 83fb8f5..HEAD`. 1 decision-needed, 8 patch, 2 deferred, 7 dismissed._

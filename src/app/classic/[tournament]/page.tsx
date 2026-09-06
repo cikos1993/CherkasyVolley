@@ -76,6 +76,12 @@ export default async function PublicTournamentPage({
         <StatusBadge state={tournament.state} />
       </div>
 
+      {tournament.state === "COMPLETED" ? (
+        <p className="mt-4 rounded-md border border-muted-foreground/40 bg-muted px-3 py-2 text-sm">
+          Турнір завершено. Підсумкові результати нижче.
+        </p>
+      ) : null}
+
       <TournamentTabs tournamentId={id} active={activeTab} showPlayoff={showPlayoff} />
 
       <div className="mt-6">
