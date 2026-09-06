@@ -18,7 +18,7 @@ context:
 
 # Story 4.4: Результати плейофа й фінальні місця
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -180,57 +180,52 @@ FR / AD / SPEC anchors (in context):
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — `src/domain/bracket.ts` (UPDATE): `checkCanEditSemifinalResult` + `PlayoffResultEditCheck`** (AC: 2)
-  - [ ] Add the `PlayoffResultEditCheck = { ok: true } | { ok: false; message: string }` type and the `checkCanEditSemifinalResult(matches: PlayoffMatchState[])` function per Notes — a `.some(...)` over `slot IN (FINAL, THIRD_PLACE) && sets.length > 0`, **not** `indexBySlot`. Doc comment cites AD-5 + FR-16 + the "team in two places" hazard.
-  - [ ] No change to `advanceBracket` / `seedPlayoff` / `playoffPlacements` / any existing export.
-  - [ ] `pnpm typecheck` / `pnpm lint` clean.
+- [x] **Task 1 — `src/domain/bracket.ts` (UPDATE): `checkCanEditSemifinalResult` + `PlayoffResultEditCheck`** (AC: 2)
+  - [x] `PlayoffResultEditCheck = { ok: true } | { ok: false; message: string }` + `checkCanEditSemifinalResult(matches)` — a `.some(...)` over `slot IN (FINAL, THIRD_PLACE) && sets.length > 0`, no `indexBySlot`. Doc comment cites the freeze rule / the "two places" hazard.
+  - [x] No change to any existing export.
+  - [x] `typecheck` / `lint` clean.
 
-- [ ] **Task 2 — `src/domain/bracket.test.ts` (UPDATE): predicate cases** (AC: 2)
-  - [ ] New `describe("checkCanEditSemifinalResult", …)` block: (a) `[]` → `{ ok: true }`; (b) two semifinals only, no downstream rows → `ok`; (c) semifinals + `FINAL` with sets → `{ ok: false }` (assert `.message` non-empty); (d) semifinals + `THIRD_PLACE` with sets → `{ ok: false }`; (e) both downstream with sets → `{ ok: false }`; (f) a `FINAL` row present but `sets: []` (created, not played) → `ok`.
-  - [ ] `pnpm test` — count rises from **161** to ~**167**; confirm exact new total in the Dev Agent Record.
+- [x] **Task 2 — `src/domain/bracket.test.ts` (UPDATE): predicate cases** (AC: 2)
+  - [x] `describe("checkCanEditSemifinalResult", …)` — 6 cases: `[]` → ok; semifinals only → ok; downstream row with `sets: []` → ok; `FINAL` with sets → not ok (message non-empty); `THIRD_PLACE` with sets → not ok; both downstream with sets → not ok.
+  - [x] `pnpm test` **161 → 167**.
 
-- [ ] **Task 3 — `src/data/playoff.ts` (UPDATE): `placements` on `PlayoffBracketView` + `readPlayoffMatchStates`** (AC: 1, 2)
-  - [ ] Import `playoffPlacements` (value) from `@/domain/bracket` (alongside the existing `advanceBracket`).
-  - [ ] Add `PlayoffPlacementView` + `PlayoffPlacementsView` types; add `placements: PlayoffPlacementsView` to `PlayoffBracketView`.
-  - [ ] In `getPlayoffBracket`: `const placements = playoffPlacements(rows.map(toMatchState));` then resolve each non-null entryId through the existing `teamNames` map into `{ entryId, teamName }` (fallback `"—"` if somehow absent, matching the pair decorator). Return it on the view. **No new query.**
-  - [ ] Export `readPlayoffMatchStates(tournamentId): Promise<PlayoffMatchState[]>` — flat select (`slot`, `homeEntryId`, `awayEntryId`, `sets`), mapped to `PlayoffMatchState[]`, reusing `PLAYOFF_STAGES`. Not transactional.
-  - [ ] `pnpm typecheck` / `pnpm lint` clean.
+- [x] **Task 3 — `src/data/playoff.ts` (UPDATE): `placements` on `PlayoffBracketView` + `readPlayoffMatchStates`** (AC: 1, 2)
+  - [x] Imported `playoffPlacements` (value).
+  - [x] `PlayoffPlacementView` (`{ entryId, teamName }`) + `PlayoffPlacementsView` (`{ first,second,third,fourth: … | null }`); `placements` added to `PlayoffBracketView`.
+  - [x] `getPlayoffBracket`: `playoffPlacements(states)` resolved through the existing `teamNames` map via a `resolvePlacement` helper (fallback `"—"`). No new query — `states` is `rows.map(toMatchState)`, computed once and shared with `advanceBracket`.
+  - [x] `readPlayoffMatchStates(tournamentId)` — flat select (`slot`, `homeEntryId`, `awayEntryId`, `sets`), non-transactional.
+  - [x] `typecheck` / `lint` clean.
 
-- [ ] **Task 4 — `src/actions/matches.ts` (UPDATE): the edit-gate** (AC: 2)
-  - [ ] Import `checkCanEditSemifinalResult` from `@/domain/bracket` and `readPlayoffMatchStates` from `@/data/playoff`.
-  - [ ] `editMatchResult`: after `match.sets.length === 0` check → `if (match.stage === "SEMIFINAL")` → run the gate → `return { formError: gate.message }` on block.
-  - [ ] `removeMatchResult`: after the `!match` check, **before `deleteMatchResult`** → `if (match.stage === "SEMIFINAL")` → gate → `return { ok: false, code: "PRECONDITION_FAILED", message: gate.message }` on block.
-  - [ ] `enterMatchResult` unchanged (documented decision). Keep `advancePlayoffAfterSemifinal` / `revalidateMatchSurfaces` / the `sets.length` guards / the `requireAdmin` narrow-catch exactly as they are. Update the `editMatchResult` / `removeMatchResult` doc comments to mention the gate.
-  - [ ] `pnpm typecheck` / `pnpm lint` clean (no Prisma import creeps into `src/actions` — `readPlayoffMatchStates` is a `src/data` function).
+- [x] **Task 4 — `src/actions/matches.ts` (UPDATE): the edit-gate** (AC: 2)
+  - [x] Imported `checkCanEditSemifinalResult` + `readPlayoffMatchStates`.
+  - [x] New shared helper `checkSemifinalResultEditable(stage, tournamentId)` — no-op for non-`SEMIFINAL`, else `checkCanEditSemifinalResult(await readPlayoffMatchStates(...))`.
+  - [x] `editMatchResult`: after the `sets.length === 0` check → gate → `{ formError }` on block.
+  - [x] `removeMatchResult`: after the `!match` check, before `deleteMatchResult` → gate → `{ ok: false, code: "PRECONDITION_FAILED", message }` on block.
+  - [x] `enterMatchResult` unchanged; `advancePlayoffAfterSemifinal` / `revalidateMatchSurfaces` / guards untouched; doc comments updated.
+  - [x] `typecheck` / `lint` clean (no Prisma in `src/actions`).
 
-- [ ] **Task 5 — `src/components/playoff-placements.tsx` (NEW) + schedule page wiring** (AC: 1)
-  - [ ] `src/components/playoff-placements.tsx` — server component, read-only, `playoff-schedule.tsx` shape. Prop: `placements: PlayoffPlacementsView` (import the type from `@/data/playoff`). Ordered list «1-е / 2-е / 3-є / 4-е місце — {teamName}»; `null` → «— (матч не зіграно)» muted. Number + text primary cue; optional `TrophyIcon` on 1st. No colour-only signalling.
-  - [ ] `src/app/admin/tournaments/[id]/schedule/page.tsx` — in the `inPlayoff` block, also read `bracket.placements`; render `<PlayoffPlacements>` inside the existing `<section>` (small `<h3>Місця</h3>`) **only when** any of the four fields is non-null. Group-match list + `DRAFT` empty state + `PlayoffSchedule` unchanged.
-  - [ ] `pnpm build` (page changed, route unchanged) → `pnpm typecheck` clean.
+- [x] **Task 5 — `src/components/playoff-placements.tsx` (NEW) + schedule page wiring** (AC: 1)
+  - [x] `playoff-placements.tsx` — server, read-only. Prop is `rows: PlayoffPlacementRow[]` (`{ label, teamName: string | null }`) — a component-local type + page mapping, the `playoff-schedule.tsx` precedent (no component imports from `@/data`). Ordered list «1-е / 2-е / 3-є / 4-е місце — {team}»; `null` → «матч не зіграно» muted. Ordinal label is the cue; `TrophyIcon` on 1st is `aria-hidden`.
+  - [x] `schedule/page.tsx` — the `inPlayoff` ternary refactored to `const bracket = inPlayoff ? await getPlayoffBracket(id) : null`; `playoffSlots` + `placementRows` both derived from it; `<PlayoffPlacements>` renders under an `<h3>Місця</h3>` only when `hasPlacements` (any place non-null). Group list / `DRAFT` / `PlayoffSchedule` unchanged.
+  - [x] `pnpm build` → `typecheck` clean.
 
-- [ ] **Task 6 — `scripts/verify-advance-bracket.mts` (UPDATE): gate + placements assertions** (AC: 1, 2)
-  - [ ] Import `checkCanEditSemifinalResult` (`../src/domain/bracket`) and `readPlayoffMatchStates` (`../src/data/playoff`).
-  - [ ] Near the existing "play the final, then edit SF1 again" block: after the `FINAL` has a `SetScore`, assert `checkCanEditSemifinalResult(await readPlayoffMatchStates(tournamentId))` returns `{ ok: false }` (message non-empty). Assert that with only the two semifinals resulted (no downstream `SetScore`) it returns `{ ok: true }`.
-  - [ ] The gated `editMatchResult` / `removeMatchResult` actions themselves are not script-testable (no `requireAdmin` / session mock — the standing gap) — coverage is the domain predicate above plus the `bracket.test.ts` cases.
-  - [ ] Assert `getPlayoffBracket(...).placements`: before `THIRD_PLACE` is played → `third` / `fourth` are `null`, `first` / `second` are `{ entryId, teamName }` with the right team names; after both `FINAL` + `THIRD_PLACE` are played → all four resolved to the correct team names.
-  - [ ] Run it green. Re-run every other `verify-*.mts` — no regression.
+- [x] **Task 6 — `scripts/verify-advance-bracket.mts` (UPDATE): gate + placements assertions** (AC: 1, 2)
+  - [x] Imported `checkCanEditSemifinalResult` + `readPlayoffMatchStates`.
+  - [x] Both semifinals resulted, no downstream result: `checkCanEditSemifinalResult` → ok; `placements` all null.
+  - [x] Final played: `checkCanEditSemifinalResult` → not ok (message non-empty); `placements` 1 & 2 resolve to team names, 3 & 4 null.
+  - [x] Re-enter SF1 + play the third-place match: `placements` 1–4 all resolve to the right team names.
+  - [x] Header comment updated. Green; all other verify scripts green.
 
-- [ ] **Task 7 — Docs**
-  - [ ] `src/domain/README.md` — `bracket.ts` entry gains `checkCanEditSemifinalResult`.
-  - [ ] `src/data/README.md` — `playoff.ts` block: `getPlayoffBracket` now also returns `placements`; new `readPlayoffMatchStates`.
-  - [ ] `src/actions/README.md` — `editMatchResult` / `removeMatchResult`: the `SEMIFINAL` edit-gate (`checkCanEditSemifinalResult`, `PRECONDITION_FAILED`).
-  - [ ] `src/components/README.md` — `playoff-placements.tsx` (NEW).
-  - [ ] `AGENTS.md` — Stack-status bullet for Story 4.4 (placements wired, the edit-gate, admin-only display); update the `verify-advance-bracket.mts` catalogue line to mention the gate + placements assertions.
-  - [ ] `deferred-work.md` — mark **`playoffPlacements` unwired → done** (wired here, admin surface); mark **"team in two places" → resolved** (semifinal-edit gate landed); note the "4.4 or 4.5" ownership is settled as 4.4; keep the `@@unique([tournamentId, slot])` and stale-standings items open.
+- [x] **Task 7 — Docs** — `src/domain/README.md`, `src/data/README.md`, `src/actions/README.md`, `src/components/README.md`, `AGENTS.md` (new Story 4.4 Stack bullet + verify catalogue line), `deferred-work.md` (new Story 4.4 section; "team in two places" + "`playoffPlacements` unwired" struck through and marked done; TOCTOU / admin-only-display / no-component-test noted).
 
-- [ ] **Task 8 — Verification gate** (AC: all)
-  - [ ] `pnpm build` → `pnpm typecheck` → `pnpm lint` → `pnpm test` (~167, no new *module* — new function in an existing one; confirm the exact number).
-  - [ ] Import-boundary check: `src/domain/bracket.ts` still imports only `@/domain/scoring` + `@/domain/tiebreak`; `src/data/playoff.ts` does the `data → domain` value call (`playoffPlacements`) on the established edge; no Prisma in `src/actions` / `src/app`.
-  - [ ] `scripts/verify-advance-bracket.mts` green; all other verify scripts green; `pnpm exec prisma migrate status` clean (no migration this story — confirm no drift).
-  - [ ] Real command output in the Dev Agent Record.
-  - _Residual (matches every prior admin story): no manual signed-in browser pass (no seeded `PLAYOFF` tournament). Mitigated by the verify script + full gate. Recommended with code review: form a playoff, enter both semifinal results, then the final and third-place results → the admin «Плейоф» section shows «Місця» 1–4 with the right teams; then open a semifinal from the same section and confirm «Виправити» / «Видалити результат» are blocked with the explanatory message._
+- [x] **Task 8 — Verification gate** (AC: all)
+  - [x] `pnpm build` ✓ · `pnpm typecheck` ✓ · `pnpm lint` ✓ · `pnpm test` **167/167**.
+  - [x] Import-boundary: `bracket.ts` imports unchanged (`@/domain/scoring` + `@/domain/tiebreak`); `playoff.ts → @/domain/bracket` value call on the established edge; `src/actions/matches.ts` imports `@/data/playoff` + `@/domain/bracket`, no Prisma.
+  - [x] `verify-advance-bracket.mts` green; all 10 verify scripts green; `prisma migrate status` up to date, no drift (no migration this story).
+  - [x] Command output in the Dev Agent Record.
+  - _Residual (matches every prior admin story): no manual signed-in browser pass (no seeded `PLAYOFF` tournament). Mitigated by the verify script + full gate. Recommended with code review: form a playoff, enter both semifinal results, then the final and third-place results → the admin «Плейоф» section shows «Місця» 1–4 with the right teams; then open a semifinal and confirm «Виправити» / «Видалити результат» are blocked with the explanatory message._
 
-- [ ] **Task 9 — Commit(s)** — one commit + `git push origin main` per completed task group (domain predicate + tests; data; action gate; component + page; verify script; docs). `build`/`typecheck`/`lint`/`test` gate each.
+- [x] **Task 9 — Commit(s)** — one commit + `git push origin main` per task group (domain predicate + tests; data; action gate; component + page; verify script; docs).
 
 ## Dev Notes
 
@@ -360,14 +355,36 @@ No `project-context.md`. Binding docs: `epics.md` (Story 4.4 AC, FR-21; the 4.3/
 
 ### Agent Model Used
 
+claude-sonnet-5 (bmad-dev-story)
+
 ### Debug Log References
+
+- `verify-advance-bracket.mts` "all four placements resolve" assertion first failed because it used `replaceMatchResult` to re-enter SF1 after that result had been deleted earlier in the script — `replaceMatchResult` requires an existing result (`_count.sets === 0` → `not_found`) and wrote nothing, so `savePlayoffAdvancement` never re-derived the third-place participants and `createMatchResult` then wrote sets to a participant-less row. Fixed by using `createMatchResult` for the re-entry.
 
 ### Completion Notes List
 
+- Task 1–2: `src/domain/bracket.ts` — `PlayoffResultEditCheck` + `checkCanEditSemifinalResult(matches)` (`.some` over `slot IN (FINAL, THIRD_PLACE) && sets.length > 0`; no `indexBySlot`; `checkCanRedraw` return shape). +6 Vitest cases (`bracket.test.ts`), `pnpm test` 161 → 167.
+- Task 3: `src/data/playoff.ts` — `getPlayoffBracket` computes `states` once (shared with `advanceBracket`), runs `playoffPlacements(states)`, resolves each entryId through the existing `teamNames` map (`resolvePlacement`, fallback `"—"`), returns `placements` on `PlayoffBracketView`. New `PlayoffPlacementView` / `PlayoffPlacementsView` types. `readPlayoffMatchStates(tournamentId)` — lean flat (non-transactional) read → `PlayoffMatchState[]`.
+- Task 4: `src/actions/matches.ts` — `checkSemifinalResultEditable(stage, tournamentId)` helper (no-op unless `SEMIFINAL`) wired into `editMatchResult` (→ `{ formError }`) and `removeMatchResult` (→ `{ ok: false, code: "PRECONDITION_FAILED" }`), both before the write. `enterMatchResult` untouched. Doc comments updated.
+- Task 5: `src/components/playoff-placements.tsx` (NEW, server, read-only) — prop `rows: PlayoffPlacementRow[]` (component-local type, page maps — the `playoff-schedule.tsx` precedent; no `components → data` import). `schedule/page.tsx` — `inPlayoff` ternary refactored to a single `await getPlayoffBracket(id)`; `<PlayoffPlacements>` under `<h3>Місця</h3>` when any place is decided.
+- Task 6: `scripts/verify-advance-bracket.mts` — gate allowed/blocked assertions + placements null-then-resolved assertions; header comment updated.
+- Task 7: docs — `src/domain/README.md`, `src/data/README.md`, `src/actions/README.md`, `src/components/README.md`, `AGENTS.md` (Story 4.4 Stack bullet + verify catalogue line), `deferred-work.md` (new Story 4.4 section; "team in two places" + "`playoffPlacements` unwired" struck through, marked done).
+- Task 8: `pnpm build` / `typecheck` / `lint` clean; `pnpm test` **167/167**; all 10 verify scripts green; `prisma migrate status` up to date (no migration this story). No new domain module — `checkCanEditSemifinalResult` is a function in the existing `bracket.ts`.
+
 ### File List
+
+- `src/domain/bracket.ts` (UPDATE)
+- `src/domain/bracket.test.ts` (UPDATE)
+- `src/data/playoff.ts` (UPDATE)
+- `src/actions/matches.ts` (UPDATE)
+- `src/app/admin/tournaments/[id]/schedule/page.tsx` (UPDATE)
+- `src/components/playoff-placements.tsx` (NEW)
+- `scripts/verify-advance-bracket.mts` (UPDATE)
+- `src/domain/README.md` · `src/data/README.md` · `src/actions/README.md` · `src/components/README.md` · `AGENTS.md` · `_bmad-output/implementation-artifacts/deferred-work.md` (UPDATE)
 
 ## Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-07 | Story drafted (`bmad-create-story`, 4 research subagents: epics 4.4 scope + boundaries / architecture + PRD + SPEC / UX / code precedent). Re-allocation from Story 4.3 confirmed: 4.4 = final placements 1–4 (admin-only display) + the semifinal-edit gate. Status: ready-for-dev. |
+| 2026-09-07 | Implementation complete (`bmad-dev-story`) — all 9 tasks. `checkCanEditSemifinalResult` (`bracket.ts`) + the `editMatchResult` / `removeMatchResult` gate; `playoffPlacements` folded into `getPlayoffBracket` (`placements` on `PlayoffBracketView`) + `readPlayoffMatchStates`; new `PlayoffPlacements` component shown in the admin «Плейоф» section. No migration, no new route, no new domain module. `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 167/167, all 10 verify scripts green, `migrate status` clean. Status: review. |
