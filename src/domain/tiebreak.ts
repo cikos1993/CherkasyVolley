@@ -15,6 +15,13 @@ export interface OrderedStandingsRow {
   needsManualSeed: boolean;
 }
 
+/**
+ * The v1 playoff is a fixed 4-team bracket seeded from the top of the group
+ * (SPEC Constraints). The standings table marks these positions; Epic 4's
+ * `seedPlayoff` consumes the same rule.
+ */
+export const PLAYOFF_QUALIFIERS = 4;
+
 function groupByKey<T>(items: T[], keyFn: (item: T) => number): Map<number, T[]> {
   const groups = new Map<number, T[]>();
   for (const item of items) {

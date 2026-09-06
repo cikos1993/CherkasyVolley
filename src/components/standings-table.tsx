@@ -1,4 +1,8 @@
+import { EmptyState } from "@/components/empty-state";
+import { GROUP_NOT_DRAWN, NO_RESULTS } from "@/lib/empty-states";
+
 type StandingsTableRow = {
+  entryId: string;
   position: number;
   teamName: string;
   played: number;
@@ -11,11 +15,13 @@ type StandingsTableRow = {
   needsManualSeed: boolean;
 };
 
+const QUALIFIES_HINT = "Виходить у плейоф";
+
 const STAT_HEADERS: { abbr: string; full: string }[] = [
   { abbr: "З", full: "Зіграно" },
   { abbr: "В", full: "Перемоги" },
   { abbr: "П", full: "Поразки" },
-  { abbr: "О", full: "Очки" },
+  { abbr: "Очки", full: "Очки" },
   { abbr: "ВП", full: "Виграні партії" },
   { abbr: "ПП", full: "Програні партії" },
 ];
@@ -23,47 +29,76 @@ const STAT_HEADERS: { abbr: string; full: string }[] = [
 export function StandingsTable({
   rows,
   hasResults,
+  tournamentName,
 }: {
   rows: StandingsTableRow[];
   hasResults: boolean;
+  tournamentName: string;
 }) {
+  if (rows.length === 0) {
+    return <EmptyState {...GROUP_NOT_DRAWN} />;
+  }
+
+  const anyQualifier = rows.some((row) => row.qualifies);
   const anyManualSeed = rows.some((row) => row.needsManualSeed);
 
   return (
     <div>
-      <div className="overflow-x-auto" role="region" aria-label="Турнірна таблиця">
+      <div
+        className="overflow-x-auto"
+        role="region"
+        aria-label={`Турнірна таблиця: ${tournamentName}`}
+        tabIndex={0}
+      >
         <table className="w-full text-sm">
           <caption className="sr-only">Турнірна таблиця групи</caption>
           <thead>
             <tr className="border-b text-muted-foreground">
-              <th scope="col" className="py-2 pr-3 text-left font-medium">
+              <th scope="col" className="py-2 pr-3 text-center font-medium">
                 №
               </th>
               <th scope="col" className="py-2 pr-3 text-left font-medium">
                 Команда
               </th>
               {STAT_HEADERS.map((header) => (
-                <th key={header.abbr} scope="col" className="px-2 py-2 text-center font-medium">
-                  <abbr title={header.full} className="no-underline">
-                    {header.abbr}
-                  </abbr>
+                <th
+                  key={header.abbr}
+                  scope="col"
+                  aria-label={header.full}
+                  className="px-2 py-2 text-center font-medium"
+                >
+                  {header.abbr === header.full ? (
+                    header.abbr
+                  ) : (
+                    <abbr title={header.full} className="no-underline">
+                      {header.abbr}
+                    </abbr>
+                  )}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.position} className="border-b">
-                <td className="py-2 pr-3 tabular-nums">
+              <tr key={row.entryId} className="border-b">
+                <td className="py-2 pr-3 text-center tabular-nums">
                   {row.qualifies ? (
-                    <span className="font-bold text-primary" title="Виходить у плейоф">
+                    <span className="font-bold text-primary" title={QUALIFIES_HINT}>
                       {row.position}
-                      <span className="sr-only"> — виходить у плейоф</span>
+                      <span className="sr-only"> — {QUALIFIES_HINT}</span>
                     </span>
                   ) : (
                     row.position
                   )}
-                  {row.needsManualSeed ? <span aria-hidden> *</span> : null}
+                  {row.needsManualSeed ? (
+                    <>
+                      <span aria-hidden> *</span>
+                      <span className="sr-only">
+                        {" "}
+                        — місце визначено за назвою команди, потрібен ручний розсів
+                      </span>
+                    </>
+                  ) : null}
                 </td>
                 <th scope="row" className="py-2 pr-3 text-left font-normal">
                   {row.teamName}
@@ -79,7 +114,7 @@ export function StandingsTable({
             {!hasResults ? (
               <tr>
                 <td colSpan={8} className="py-3 text-muted-foreground">
-                  Результатів поки немає.
+                  {NO_RESULTS.description}
                 </td>
               </tr>
             ) : null}
@@ -87,12 +122,15 @@ export function StandingsTable({
         </table>
       </div>
 
-      <p className="mt-2 text-xs text-muted-foreground">
-        Синім — позиції 1–4, що виходять у плейоф.
-        {anyManualSeed
-          ? " · * — місце визначено за назвою команди; потрібен ручний розсів."
-          : null}
-      </p>
+      {anyQualifier || anyManualSeed ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {anyQualifier ? "Синім — позиції, що виходять у плейоф." : null}
+          {anyQualifier && anyManualSeed ? " · " : null}
+          {anyManualSeed
+            ? "* — місце визначено за назвою команди; потрібен ручний розсів."
+            : null}
+        </p>
+      ) : null}
     </div>
   );
 }

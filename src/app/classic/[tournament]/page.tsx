@@ -10,7 +10,8 @@ import { listEntriesForTournament } from "@/data/entries";
 import { getStandings, listGroupMatchesForTournament } from "@/data/matches";
 import { formatKyivDateTime } from "@/domain/matchSchedule";
 import { matchScoreLabel } from "@/domain/scoring";
-import { GROUP_NOT_DRAWN, NO_TEAMS } from "@/lib/empty-states";
+import { PLAYOFF_QUALIFIERS } from "@/domain/tiebreak";
+import { NO_TEAMS } from "@/lib/empty-states";
 import { resolveTournament } from "../_lib/resolve-tournament";
 
 export async function generateMetadata({ params }: PageProps<"/classic/[tournament]">) {
@@ -38,6 +39,7 @@ export default async function PublicTournamentPage({
   const entries = activeTab === "teams" ? await listEntriesForTournament(id) : [];
   const standings = activeTab === "standings" ? await getStandings(id) : [];
   const standingsRows = standings.map((entry, index) => ({
+    entryId: entry.row.entryId,
     position: index + 1,
     teamName: entry.teamName,
     played: entry.row.played,
@@ -46,7 +48,9 @@ export default async function PublicTournamentPage({
     points: entry.row.points,
     setsWon: entry.row.setsWon,
     setsLost: entry.row.setsLost,
-    qualifies: index < 4,
+    // Only a distinction when some teams miss the cut — a group of exactly
+    // PLAYOFF_QUALIFIERS advances whole, so the marker would be noise.
+    qualifies: index < PLAYOFF_QUALIFIERS && standings.length > PLAYOFF_QUALIFIERS,
     needsManualSeed: entry.needsManualSeed,
   }));
   const standingsHaveResults = standings.some((entry) => entry.row.played > 0);
@@ -76,11 +80,11 @@ export default async function PublicTournamentPage({
 
       <div className="mt-6">
         {activeTab === "standings" ? (
-          standings.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{GROUP_NOT_DRAWN.description}</p>
-          ) : (
-            <StandingsTable rows={standingsRows} hasResults={standingsHaveResults} />
-          )
+          <StandingsTable
+            rows={standingsRows}
+            hasResults={standingsHaveResults}
+            tournamentName={tournament.name}
+          />
         ) : null}
 
         {activeTab === "teams" ? (

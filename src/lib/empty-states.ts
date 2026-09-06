@@ -26,12 +26,10 @@ export const GROUP_NOT_DRAWN = {
   description: "Групу буде сформовано після жеребкування.",
 } as const;
 
-// On a standings tab the "no results" state is a zero-filled table with an
-// inline row, not this box — see the Voice guide. This const is for other
-// contexts (e.g. an empty schedule tab).
+// The standings tab's "no results" state is a zero-filled table with this
+// inline row (not an `EmptyState` box) — see the Voice guide.
 export const NO_RESULTS = {
-  description:
-    "Результатів поки немає — таблиця зʼявиться після першого зіграного матчу.",
+  description: "Результатів поки немає.",
 } as const;
 
 export const ARCHIVE_YEAR_EMPTY = {

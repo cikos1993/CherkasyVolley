@@ -17,7 +17,7 @@ context:
 
 # Story 3.8: Публічна турнірна таблиця
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -131,6 +131,28 @@ PRD §4.7 / FR-17–18 (`prd.md`, in context):
 
 - [x] **Task 8 — Commit(s)** — one commit + `git push origin main` per completed task group. `build`/`typecheck`/`lint`/`test` gated each.
 
+### Review Findings
+
+_Code review (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Verification Gap Reviewer, Acceptance Auditor) over `git diff 7f8063c..HEAD`. All 4 layers completed; Verification Gap found none. 0 decision-needed, 9 patch, 3 defer, 5 dismissed._
+
+#### Patch
+
+- [x] [Review][Patch] `standings-table.tsx` a11y gaps `[src/components/standings-table.tsx]` — three, one file: **(a)** the `overflow-x-auto role="region"` container has no `tabIndex={0}`, so a keyboard-only user on a narrow viewport can't scroll the table (EXPERIENCE.md says the container must be *focusable*; WCAG 2.1.1); **(b)** the `needsManualSeed` `*` is `<span aria-hidden>` with no `sr-only` counterpart — AT users get no signal the position is name-ordered, though the `qualifies` hint did get one and AC 2 lists the "прапорець ручного розсіву" as an ordering signal; **(c)** each stat `<th scope="col">` has accessible name "З"/"В"/… — `<abbr title>` tooltips don't announce and never fire on touch. Add `tabIndex={0}`, an `sr-only` "— місце за назвою команди" beside the `*`, and an `sr-only` full word (or `aria-label`) on each stat header.
+- [x] [Review][Patch] `Очки` rendered as `О`; `№` cells not centred `[src/components/standings-table.tsx]` — the story's own markup spec spells `Очки` in full (it's the primary sort key); DESIGN §176 says number cells are `вирівнювання по центру` and the `№` column/header are `text-left`. Fix: `Очки` full word (no `<abbr>`); `text-center` on the `№` `<th>`/`<td>`.
+- [x] [Review][Patch] Qualifier highlight is meaningless when the group is exactly 4 `[src/app/classic/[tournament]/page.tsx, src/components/standings-table.tsx]` — `TEAM_COUNT_MIN = 4`, so a 4-team group paints every row blue/bold and the "позиції 1–4" legend is noise; the marker's job is a *distinction*. Add `export const PLAYOFF_QUALIFIERS = 4` to `src/domain/tiebreak.ts` (Story 4.1's `seedPlayoff` and 4.7's archive reuse need the same rule), compute `qualifies: index < PLAYOFF_QUALIFIERS && standings.length > PLAYOFF_QUALIFIERS`, and render the "Синім — …" legend only when a row actually qualifies.
+- [x] [Review][Patch] Inline "Результатів поки немає." bypasses `src/lib/empty-states.ts` (the "єдине джерело копірайту") `[src/components/standings-table.tsx, src/lib/empty-states.ts]` — and `NO_RESULTS` ("Результатів поки немає — таблиця зʼявиться після першого зіграного матчу.") is a never-used near-duplicate (grep: defined, zero consumers). Repurpose `NO_RESULTS` → `"Результатів поки немає."` and use it for the inline `<td colSpan>` row; the legend microcopy can stay component-local (it is not an empty state).
+- [x] [Review][Patch] `StandingsTable` forces the page to know its empty case; the pre-draw panel is a bare `<p>` `[src/components/standings-table.tsx, src/app/classic/[tournament]/page.tsx]` — `PublicSchedule` handles `matches.length === 0` internally; here `page.tsx` branches on `standings.length === 0` and renders a bare `<p>{GROUP_NOT_DRAWN.description}</p>` while the sibling `teams` tab uses `<EmptyState {...NO_TEAMS} />`. Move the empty check into `StandingsTable` (accept `rows: []` → `<EmptyState {...GROUP_NOT_DRAWN} />`), matching `PublicSchedule` and the `teams` tab.
+- [x] [Review][Patch] Region `aria-label` not parameterised for the archive reuse `[src/components/standings-table.tsx]` — the README says the component is "reused verbatim by the archive route (Story 4.7)", where several tournaments render on one page → several navigable regions all named "Турнірна таблиця". Take a `tournamentName` prop; `aria-label={`Турнірна таблиця: ${tournamentName}`}` (the `<caption>` stays group-scoped, so the two labels are distinct, not redundant).
+- [x] [Review][Patch] Rows keyed on `position`, not a stable id `[src/components/standings-table.tsx, src/app/classic/[tournament]/page.tsx]` — `key={row.position}`, so after a result reorders the standings React reconciles `<tr>`s by rank, not team. Harmless for a fully SSR'd table today, but add `entryId` to the view type and key on it (also needed for any future per-row link).
+- [x] [Review][Patch] The "Виходить у плейоф" phrase is hard-coded in three places `[src/components/standings-table.tsx]` — `title`, `sr-only`, and the legend each spell a variant. Export one `QUALIFIES_HINT` const (the capitalised standalone form) and use it for the `title` + `sr-only`; the legend's plural-verb phrasing can stay.
+- [x] [Review][Patch] `verify-group-stage-schema.mts` new assertion line exceeds 120 chars `[scripts/verify-group-stage-schema.mts]` — reformat the `teamName` check added in Task 5.
+
+#### Defer
+
+- [x] [Review][Defer] `#F1F1EF` row divider approximated by `border-border` `[src/components/standings-table.tsx]` — deferred, already disclosed in `deferred-work.md`; folds into a design-system table-styling pass.
+- [x] [Review][Defer] `getStandings` is now the heaviest default landing query on the most-hit public page, uncached `[src/app/classic/[tournament]/page.tsx]` — `findUnique` + all `GroupSlot` + all `GROUP` matches + all `SetScore` + full recompute per request, no `unstable_cache`/tag, no `loading.tsx`. Deferred — folds into the already-tracked "no caching/revalidation strategy for the app's first anonymous-traffic routes" item (2.9 review); at v1 scale (NFR-5) the query is small. `revalidatePath` is invalidation, not caching — a real fix needs an `unstable_cache` wrap, a cross-cutting decision.
+- [x] [Review][Defer] The top-4 order is shown as definitive even when `needsManualSeed` straddles the playoff cut-line `[src/components/standings-table.tsx]` — the `*` + legend say "потрібен ручний розсів", but positions 4/5 tied on the name fallback still render position 4 with a confident "Виходить у плейоф". A stronger "this order is provisional" treatment belongs with the playoff-seeding story (4.1/4.2), which consumes `orderStandings`.
+
 ## What this story is / is NOT
 
 **Is:** the visible public «Таблиця» tab — a semantic, scroll-contained, no-zebra standings table rendering `getStandings`'s already-ordered rows (+ a one-field `teamName` addition), with 1–4 marked blue+bold; the tab un-hidden, reordered to spec, and made the default in `GROUP_STAGE`+.
@@ -242,6 +264,7 @@ claude-sonnet-5 (bmad-dev-story)
 - Task 5: `verify-group-stage-schema.mts` — +3 assertions that `getStandings` rows carry the right `teamName` (3-way-cycle order + clear-winner). Green.
 - Task 6: `src/data/README.md` (`StandingsView`), `src/components/README.md` (`tournament-tabs` order + `standings-table` entry), `AGENTS.md` (Stack bullet), `deferred-work.md` (Story 3.8 section + two 3.5/3.6-era items marked resolved).
 - Task 7: `pnpm build` / `typecheck` / `lint` / `test` 135/135 clean (no new Vitest — `orderStandings`/`computeStandings` already covered). All 13 verify scripts green. `standings-table.tsx` imports nothing; no Prisma-client import in any `.tsx`.
+- Review fixes (9 patches): (1) `standings-table.tsx` a11y — `tabIndex={0}` on the scroll region, `sr-only` explanation beside the `needsManualSeed` `*`, `aria-label` full-word name on each stat `<th>`; (2) `Очки` spelled in full (no `<abbr>`), `№` header/cells `text-center`; (3) `export const PLAYOFF_QUALIFIERS = 4` added to `src/domain/tiebreak.ts`, `qualifies = index < PLAYOFF_QUALIFIERS && standings.length > PLAYOFF_QUALIFIERS` (a 4-team group no longer paints every row), legend renders only when a row qualifies; (4) `NO_RESULTS` repurposed to `"Результатів поки немає."` and consumed by the inline row (was a never-used near-duplicate); (5) `StandingsTable` owns its pre-draw empty state (`rows: []` → `<EmptyState {...GROUP_NOT_DRAWN} />`), page no longer branches; (6) region `aria-label` parameterised with `tournamentName` for the archive reuse; (7) rows keyed on `entryId` (added to the view type), not `position`; (8) one `QUALIFIES_HINT` const for `title` + `sr-only`; (9) `verify-group-stage-schema.mts` long assertion line reformatted. All gates green; `pnpm test` still 135/135; all verify scripts exit 0. 3 findings deferred (uncached `getStandings`, `#F1F1EF` divider, provisional top-4 order), 5 dismissed.
 
 ### File List
 
@@ -249,6 +272,8 @@ claude-sonnet-5 (bmad-dev-story)
 - `src/components/tournament-tabs.tsx` (UPDATE)
 - `src/components/standings-table.tsx` (NEW)
 - `src/app/classic/[tournament]/page.tsx` (UPDATE)
+- `src/domain/tiebreak.ts` (UPDATE — review: `PLAYOFF_QUALIFIERS` const)
+- `src/lib/empty-states.ts` (UPDATE — review: `NO_RESULTS` repurposed)
 - `scripts/verify-group-stage-schema.mts` (UPDATE)
 - `src/data/README.md` · `src/components/README.md` (UPDATE)
 - `AGENTS.md` (UPDATE)
@@ -260,4 +285,5 @@ claude-sonnet-5 (bmad-dev-story)
 | --- | --- |
 | 2026-09-07 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-07 | Implementation complete (`bmad-dev-story`) — all 8 tasks done. `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 135/135 (no new Vitest), `verify-group-stage-schema.mts` (+3 `teamName` assertions) + all 13 verify scripts pass. Closes the 3.5-review tab work (chip un-hidden, order restored, state-aware default). Status: review. |
+| 2026-09-07 | Code review (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Verification Gap Reviewer, Acceptance Auditor). Verification Gap found none. 9 patches applied (a11y, `Очки`/`№` alignment, `PLAYOFF_QUALIFIERS` distinction, `NO_RESULTS` dedup, component-owned empty state, parameterised region label, `entryId` keys, hint const, script line length), 3 deferred, 5 dismissed. All gates green; `pnpm test` 135/135; all verify scripts exit 0. Status: done. |
 

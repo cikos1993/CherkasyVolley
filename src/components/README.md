@@ -298,21 +298,27 @@ then picks a state-aware default (`standings` in `GROUP_STAGE`+, `teams` for a
 
 ## `standings-table.tsx`
 
-`StandingsTable({ rows, hasResults })` (Story 3.8) — the public «Таблиця» tab,
-a **server** component (read-only for everyone — EXPERIENCE). A local
-`StandingsTableRow` view type (not data-imported — the `public-schedule.tsx`
-precedent); the page shapes `getStandings`'s `StandingsView[]` into it
-(`position`, `qualifies: index < 4`). Markup per UX-DR5: an
-`overflow-x-auto role="region" aria-label="Турнірна таблиця"` container; a
-`<table>` with an `sr-only` `<caption>`; `<th scope="col">` headers (`№`,
-`Команда`, then `З`/`В`/`П`/`О`/`ВП`/`ПП` as `<abbr title>`); `<th scope="row">`
-for the team name; `tabular-nums text-center` numeric cells; **no zebra**,
-`border-b` dividers. Positions 1–4: `font-bold text-primary` + `title="Виходить
-у плейоф"` + an `sr-only` "— виходить у плейоф" (colour is never the only cue —
-UX-DR13); a `needsManualSeed` row gets a `*`. A legend `<p>` below names the
-blue cue and (conditionally) the `*`. `hasResults === false` → a
-`<td colSpan={8}>Результатів поки немає.</td>` row (the team rows still render
-with zeros — EXPERIENCE). Reused verbatim by the archive route (Story 4.7).
+`StandingsTable({ rows, hasResults, tournamentName })` (Story 3.8; hardened in
+its own review) — the public «Таблиця» tab, a **server** component (read-only
+for everyone — EXPERIENCE). A local `StandingsTableRow` view type (not
+data-imported — the `public-schedule.tsx` precedent); the page shapes
+`getStandings`'s `StandingsView[]` into it (`entryId` key, `position`,
+`qualifies: index < PLAYOFF_QUALIFIERS && standings.length > PLAYOFF_QUALIFIERS`
+— the marker is a *distinction*, so a group of exactly four suppresses it).
+`rows.length === 0` → `<EmptyState {...GROUP_NOT_DRAWN} />` (the component owns
+its pre-draw empty state, like `PublicSchedule`). Markup per UX-DR5: an
+`overflow-x-auto role="region"` container that is **`tabIndex={0}`** (keyboard
+scroll) and `aria-label`ed with the tournament name (archive-page
+disambiguation); a `<table>` with an `sr-only` `<caption>`; `<th scope="col">`
+headers, each `aria-label`ed with the full word (`<abbr title>` for the visual,
+`Очки` spelled out); `<th scope="row">` for the team name; `tabular-nums
+text-center` cells incl. `№`; **no zebra**, `border-b` dividers. Qualifying
+positions: `font-bold text-primary` + `title` + `sr-only` (colour is never the
+only cue — UX-DR13); `needsManualSeed` → a `*` **plus** an `sr-only`
+explanation. The legend `<p>` renders only when there is a qualifier and/or a
+manual-seed row. `hasResults === false` → a `<td colSpan={8}>` row with
+`NO_RESULTS.description` (team rows still render with zeros — EXPERIENCE).
+Reused verbatim by the archive route (Story 4.7).
 
 ## `match-schedule.tsx`
 

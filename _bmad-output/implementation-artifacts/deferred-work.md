@@ -2,11 +2,19 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from: code review of 3-8-public-standings-table (2026-09-07)
+
+_Implementation review (`bmad-code-review`, 4 layers) over `git diff 7f8063c..HEAD`. Verification Gap found none. 0 decision-needed, 9 patch, 3 deferred, 5 dismissed._
+
+- **`getStandings` is now the heaviest default landing query** on the most-hit public page (`/classic/[tournament]`, default tab = `standings`), uncached — `findUnique` + all `GroupSlot` + all `GROUP` matches + all `SetScore` + full recompute/reorder per request. `revalidatePath` is invalidation, not caching. Folds into the already-tracked "no caching/revalidation strategy for the app's first anonymous-traffic routes" item (2.9 review) — the real fix (an `unstable_cache` wrap + tag, and per-tab `loading.tsx`) is a cross-cutting decision. Small at v1 scale (NFR-5).
+- **The standings top-4 is shown as definitive even when `needsManualSeed` straddles the cut-line.** Positions 4/5 tied on the name fallback still render position 4 with a confident "Виходить у плейоф"; the only "provisional" signal is the `*` + legend. A stronger treatment (the top-4 seed order is not final) belongs with the playoff-seeding story (4.1/4.2), which consumes `orderStandings` and owns the seed→bracket mapping.
+- **`normalizeTournamentTab` / `defaultTab` / the `qualifies` cut-off / the zero-filled "Результатів поки немає" row have no automated coverage.** Consistent with the repo's no-page/component-test posture; `verify-group-stage-schema.mts` covers the `getStandings` data. A regression in "which tab do I land on" ships undetected. Same class as every prior page-wiring gap.
+
 ## Deferred from / decided in: Story 3.8 implementation (2026-09-07)
 
 - **No component test for `standings-table.tsx`** — the standing "no component toolchain" gap. The *data* it renders is covered by `verify-group-stage-schema.mts` (now asserting `getStandings`'s `teamName` + `needsManualSeed`); the markup (semantics, `qualifies` styling, the no-results row) is verified by the documented manual pass only.
 - **`<abbr>` single-letter column headers vs. full words.** `З`/`В`/`П`/`О`/`ВП`/`ПП` with a `title` tooltip keeps the table narrow on mobile but relies on hover/long-press for the expansion. An a11y pass may prefer full words + a wider scroll container, or a visible `<caption>`/legend spelling them out.
-- **The `#F1F1EF` row divider (DESIGN.md) is approximated by `border-border`.** Close but not the exact token; a design-system pass over table styling could pin it.
+- **The `#F1F1EF` row divider (DESIGN.md) is approximated by `border-border`** — and the code review re-flagged it. Close but not the exact token; a design-system pass over table styling could pin it.
 - **Resolves the 3.5-review tab work.** The «Таблиця» chip is un-hidden, the tab order is DESIGN §176, and the default tab is state-aware (`standings` in `GROUP_STAGE`+) — the three items the 3.5 review's Patch #1 explicitly assigned to Story 3.8.
 - **"position 1–4" blue numeral contrast (1-2-review, owned by 3.8):** the marker is `font-bold` at `text-sm` (14px) → WCAG "large text" (3:1 threshold), and `#1F6FEB` on white ≈ 4.6:1 clears it. If the design-system pass shrinks the numeral or drops the bold, revisit.
 

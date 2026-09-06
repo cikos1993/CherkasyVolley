@@ -116,7 +116,9 @@ try {
   );
   check(
     "every row carries its team name (Story 3.8), tracking the ordering",
-    standings.every((row) => typeof row.teamName === "string" && row.teamName.includes(String(stamp))) &&
+    standings.every(
+      (row) => typeof row.teamName === "string" && row.teamName.includes(String(stamp)),
+    ) &&
       standings[0].teamName.startsWith("Альфа") &&
       standings[2].teamName.startsWith("Гамма"),
   );
