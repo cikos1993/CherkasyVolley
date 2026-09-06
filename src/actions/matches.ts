@@ -11,8 +11,9 @@ import {
   replaceMatchResult,
   updateMatchSchedule,
 } from "@/data/matches";
-import { savePlayoffAdvancement } from "@/data/playoff";
+import { readPlayoffMatchStates, savePlayoffAdvancement } from "@/data/playoff";
 import { getTournamentForAdmin } from "@/data/tournaments";
+import { checkCanEditSemifinalResult } from "@/domain/bracket";
 import { validateMatchSchedule, type MatchScheduleFieldErrors } from "@/domain/matchSchedule";
 import type { SetScore } from "@/domain/scoring";
 import type { Discipline, ScoringPreset, TournamentType } from "@/domain/tournamentForm";
@@ -118,6 +119,19 @@ async function advancePlayoffAfterSemifinal(stage: string, tournamentId: string)
   }
 }
 
+/**
+ * Guards correcting or removing a semifinal result: once the final or the
+ * third-place match has its own result, re-deriving the other from a changed
+ * semifinal could place one team in two positions. A no-op for any other stage.
+ */
+async function checkSemifinalResultEditable(
+  stage: string,
+  tournamentId: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (stage !== "SEMIFINAL") return { ok: true };
+  return checkCanEditSemifinalResult(await readPlayoffMatchStates(tournamentId));
+}
+
 /** Sets a group match's planned date/time and venue. Leaves any recorded result untouched. */
 export async function scheduleMatch(
   tournamentId: string,
@@ -214,8 +228,9 @@ export async function enterMatchResult(
  * Replaces a match's recorded result (group or playoff). Same validation and
  * revalidation as `enterMatchResult`; requires a result to already exist. A
  * semifinal edit re-derives the downstream pairings (only those not yet
- * played — the freeze rule lives in `advanceBracket`). No `Tournament.state`
- * guard — a `COMPLETED` lock is FR-7 / Story 4.5.
+ * played — the freeze rule lives in `advanceBracket`), and is refused once a
+ * downstream match has been played (`checkCanEditSemifinalResult`). No
+ * `Tournament.state` guard — a `COMPLETED` lock is FR-7 / Story 4.5.
  */
 export async function editMatchResult(
   tournamentId: string,
@@ -240,6 +255,11 @@ export async function editMatchResult(
     return { formError: "Результат ще не внесено." };
   }
 
+  const gate = await checkSemifinalResultEditable(match.stage, tournamentId);
+  if (!gate.ok) {
+    return { formError: gate.message };
+  }
+
   const parsed = parseAndValidate(formData, match.tournament.scoringPreset, match.tournament.type);
   if (!parsed.ok) return parsed.state;
 
@@ -258,8 +278,10 @@ export async function editMatchResult(
 /**
  * Deletes a match's recorded result (group or playoff) — the match returns to
  * "not played" and the standings / bracket recompute on the next read. A
- * semifinal deletion clears any downstream pairing that was derived from it.
- * `ActionResult` shape (a confirm-button action), the `removePlayer` template.
+ * semifinal deletion clears any downstream pairing that was derived from it,
+ * and is refused once a downstream match has been played
+ * (`checkCanEditSemifinalResult`). `ActionResult` shape (a confirm-button
+ * action), the `removePlayer` template.
  */
 export async function removeMatchResult(
   tournamentId: string,
@@ -271,6 +293,11 @@ export async function removeMatchResult(
     const match = await getMatchForResult(tournamentId, matchId);
     if (!match) {
       return { ok: false, code: "NOT_FOUND", message: "Матч не знайдено." };
+    }
+
+    const gate = await checkSemifinalResultEditable(match.stage, tournamentId);
+    if (!gate.ok) {
+      return { ok: false, code: "PRECONDITION_FAILED", message: gate.message };
     }
 
     const { count } = await deleteMatchResult(tournamentId, matchId);
