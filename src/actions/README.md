@@ -165,7 +165,9 @@ Actions are wired in their feature stories.
   pairings — AD-5 "on write"; a failure is logged and swallowed, the render
   path re-runs it) → `revalidatePath` (the public tournament route, the admin
   schedule page, the match screen, `/admin/tournaments/${id}`). First-entry
-  only; editing is `editMatchResult`.
+  only; editing is `editMatchResult`. Since Story 4.4 it also runs the
+  `checkCanEditSemifinalResult` gate (defensive — unreachable via the gated
+  edit/remove paths).
   **`editMatchResult(tournamentId, matchId, _prev, formData)` / `removeMatchResult(tournamentId,
   matchId)` (Story 3.7; any stage since Story 4.3)** — `editMatchResult` is
   `enterMatchResult`'s sibling for a match that **already** has a result

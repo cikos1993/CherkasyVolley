@@ -2,6 +2,13 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from: code review of 4-4-playoff-results-final-placements (2026-09-07)
+
+_Implementation review (`bmad-code-review`, 4 layers) over `git diff 83fb8f5..HEAD`. 1 decision-needed, 8 patch, 2 deferred, 7 dismissed._
+
+- **TOCTOU window in the semifinal-edit gate.** `checkSemifinalResultEditable` reads `readPlayoffMatchStates` outside any transaction; `replaceMatchResult` / `deleteMatchResult` / `savePlayoffAdvancement` each run in their own. A downstream (`FINAL` / `THIRD_PLACE`) result committed between the check and the write slips past → a transient "team in two places" placement (self-healing: deleting the downstream result re-derives it). Spec-accepted as the same race class as `checkCanRedraw` / `checkCanEnroll`, but the project's own redraw TOCTOU fix (commit `b23c270`) set the precedent of re-asserting the predicate inside the writing transaction (`saveRedraw` + `hasAnyGroupResult(tx)`). Close it when Story 4.5 adds a transactional path for playoff result writes (the `COMPLETED` lock will touch the same actions).
+- **The semifinal-edit gate has no action-level regression test.** `verify-advance-bracket.mts` asserts `checkCanEditSemifinalResult` directly and does its semifinal writes through the un-gated `src/data` functions, so the wiring in `editMatchResult` / `removeMatchResult` (`if (match.stage === "SEMIFINAL")` + early return) is uncovered — it can be deleted with `pnpm test` + every verify script still green. Same standing "no `requireAdmin` / session-mock harness" gap as Stories 3.6 / 3.7 / 4.3.
+
 ## Deferred from / decided in: Story 4.4 implementation (2026-09-07)
 
 - ~~**"team in two places" hazard**~~ and ~~**`playoffPlacements` unwired**~~ — both **done** (see the Story 4.1 / 4.3 sections below, now struck through).

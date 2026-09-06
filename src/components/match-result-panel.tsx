@@ -19,6 +19,7 @@ export function MatchResultPanel({
   homeTeam,
   awayTeam,
   sets,
+  lockedReason,
 }: {
   tournamentId: string;
   matchId: string;
@@ -27,11 +28,12 @@ export function MatchResultPanel({
   homeTeam: string;
   awayTeam: string;
   sets: SetScore[];
+  lockedReason?: string;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
 
-  if (editing) {
+  if (editing && !lockedReason) {
     return (
       <MatchResultForm
         mode="edit"
@@ -82,19 +84,33 @@ export function MatchResultPanel({
         </span>
       </p>
 
-      <div className="flex items-center gap-3">
-        <Button type="button" variant="outline" onClick={() => setEditing(true)}>
-          Виправити
-        </Button>
-        <ConfirmDialog
-          trigger={<Button variant="destructive">Видалити результат</Button>}
-          title="Видалити результат матчу?"
-          description="Таблиця перерахується."
-          confirmLabel="Видалити"
-          destructive
-          onConfirm={remove}
-        />
-      </div>
+      {lockedReason ? (
+        <div className="grid gap-2">
+          <div className="flex items-center gap-3">
+            <Button type="button" variant="outline" disabled>
+              Виправити
+            </Button>
+            <Button variant="destructive" disabled>
+              Видалити результат
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground">{lockedReason}</p>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <Button type="button" variant="outline" onClick={() => setEditing(true)}>
+            Виправити
+          </Button>
+          <ConfirmDialog
+            trigger={<Button variant="destructive">Видалити результат</Button>}
+            title="Видалити результат матчу?"
+            description="Таблиця перерахується."
+            confirmLabel="Видалити"
+            destructive
+            onConfirm={remove}
+          />
+        </div>
+      )}
     </div>
   );
 }

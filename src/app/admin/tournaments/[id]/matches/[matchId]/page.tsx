@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { MatchResultForm } from "@/components/match-result-form";
 import { MatchResultPanel } from "@/components/match-result-panel";
 import { getMatchForResult } from "@/data/matches";
+import { readPlayoffMatchStates } from "@/data/playoff";
+import { checkCanEditSemifinalResult } from "@/domain/bracket";
 import { formatKyivDateTime } from "@/domain/matchSchedule";
 
 export const metadata = { title: "Матч" };
@@ -28,6 +30,15 @@ export default async function AdminMatchPage({
   const homeTeam = match.homeEntry?.team.name ?? "—";
   const awayTeam = match.awayEntry?.team.name ?? "—";
   const hasResult = match.sets.length > 0;
+
+  // A semifinal result cannot be corrected/removed once a downstream playoff
+  // match has been played — the server actions enforce it; disable the controls
+  // here too so the admin sees it before acting.
+  let editLockedReason: string | undefined;
+  if (hasResult && match.stage === "SEMIFINAL") {
+    const gate = checkCanEditSemifinalResult(await readPlayoffMatchStates(id));
+    if (!gate.ok) editLockedReason = gate.message;
+  }
 
   const meta = [
     STAGE_LABELS[match.stage] ?? null,
@@ -58,6 +69,7 @@ export default async function AdminMatchPage({
             homeTeam={homeTeam}
             awayTeam={awayTeam}
             sets={match.sets}
+            lockedReason={editLockedReason}
           />
         ) : (
           <MatchResultForm

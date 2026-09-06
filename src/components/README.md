@@ -365,12 +365,13 @@ the admin schedule page in the `PLAYOFF`/`COMPLETED` states.
 
 ## `playoff-placements.tsx`
 
-`PlayoffPlacements({ rows })` (Story 4.4) — a **server** component, read-only.
-Four rows «1-е / 2-е / 3-є / 4-е місце — {team}», or «матч не зіграно» (muted)
-while the place is undecided (`teamName: null`). The ordinal label is the cue,
-not colour; a `TrophyIcon` on 1st is decorative (`aria-hidden`). The admin
-schedule page maps `getPlayoffBracket`'s `placements` into `PlayoffPlacementRow[]`
-and renders it under «Місця» once at least one place is decided.
+`PlayoffPlacements({ teamNames })` (Story 4.4) — a **server** component,
+read-only. `teamNames` is the four places in order; a `null` entry renders
+«— (матч не зіграно)» (muted). The ordinal label (owned by the component:
+«1-е / 2-е / 3-тє / 4-е місце») is the cue, not colour; the `TrophyIcon` on
+1st is decorative (`aria-hidden`, `text-primary`). `<ol aria-label>`. The admin
+schedule page passes `getPlayoffBracket().placements` team names and renders it
+under «Місця» once at least one place is decided.
 
 ## `public-schedule.tsx`
 
@@ -414,12 +415,16 @@ X:Y».
 ## `match-result-panel.tsx`
 
 `MatchResultPanel({ tournamentId, matchId, preset, tournamentType, homeTeam,
-awayTeam, sets })` (Story 3.7) — the match screen's view **when a result
-exists**, the `roster.tsx` in-place-edit precedent. Local `editing` `useState`:
-`false` → the read-only set list + `matchSetSummary` tally, an "Виправити"
-`Button` (toggles `editing`), and a `ConfirmDialog`-gated "Видалити результат"
-(`destructive`; "Видалити результат матчу? Таблиця групи перерахується."; the
+awayTeam, sets, lockedReason? })` (Story 3.7) — the match screen's view **when a
+result exists**, the `roster.tsx` in-place-edit precedent. Local `editing`
+`useState`: `false` → the read-only set list + `matchSetSummary` tally, an
+"Виправити" `Button` (toggles `editing`), and a `ConfirmDialog`-gated "Видалити
+результат" (`destructive`; "Видалити результат матчу? Таблиця перерахується."; the
 `roster.tsx` `remove()` shape — `catch → toast + throw`, `{ ok: false } → toast +
 return false`, success → toast + `router.refresh()`). `true` →
 `<MatchResultForm mode="edit" initialSets={sets} onCancel={() => setEditing(false)} … />`.
-The page renders this for `match.sets.length > 0`, else the create-mode form.
+When `lockedReason` is set (Story 4.4 — a semifinal whose downstream match is
+already played, `checkCanEditSemifinalResult`), both buttons render **disabled**
+with the reason as a muted caption and the edit form is not reachable; the
+server actions still enforce it. The page renders this for `match.sets.length > 0`,
+else the create-mode form.

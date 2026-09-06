@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { MatchScheduleList } from "@/components/match-schedule";
-import { PlayoffPlacements, type PlayoffPlacementRow } from "@/components/playoff-placements";
+import { PlayoffPlacements } from "@/components/playoff-placements";
 import { PlayoffSchedule, type PlayoffScheduleSlot } from "@/components/playoff-schedule";
 import { listGroupMatchesForTournament } from "@/data/matches";
 import { getPlayoffBracket, type PlayoffBracketPairView } from "@/data/playoff";
@@ -75,15 +75,15 @@ export default async function AdminTournamentSchedulePage({
       ]
     : [];
 
-  const placementRows: PlayoffPlacementRow[] = bracket
+  const placementTeamNames: (string | null)[] = bracket
     ? [
-        { label: "1-е місце", teamName: bracket.placements.first?.teamName ?? null },
-        { label: "2-е місце", teamName: bracket.placements.second?.teamName ?? null },
-        { label: "3-є місце", teamName: bracket.placements.third?.teamName ?? null },
-        { label: "4-е місце", teamName: bracket.placements.fourth?.teamName ?? null },
+        bracket.placements.first?.teamName ?? null,
+        bracket.placements.second?.teamName ?? null,
+        bracket.placements.third?.teamName ?? null,
+        bracket.placements.fourth?.teamName ?? null,
       ]
     : [];
-  const hasPlacements = placementRows.some((row) => row.teamName !== null);
+  const hasPlacements = placementTeamNames.some((name) => name !== null);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-8">
@@ -106,7 +106,7 @@ export default async function AdminTournamentSchedulePage({
             <div className="mt-6">
               <h3 className="text-sm font-semibold text-muted-foreground">Місця</h3>
               <div className="mt-2">
-                <PlayoffPlacements rows={placementRows} />
+                <PlayoffPlacements teamNames={placementTeamNames} />
               </div>
             </div>
           ) : null}

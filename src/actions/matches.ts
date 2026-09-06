@@ -13,7 +13,7 @@ import {
 } from "@/data/matches";
 import { readPlayoffMatchStates, savePlayoffAdvancement } from "@/data/playoff";
 import { getTournamentForAdmin } from "@/data/tournaments";
-import { checkCanEditSemifinalResult } from "@/domain/bracket";
+import { checkCanEditSemifinalResult, type PlayoffResultEditCheck } from "@/domain/bracket";
 import { validateMatchSchedule, type MatchScheduleFieldErrors } from "@/domain/matchSchedule";
 import type { SetScore } from "@/domain/scoring";
 import type { Discipline, ScoringPreset, TournamentType } from "@/domain/tournamentForm";
@@ -120,14 +120,15 @@ async function advancePlayoffAfterSemifinal(stage: string, tournamentId: string)
 }
 
 /**
- * Guards correcting or removing a semifinal result: once the final or the
- * third-place match has its own result, re-deriving the other from a changed
- * semifinal could place one team in two positions. A no-op for any other stage.
+ * Guards entering, correcting, or removing a semifinal result: once the final
+ * or the third-place match has its own result, re-deriving the other from a
+ * changed semifinal could place one team in two positions. A no-op (no query)
+ * for any other stage.
  */
 async function checkSemifinalResultEditable(
   stage: string,
   tournamentId: string,
-): Promise<{ ok: true } | { ok: false; message: string }> {
+): Promise<PlayoffResultEditCheck> {
   if (stage !== "SEMIFINAL") return { ok: true };
   return checkCanEditSemifinalResult(await readPlayoffMatchStates(tournamentId));
 }
@@ -174,8 +175,11 @@ export async function scheduleMatch(
  * Validation is entirely `src/domain/validation.ts`'s `validateMatchScore` — a
  * set-specific message ("Партія N: …") is mapped back under that set's row,
  * anything else is a form-level error. First-entry only; a match that already
- * has a result is refused (editing is `editMatchResult`). When the match is a
- * semifinal, the final / third-place pairings are re-derived afterwards.
+ * has a result is refused (editing is `editMatchResult`). A semifinal is
+ * refused once a downstream match has a result (`checkCanEditSemifinalResult` —
+ * unreachable through the gated paths, but defensive); otherwise, when the
+ * match is a semifinal, the final / third-place pairings are re-derived
+ * afterwards.
  *
  * No `Tournament.state` guard: a result is enterable in any state, the same
  * latitude `scheduleMatch` / `players.ts` take (a `COMPLETED` lock is Story 4.5).
@@ -204,6 +208,11 @@ export async function enterMatchResult(
   }
   if (match.sets.length > 0) {
     return { formError: "Результат уже внесено." };
+  }
+
+  const gate = await checkSemifinalResultEditable(match.stage, tournamentId);
+  if (!gate.ok) {
+    return { formError: gate.message };
   }
 
   const parsed = parseAndValidate(formData, match.tournament.scoringPreset, match.tournament.type);

@@ -68,7 +68,13 @@ export interface PlayoffBracketView {
   placements: PlayoffPlacementsView;
 }
 
-function toMatchState(row: PlayoffMatchRow): PlayoffMatchState {
+/** A playoff `Match` row's slot / participants / sets mapped to the engine shape. Seeds are unknown once persisted. */
+function toMatchState(row: {
+  slot: BracketSlot | null;
+  homeEntryId: string | null;
+  awayEntryId: string | null;
+  sets: SetScore[];
+}): PlayoffMatchState {
   return {
     slot: row.slot!,
     home: row.homeEntryId ? { entryId: row.homeEntryId, seed: null } : null,
@@ -78,10 +84,11 @@ function toMatchState(row: PlayoffMatchRow): PlayoffMatchState {
 }
 
 /**
- * The playoff matches as `PlayoffMatchState[]` — the shape the bracket engine
- * and the semifinal-edit gate take. Flat select (no relations): a plain
- * action-level read, cheaper than `readPlayoffRows` and safe to call before a
- * write. Empty until the playoff is formed.
+ * The playoff matches as `PlayoffMatchState[]`. Flat select (no relations):
+ * cheaper than `readPlayoffRows` and safe to call before a write. Its only
+ * caller is the semifinal-edit gate (`checkCanEditSemifinalResult`); it is not
+ * fed to `advanceBracket` / `seedPlayoff` (seeds are lost once persisted).
+ * Empty until the playoff is formed.
  */
 export async function readPlayoffMatchStates(tournamentId: string): Promise<PlayoffMatchState[]> {
   const rows = await db.match.findMany({
@@ -93,12 +100,7 @@ export async function readPlayoffMatchStates(tournamentId: string): Promise<Play
       sets: { select: { setNo: true, homePoints: true, awayPoints: true }, orderBy: { setNo: "asc" } },
     },
   });
-  return rows.map((row) => ({
-    slot: row.slot!,
-    home: row.homeEntryId ? { entryId: row.homeEntryId, seed: null } : null,
-    away: row.awayEntryId ? { entryId: row.awayEntryId, seed: null } : null,
-    sets: row.sets,
-  }));
+  return rows.map(toMatchState);
 }
 
 function readPlayoffRows(
@@ -265,12 +267,7 @@ export function savePlayoffAdvancement(tournamentId: string): Promise<void> {
     }
 
     const bracket = advanceBracket(
-      matchRows.map((row) => ({
-        slot: row.slot!,
-        home: row.homeEntryId ? { entryId: row.homeEntryId, seed: null } : null,
-        away: row.awayEntryId ? { entryId: row.awayEntryId, seed: null } : null,
-        sets: setsByMatch.get(row.id) ?? [],
-      })),
+      matchRows.map((row) => toMatchState({ ...row, sets: setsByMatch.get(row.id) ?? [] })),
     );
     const bySlot = new Map(matchRows.map((row) => [row.slot, row]));
 

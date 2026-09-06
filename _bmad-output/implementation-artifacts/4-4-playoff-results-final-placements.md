@@ -18,7 +18,7 @@ context:
 
 # Story 4.4: Результати плейофа й фінальні місця
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -227,6 +227,37 @@ FR / AD / SPEC anchors (in context):
 
 - [x] **Task 9 — Commit(s)** — one commit + `git push origin main` per task group (domain predicate + tests; data; action gate; component + page; verify script; docs).
 
+### Review Findings
+
+_Code review (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Verification Gap Reviewer, Acceptance Auditor) over `git diff 83fb8f5..HEAD` (`src/` + `scripts/`). 1 decision-needed (→ resolved to patch), 9 patch, 2 deferred, 7 dismissed. **All 9 patches applied**; gate re-run clean (`build`/`typecheck`/`lint`, `pnpm test` 167/167, all 10 verify scripts green)._
+
+#### Patch
+
+- [x] [Review][Patch] `MatchResultPanel` has no client-side affordance for the semifinal-edit gate `[src/components/match-result-panel.tsx, src/app/admin/tournaments/[id]/matches/[matchId]/page.tsx]` — (decision-needed → **resolved: add it now**) on the semifinal match screen «Виправити» / «Видалити результат» stay enabled when the edit is gated; the admin learns it is blocked only *after* submitting the edit form or confirming the "Видалити результат матчу?" destructive dialog. Every other precondition in the codebase surfaces as a disabled control + caption (`checkCanRedraw` → `RedrawTournamentButton` etc.). Fix: the match page (already has `match` from `getMatchForResult`) computes the lock for a `SEMIFINAL` (`checkCanEditSemifinalResult(await readPlayoffMatchStates(id))`), passes `lockedReason?: string` to `MatchResultPanel`, which renders disabled «Виправити» / «Видалити результат» + a muted caption instead of the active controls. (blind-hunter + acceptance-auditor)
+- [x] [Review][Patch] `enterMatchResult` is not gated; the safety of that is emergent, not stated `[src/actions/matches.ts enterMatchResult]` — the guard sits only on `editMatchResult` / `removeMatchResult`. It is currently safe only because the removal gate is airtight (you cannot get a played semifinal back to zero sets while a downstream match is played). `checkSemifinalResultEditable` already short-circuits `{ ok: true }` for any non-`SEMIFINAL` stage, so calling it in `enterMatchResult` too costs a DB read only on a `SEMIFINAL` first-entry (rare) and makes the invariant robust rather than dependent on the other gate. (blind-hunter + edge-case-hunter)
+- [x] [Review][Patch] Gate message is worded for "correction" only but is also returned on delete, and is always singular `[src/domain/bracket.ts checkCanEditSemifinalResult]` — `"Виправлення недоступне: результат наступного матчу плейофа вже внесено. Спершу приберіть його."` is surfaced verbatim by `removeMatchResult` for a *delete* attempt, and says "наступного матчу" (one match) even when both the final and the third-place match are played. Reword neutral for edit+delete and plural-safe, e.g. «Зміна результату півфіналу недоступна: наступні матчі плейофа вже зіграно — спершу приберіть їхні результати.» (acceptance-auditor + blind-hunter + edge-case-hunter)
+- [x] [Review][Patch] `checkSemifinalResultEditable` re-declares its return type inline `[src/actions/matches.ts:130]` — it writes `Promise<{ ok: true } | { ok: false; message: string }>` instead of importing `PlayoffResultEditCheck`, the type `bracket.ts` now exports for exactly this. (blind-hunter)
+- [x] [Review][Patch] `readPlayoffMatchStates` doc-comment overclaims `[src/data/playoff.ts]` — it says the result is "the input the bracket engine + edit-gate take", but no code path feeds it to `advanceBracket` / `seedPlayoff` (and it would be lossy — every `seed` is hard-coded `null`). Its only caller is the edit-gate. Correct the comment to say so. (blind-hunter + edge-case-hunter)
+- [x] [Review][Patch] A third inline copy of the row → `PlayoffMatchState` mapping `[src/data/playoff.ts readPlayoffMatchStates / toMatchState / savePlayoffAdvancement]` — `{ slot: row.slot!, home: row.homeEntryId ? … : null, away: …, sets: row.sets }` is now written in three places. Extract one shared helper over `{ slot, homeEntryId, awayEntryId, sets }`. (blind-hunter)
+- [x] [Review][Patch] Placement copy inconsistencies `[src/components/playoff-placements.tsx, src/app/admin/tournaments/[id]/schedule/page.tsx]` — «3-є місце» clashes with the established «Матч за 3-тє місце» (should be «3-тє»); the undecided place renders «матч не зіграно» where the spec wording is «— (матч не зіграно)»; and the ordinal labels are built inline in the page's `placementRows` while `src/components/README.md` describes the component as owning that copy (the `empty-states.ts` precedent keeps shared copy in `src/lib/` or the component). Move the labels into the component; the page passes only the four team names. (acceptance-auditor + blind-hunter)
+- [x] [Review][Patch] `TrophyIcon` uses `text-success` `[src/components/playoff-placements.tsx]` — that token is the green "action confirmed" colour; `standings-table.tsx` (Story 3.8) marks ranked rows with `text-primary`. The component's own doc-comment says "the ordinal label is the cue, not colour or the icon" — so either match `standings-table` (`text-primary`) or drop the colour (inherit / muted). (blind-hunter)
+- [x] [Review][Patch] `PlayoffPlacements` `<ol>` is not associated with its heading `[src/components/playoff-placements.tsx, schedule/page.tsx]` — `standings-table.tsx` got `<caption class="sr-only">` / `scope` / an `aria-label` region wrapper; this list has none, and the page's `<h3>Місця</h3>` is a bare sibling of the `<ol>`. Add `aria-labelledby` (h3 ↔ ol) or an `aria-label` on the list. (blind-hunter)
+
+#### Defer
+
+- [x] [Review][Defer] TOCTOU window in the check-then-act gate `[src/actions/matches.ts checkSemifinalResultEditable → replace/deleteMatchResult]` — deferred, spec-accepted. `readPlayoffMatchStates` is read outside any transaction; `replaceMatchResult` / `deleteMatchResult` and `savePlayoffAdvancement` each run in their own. A downstream result committed in the gap slips past the gate → a transient "team in two places" placement (self-healing: deleting the downstream result re-derives it). The project's own redraw TOCTOU fix (commit `b23c270`) set the precedent of re-asserting the predicate inside the writing transaction (`saveRedraw` + `hasAnyGroupResult(tx)`); revisit when Story 4.5 adds a transactional path for playoff writes.
+- [x] [Review][Defer] No regression test drives the gate through `editMatchResult` / `removeMatchResult` `[scripts/verify-advance-bracket.mts]` — deferred, standing gap. `verify-advance-bracket.mts` asserts `checkCanEditSemifinalResult` directly and does its semifinal writes through the un-gated data functions, so the action wiring (`if (match.stage === "SEMIFINAL")` + early return) has zero coverage — it can be removed with the full suite still green. Same "no `requireAdmin` / session-mock harness" limitation as Stories 3.6 / 3.7 / 4.3.
+
+#### Dismissed as noise / out of scope (7)
+
+- `AGENTS.md` / `deferred-work.md` "missing from the change" (acceptance-auditor) — false positive from the review's diff scope (`src` + `scripts` only); both files were updated in Task 7 (`git diff 83fb8f5..HEAD -- AGENTS.md _bmad-output/…/deferred-work.md` is non-empty; "Story 4.4" appears in both).
+- `row.slot!` in `readPlayoffMatchStates` coerces a possible null (edge-case-hunter) — the per-stage `match_slot_stage_check` (Story 4.3) makes a non-`GROUP` row with a null `slot` impossible at the DB level; identical to the pre-existing `toMatchState`.
+- `resolvePlacement` fallback `"—"` for a name not in `teamNames` (edge-case-hunter) — unreachable: a non-null `homeEntryId` / `awayEntryId` guarantees the FK-loaded `homeEntry` / `awayEntry` relation, so `teamNames` always has it; the `?? "—"` mirrors the existing pair decorator.
+- Blocking a semifinal edit when only `THIRD_PLACE` is played is "too wholesale" (edge-case-hunter) — incorrect. Correcting a semifinal while `THIRD_PLACE` is frozen still moves the new SF winner into the (unplayed) final while the old participant sits frozen in third place → the same "two places" state. Blocking on *either* downstream result is the correct rule (the spec's table traced it).
+- `TrophyIcon` keyed on `index === 0` rather than identity (blind-hunter) — the component's contract is "exactly four rows in placement order" supplied by the page; an `isChampion` flag is over-engineering for a fixed 4-row list.
+- `PlayoffPlacementView.entryId` exposed but unused (blind-hunter) — data-layer view types legitimately carry ids (the pair views carry `matchId` the same way); Story 4.6 / 4.7 consumers of `getPlayoffBracket().placements` will use it.
+- "No note that resolved placements don't move the tournament to `COMPLETED` / aren't rendered publicly until 4.6" (blind-hunter) — both are stated in the spec's "Is NOT" section and the `deferred-work.md` Story 4.4 section (outside the reviewed diff scope).
+
 ## Dev Notes
 
 ### What this story is / is NOT
@@ -378,7 +409,9 @@ claude-sonnet-5 (bmad-dev-story)
 - `src/data/playoff.ts` (UPDATE)
 - `src/actions/matches.ts` (UPDATE)
 - `src/app/admin/tournaments/[id]/schedule/page.tsx` (UPDATE)
+- `src/app/admin/tournaments/[id]/matches/[matchId]/page.tsx` (UPDATE — review patch: semifinal edit-lock)
 - `src/components/playoff-placements.tsx` (NEW)
+- `src/components/match-result-panel.tsx` (UPDATE — review patch: `lockedReason` prop)
 - `scripts/verify-advance-bracket.mts` (UPDATE)
 - `src/domain/README.md` · `src/data/README.md` · `src/actions/README.md` · `src/components/README.md` · `AGENTS.md` · `_bmad-output/implementation-artifacts/deferred-work.md` (UPDATE)
 
@@ -388,3 +421,4 @@ claude-sonnet-5 (bmad-dev-story)
 | --- | --- |
 | 2026-09-07 | Story drafted (`bmad-create-story`, 4 research subagents: epics 4.4 scope + boundaries / architecture + PRD + SPEC / UX / code precedent). Re-allocation from Story 4.3 confirmed: 4.4 = final placements 1–4 (admin-only display) + the semifinal-edit gate. Status: ready-for-dev. |
 | 2026-09-07 | Implementation complete (`bmad-dev-story`) — all 9 tasks. `checkCanEditSemifinalResult` (`bracket.ts`) + the `editMatchResult` / `removeMatchResult` gate; `playoffPlacements` folded into `getPlayoffBracket` (`placements` on `PlayoffBracketView`) + `readPlayoffMatchStates`; new `PlayoffPlacements` component shown in the admin «Плейоф» section. No migration, no new route, no new domain module. `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 167/167, all 10 verify scripts green, `migrate status` clean. Status: review. |
+| 2026-09-07 | Code review (`bmad-code-review`, 4 layers) — 1 decision-needed (→ resolved: add the client affordance), 9 patch, 2 deferred, 7 dismissed. All 9 patches applied: `MatchResultPanel` disables «Виправити»/«Видалити результат» + caption when the semifinal edit is gated; `enterMatchResult` also gated (defensive); gate message reworded neutral+plural; `PlayoffResultEditCheck` type reused; `toMatchState` helper deduplicated (3 → 1); `readPlayoffMatchStates` doc-comment corrected; placement copy («3-тє», «— (матч не зіграно)», labels owned by the component); `TrophyIcon` → `text-primary`; `<ol aria-label>`. Gate re-run clean, `pnpm test` 167/167, all 10 verify scripts green. Status: done. |

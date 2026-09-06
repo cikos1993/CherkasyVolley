@@ -279,7 +279,7 @@ export function checkCanEditSemifinalResult(matches: PlayoffMatchState[]): Playo
     return {
       ok: false,
       message:
-        "Виправлення недоступне: результат наступного матчу плейофа вже внесено. Спершу приберіть його.",
+        "Зміна результату півфіналу недоступна: наступні матчі плейофа вже зіграно — спершу приберіть їхні результати.",
     };
   }
   return { ok: true };
