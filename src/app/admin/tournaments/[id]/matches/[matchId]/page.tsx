@@ -2,9 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { MatchResultForm } from "@/components/match-result-form";
+import { MatchResultPanel } from "@/components/match-result-panel";
 import { getMatchForResult } from "@/data/matches";
 import { formatKyivDateTime } from "@/domain/matchSchedule";
-import { matchSetSummary } from "@/domain/scoring";
 
 export const metadata = { title: "Матч" };
 
@@ -21,7 +21,6 @@ export default async function AdminMatchPage({
   const homeTeam = match.homeEntry?.team.name ?? "—";
   const awayTeam = match.awayEntry?.team.name ?? "—";
   const hasResult = match.sets.length > 0;
-  const summary = matchSetSummary(match.sets);
 
   const meta = [
     match.scheduledAt ? formatKyivDateTime(match.scheduledAt) : "час не визначено",
@@ -43,27 +42,15 @@ export default async function AdminMatchPage({
 
       <div className="mt-6">
         {hasResult ? (
-          <div className="grid gap-4">
-            <ul className="grid gap-1">
-              {match.sets.map((set) => (
-                <li key={set.setNo} className="flex items-center gap-3 text-sm">
-                  <span className="w-20 text-muted-foreground">Партія {set.setNo}</span>
-                  <span className="tabular-nums">
-                    {set.homePoints} : {set.awayPoints}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <p className="text-sm">
-              Рахунок у партіях:{" "}
-              <span className="font-medium tabular-nums">
-                {summary.home} : {summary.away}
-              </span>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Виправлення й видалення результату — у наступному оновленні.
-            </p>
-          </div>
+          <MatchResultPanel
+            tournamentId={id}
+            matchId={matchId}
+            preset={match.tournament.scoringPreset}
+            tournamentType={match.tournament.type}
+            homeTeam={homeTeam}
+            awayTeam={awayTeam}
+            sets={match.sets}
+          />
         ) : (
           <MatchResultForm
             tournamentId={id}

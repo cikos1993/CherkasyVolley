@@ -4,7 +4,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2Icon } from "lucide-react";
 
-import { enterMatchResult, type MatchResultFormState } from "@/actions/matches";
+import { editMatchResult, enterMatchResult, type MatchResultFormState } from "@/actions/matches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { matchSetSummary } from "@/domain/scoring";
@@ -13,6 +13,19 @@ import { MATCH_SETS_MAX, MATCH_SETS_MIN, targetScore } from "@/domain/validation
 import { notify } from "@/lib/notify";
 
 type Row = { home: string; away: string };
+type SetInput = { setNo: number; homePoints: number; awayPoints: number };
+
+type MatchResultFormProps = {
+  tournamentId: string;
+  matchId: string;
+  preset: ScoringPreset;
+  tournamentType: TournamentType;
+  homeTeam: string;
+  awayTeam: string;
+} & (
+  | { mode?: "create" }
+  | { mode: "edit"; initialSets: SetInput[]; onCancel: () => void }
+);
 
 function emptyRows(count: number): Row[] {
   return Array.from({ length: count }, () => ({ home: "", away: "" }));
@@ -22,27 +35,22 @@ function isScore(value: string): boolean {
   return /^\d{1,3}$/.test(value);
 }
 
-export function MatchResultForm({
-  tournamentId,
-  matchId,
-  preset,
-  tournamentType,
-  homeTeam,
-  awayTeam,
-}: {
-  tournamentId: string;
-  matchId: string;
-  preset: ScoringPreset;
-  tournamentType: TournamentType;
-  homeTeam: string;
-  awayTeam: string;
-}) {
+export function MatchResultForm(props: MatchResultFormProps) {
+  const { tournamentId, matchId, preset, tournamentType, homeTeam, awayTeam } = props;
+  const isEdit = props.mode === "edit";
   const router = useRouter();
   const [state, formAction, pending] = useActionState<MatchResultFormState, FormData>(
-    enterMatchResult.bind(null, tournamentId, matchId),
+    (isEdit ? editMatchResult : enterMatchResult).bind(null, tournamentId, matchId),
     {},
   );
-  const [rows, setRows] = useState<Row[]>(() => emptyRows(MATCH_SETS_MIN));
+  const [rows, setRows] = useState<Row[]>(() =>
+    props.mode === "edit"
+      ? props.initialSets.map((set) => ({
+          home: String(set.homePoints),
+          away: String(set.awayPoints),
+        }))
+      : emptyRows(MATCH_SETS_MIN),
+  );
 
   useEffect(() => {
     if (state.formError) notify.error(state.formError);
@@ -51,16 +59,21 @@ export function MatchResultForm({
   const wasPending = useRef(false);
   useEffect(() => {
     if (wasPending.current && !pending && Object.keys(state).length === 0) {
-      notify.success("Результат збережено");
+      if (props.mode === "edit") {
+        notify.success("Зміни збережено");
+        props.onCancel();
+      } else {
+        notify.success("Результат збережено");
+      }
       router.refresh();
     }
     wasPending.current = pending;
-  }, [pending, state, router]);
+  }, [pending, state, router, props]);
 
   // The live tally counts only the contiguous run of fully-filled sets from
   // set 1 — the same shape the server accepts.
   const summary = useMemo(() => {
-    const contiguous: { setNo: number; homePoints: number; awayPoints: number }[] = [];
+    const contiguous: SetInput[] = [];
     for (const [index, row] of rows.entries()) {
       if (!isScore(row.home) || !isScore(row.away)) break;
       contiguous.push({ setNo: index + 1, homePoints: Number(row.home), awayPoints: Number(row.away) });
@@ -92,8 +105,7 @@ export function MatchResultForm({
             <div key={setNo} className="grid gap-1.5">
               <div className="flex items-center gap-3">
                 <span className="w-28 text-sm text-muted-foreground">
-                  Партія {setNo}{" "}
-                  <span className="text-xs">(до {target})</span>
+                  Партія {setNo} <span className="text-xs">(до {target})</span>
                 </span>
                 <Input
                   name={`home-${setNo}`}
@@ -163,10 +175,17 @@ export function MatchResultForm({
         <span className="text-muted-foreground"> (рахується автоматично)</span>
       </p>
 
-      <Button type="submit" disabled={pending} aria-busy={pending} className="w-fit">
-        {pending ? <Loader2Icon className="animate-spin" /> : null}
-        Зберегти результат
-      </Button>
+      <div className="flex items-center gap-3">
+        <Button type="submit" disabled={pending} aria-busy={pending} className="w-fit">
+          {pending ? <Loader2Icon className="animate-spin" /> : null}
+          {isEdit ? "Зберегти зміни" : "Зберегти результат"}
+        </Button>
+        {props.mode === "edit" ? (
+          <Button type="button" variant="outline" onClick={props.onCancel} disabled={pending}>
+            Скасувати
+          </Button>
+        ) : null}
+      </div>
     </form>
   );
 }
