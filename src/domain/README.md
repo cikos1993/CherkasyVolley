@@ -146,6 +146,10 @@ placements 1–4.
   places 5+ come from the group table elsewhere. Winner/loser is always
   `matchSetSummary`'s majority — there is no winner column. `advanceBracket`
   reports `needsManualSeed: false`; only `seedPlayoff` knows the seeds.
+  `checkCanEditSemifinalResult(matches)` (Story 4.4, `checkCanRedraw` shape)
+  refuses a semifinal-result correction/removal once the final or the
+  third-place match has its own set — otherwise re-deriving the other from the
+  changed semifinal could place one team in two positions (FR-16 / AD-5).
 
 The Vitest runner (`pnpm test`) was added alongside the first module.
 

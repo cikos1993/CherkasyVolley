@@ -176,5 +176,9 @@ Actions are wired in their feature stories.
   `getMatchForResult` (not found → `NOT_FOUND`) → `deleteMatchResult`
   (`count === 0` → `NOT_FOUND` "Результат уже видалено.") →
   `savePlayoffAdvancement` for a semifinal → `revalidateMatchSurfaces` →
-  `{ ok: true }`. Neither has a `Tournament.state` guard (a `COMPLETED` lock is
-  FR-7 / Story 4.5).
+  `{ ok: true }`. **Since Story 4.4** both refuse a `SEMIFINAL`-result change
+  once the final or third-place match has a result
+  (`checkCanEditSemifinalResult` over `readPlayoffMatchStates`, before the
+  write → `formError` / `PRECONDITION_FAILED`) — the "team in two places"
+  guard. Neither has a `Tournament.state` guard (a `COMPLETED` lock is FR-7 /
+  Story 4.5).

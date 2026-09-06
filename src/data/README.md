@@ -127,8 +127,12 @@ goes through a named function exported from here — `getPublicTournament`,
   write). `getPlayoffBracket` reads the up-to-four playoff `Match` rows, runs
   `advanceBracket`, and returns a `PlayoffBracketView` — each pair decorated
   with `matchId` (null until the row exists), team names, score summary and
-  schedule; the shared read for the admin schedule section and Story 4.6's
-  public bracket. `savePlayoffAdvancement` runs after a semifinal-result
+  schedule, plus `placements` 1–4 (Story 4.4 — `playoffPlacements` over the
+  same rows, team names resolved, each `null` until its deciding match is
+  played); the shared read for the admin schedule section and Story 4.6's
+  public bracket. `readPlayoffMatchStates(tournamentId)` (Story 4.4) is a lean
+  flat read → `PlayoffMatchState[]`, feeding the semifinal-edit gate before a
+  write. `savePlayoffAdvancement` runs after a semifinal-result
   mutation: one `db.$transaction` (`SELECT … FOR UPDATE`, then two **flat**
   queries — not a nested-relation `findMany`, which trips a pg-driver warning
   right after the raw lock), then `advanceBracket`, then per downstream slot —

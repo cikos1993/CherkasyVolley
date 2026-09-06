@@ -363,6 +363,15 @@ a link to the match screen only when `matchId` is non-null — «Результ�
 with a `CheckIcon` on the success token, else «Внести результат». Rendered on
 the admin schedule page in the `PLAYOFF`/`COMPLETED` states.
 
+## `playoff-placements.tsx`
+
+`PlayoffPlacements({ rows })` (Story 4.4) — a **server** component, read-only.
+Four rows «1-е / 2-е / 3-є / 4-е місце — {team}», or «матч не зіграно» (muted)
+while the place is undecided (`teamName: null`). The ordinal label is the cue,
+not colour; a `TrophyIcon` on 1st is decorative (`aria-hidden`). The admin
+schedule page maps `getPlayoffBracket`'s `placements` into `PlayoffPlacementRow[]`
+and renders it under «Місця» once at least one place is decided.
+
 ## `public-schedule.tsx`
 
 `PublicSchedule({ matches })` (Story 3.5) — the read-only «Розклад» tab list, the
