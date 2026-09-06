@@ -2,7 +2,8 @@
 
 Deterministic `(input) → output` functions that hold every tournament rule: match
 scoring by preset, group standings and tiebreaks, set-score validation, group
-schedule generation, playoff seeding and bracket advancement.
+schedule generation, playoff seeding and bracket advancement, and playoff
+placements 1–4.
 
 ## Modules
 
@@ -122,6 +123,29 @@ schedule generation, playoff seeding and bracket advancement.
   Ukrainian message naming which gate failed, state checked first (same
   ordering precedent as `checkCanEnroll`). Same shape and dual-purpose reuse
   (action + view) as `teamEnrollment.ts`'s `checkCanEnroll`/`checkCanRemoveEntry`.
+
+- `bracket.ts` — playoff seeding and advancement (Story 4.1, FR-19/20/21). The
+  v1 playoff is a fixed four-team bracket. `seedPlayoff(standings)` takes the
+  ordered group table (index 0 = seed 1 — `orderStandings`'s contract, using
+  `PLAYOFF_QUALIFIERS` from `tiebreak.ts`) and returns the initial
+  `PlayoffBracket`: `SF1` = seed 1 v seed 4, `SF2` = seed 2 v seed 3 (higher
+  seed hosts — arbitrary but stable), with the final and third-place match
+  `AWAITING` participants; `needsManualSeed` is true when any of the top four
+  reached the standings' name fallback. Fewer than four rows throws a
+  `RangeError`. `advanceBracket(matches)` is the **single** place next-round
+  participants are derived (both write path and render — AD-5): the final
+  takes the two semifinal winners and the third-place match their losers,
+  **but only until a pairing's own match has a recorded set** — after that it
+  is frozen and returned as stored, so a late semifinal correction can't
+  rewrite a match that was already played. A pair with an undecided
+  participant is `AWAITING` (`bracket-pair-tbd` in the UI), both known is
+  `READY`, has-a-result is `PLAYED`. Accepts 2–4 matches (a slot absent from
+  the input is treated as not yet created), matched by `slot` not array
+  order. `playoffPlacements(matches)` reads places 1–2 from the final and 3–4
+  from the third-place match (`null` while undecided) — never stored (AD-4);
+  places 5+ come from the group table elsewhere. Winner/loser is always
+  `matchSetSummary`'s majority — there is no winner column. `advanceBracket`
+  reports `needsManualSeed: false`; only `seedPlayoff` knows the seeds.
 
 The Vitest runner (`pnpm test`) was added alongside the first module.
 

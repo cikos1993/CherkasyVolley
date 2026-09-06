@@ -16,7 +16,7 @@ context:
 
 # Story 4.1: Чистий двигун — сітка плейофа
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -120,24 +120,19 @@ FR / AD / SPEC anchors (in context):
   - [x] `describe("playoffPlacements")` — 3 cases: full bracket → 1–4 from final + third-place; missing deciding match → `null`; empty input → all `null`.
   - [x] Run `pnpm test` — **155/155** (baseline 135, +20).
 
-- [ ] **Task 4 — Docs**
-  - [ ] `src/domain/README.md` — new `bracket.ts` bullet: `seedPlayoff` (top-4 → SF1 1v4 / SF2 2v3, higher seed home, `needsManualSeed` propagation, `RangeError` under 4), `advanceBracket` (AD-5 freeze rule — own `SetScore` ⇒ frozen; both-semifinals gate; `AWAITING`/`READY`/`PLAYED` status), `playoffPlacements` (FR-21, proactive, Story 4.4 consumes). Update the intro line's "playoff seeding and bracket advancement" to note it is now implemented, not reserved.
-  - [ ] `AGENTS.md` — Stack-status bullet for Story 4.1 (first story of Epic 4, `src/domain/bracket.ts` only, no schema/action/UI; the `MatchStage` enum was already in place from 3.2; `advanceBracket` is the sole participant-deriver per AD-5).
-  - [ ] `deferred-work.md`:
-    - Mark the 3.8-code-review item "top-4 shown as definitive even when `needsManualSeed` straddles the cut-line" as **addressed in the engine** — `seedPlayoff` now carries `PlayoffBracket.needsManualSeed`; surfacing it in the UI is Story 4.2/4.6.
-    - NEW: "Two persisted `SEMIFINAL` `Match` rows share `MatchStage.SEMIFINAL` — Story 4.2 needs a way to map them back to `slot: SF1 | SF2` (createdAt order, or a schema field). Not solved in 4.1."
-    - NEW: "`advanceBracket` must be invoked on **both** write and render (AD-5). Story 4.2 (formation), 4.3 (final/third-place fill), 4.6 (public bracket render) each own a call site."
-    - NEW: "`playoffPlacements` is implemented but unused until Story 4.4 wires it into result entry / the archive view."
-    - NEW: "`advanceBracket` returns `needsManualSeed: false` unconditionally — the seed-time flag is `seedPlayoff`'s output. If a later story needs it on every render, thread the standings through or persist it."
+- [x] **Task 4 — Docs**
+  - [x] `src/domain/README.md` — new `bracket.ts` bullet (`seedPlayoff` top-4 / SF1 1v4 / SF2 2v3 / higher seed home / `needsManualSeed` / `RangeError`; `advanceBracket` AD-5 freeze + both-semifinals gate + `AWAITING`/`READY`/`PLAYED`; `playoffPlacements` FR-21 proactive); intro line updated.
+  - [x] `AGENTS.md` — Stack-status bullet for Story 4.1.
+  - [x] `deferred-work.md` — 3.8-review "top-4 provisional" item marked engine-half-addressed; NEW section "Story 4.1 implementation" with the SEMIFINAL discriminator, the `advanceBracket` call-site, `playoffPlacements` unused, `needsManualSeed: false`, and no-persistence items.
 
-- [ ] **Task 5 — Verification gate** (AC: all)
-  - [ ] `pnpm build` (sanity — no new route, no schema change) → `pnpm typecheck` → `pnpm lint` → `pnpm test`.
-  - [ ] Import-boundary check: `bracket.ts` imports **only** from `@/domain/tiebreak` and `@/domain/scoring` (type + value) — nothing from `next`, Prisma (`@prisma/client` / `@/generated/prisma`), `react`, `src/data`, `src/actions`, `src/auth`, `src/app`, `src/components`, `src/lib`. `bracket.test.ts` imports only `vitest` + `./bracket` + `./scoring`/`./tiebreak`.
-  - [ ] **No verify script** — nothing touches the database (first such story since 3.1). No browser walkthrough is meaningful — there is no surface yet.
-  - [ ] Confirm `prisma/schema.prisma` and `src/domain/tournamentState.ts` are untouched (the `MatchStage` enum and the `PLAYOFF`/`COMPLETED` transition stubs stay exactly as they are — Stories 4.2/4.5 wire them).
-  - [ ] Real command output in the Dev Agent Record.
+- [x] **Task 5 — Verification gate** (AC: all)
+  - [x] `pnpm build` (routes unchanged) → `pnpm typecheck` (clean) → `pnpm lint` (clean) → `pnpm test` (**155/155**).
+  - [x] Import-boundary check: `bracket.ts` imports only `@/domain/scoring` + `@/domain/tiebreak`; `bracket.test.ts` only `vitest` + `./bracket` + `./scoring` + `./tiebreak`. `pnpm lint`'s `src/domain/**` block enforces it.
+  - [x] **No verify script** — nothing touches the database. No browser walkthrough — no surface yet.
+  - [x] `git diff HEAD -- prisma/schema.prisma src/domain/tournamentState.ts` is empty — both untouched.
+  - [x] Command output recorded in the Dev Agent Record.
 
-- [ ] **Task 6 — Commit(s)** — one commit + `git push origin main` per completed task group; `build`/`typecheck`/`lint`/`test` gate each.
+- [x] **Task 6 — Commit(s)** — `feat(domain): playoff bracket engine …` (Tasks 1–3) + `docs: …` (Tasks 4–5), each `git push origin main`, `build`/`typecheck`/`lint`/`test` gated.
 
 ## Dev Notes
 
@@ -251,9 +246,13 @@ claude-sonnet-5 (bmad-dev-story)
 
 - `src/domain/bracket.ts` (NEW)
 - `src/domain/bracket.test.ts` (NEW)
+- `src/domain/README.md` (UPDATE)
+- `AGENTS.md` (UPDATE)
+- `_bmad-output/implementation-artifacts/deferred-work.md` (UPDATE)
 
 ## Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-07 | Story drafted (`bmad-create-story`, 4 research subagents: epics / architecture+PRD+SPEC / UX / 3.1-precedent+`src/domain`). Status: ready-for-dev. |
+| 2026-09-07 | Implementation complete (`bmad-dev-story`) — all 6 tasks. `src/domain/bracket.ts` (`seedPlayoff` / `advanceBracket` / `playoffPlacements`) + `bracket.test.ts` (20 cases). `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 155/155 (+20). No schema / action / UI / route change; `MatchStage` enum and the `PLAYOFF`/`COMPLETED` transition stubs untouched. Status: review. |

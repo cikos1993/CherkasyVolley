@@ -2,12 +2,20 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from / decided in: Story 4.1 implementation (2026-09-07)
+
+- **Two persisted `SEMIFINAL` `Match` rows share `MatchStage.SEMIFINAL`.** `domain/bracket.ts` distinguishes the semifinals with a `slot: "SF1" | "SF2"` discriminator, but the DB enum has one `SEMIFINAL` value. Story 4.2 (playoff formation) needs a way to map the two persisted rows back to `SF1`/`SF2` when building `PlayoffMatchState[]` — `createdAt` order is the cheap option, a small schema field the explicit one. Not solved in 4.1.
+- **`advanceBracket` must be invoked on *both* the write path and render (AD-5).** The engine exists; the call sites do not. Story 4.2 (formation), Story 4.3 (auto-fill final / third-place), Story 4.6 (public bracket render) each own one.
+- **`playoffPlacements` is implemented but unused** until Story 4.4 wires it into playoff result entry, and Story 4.7 into the archive view (places 1–4; places 5+ from the group table).
+- **`advanceBracket` returns `needsManualSeed: false` unconditionally.** The seed-time flag is `seedPlayoff`'s output — its input (`OrderedStandingsRow[]`) has it; `advanceBracket`'s input (`PlayoffMatchState[]`) does not. If a later story needs the flag on every bracket render, persist it at formation or re-run `seedPlayoff`.
+- **No `Match`-row / persistence / Server Action / state-transition work.** `tournamentState.ts`'s `PLAYOFF` / `COMPLETED` predicates stay fail-closed stubs — Story 4.2 wires `allGroupMatchesPlayed`, Story 4.5 wires `finalAndThirdPlacePlayed`.
+
 ## Deferred from: code review of 3-8-public-standings-table (2026-09-07)
 
 _Implementation review (`bmad-code-review`, 4 layers) over `git diff 7f8063c..HEAD`. Verification Gap found none. 0 decision-needed, 9 patch, 3 deferred, 5 dismissed._
 
 - **`getStandings` is now the heaviest default landing query** on the most-hit public page (`/classic/[tournament]`, default tab = `standings`), uncached — `findUnique` + all `GroupSlot` + all `GROUP` matches + all `SetScore` + full recompute/reorder per request. `revalidatePath` is invalidation, not caching. Folds into the already-tracked "no caching/revalidation strategy for the app's first anonymous-traffic routes" item (2.9 review) — the real fix (an `unstable_cache` wrap + tag, and per-tab `loading.tsx`) is a cross-cutting decision. Small at v1 scale (NFR-5).
-- **The standings top-4 is shown as definitive even when `needsManualSeed` straddles the cut-line.** Positions 4/5 tied on the name fallback still render position 4 with a confident "Виходить у плейоф"; the only "provisional" signal is the `*` + legend. A stronger treatment (the top-4 seed order is not final) belongs with the playoff-seeding story (4.1/4.2), which consumes `orderStandings` and owns the seed→bracket mapping.
+- **The standings top-4 is shown as definitive even when `needsManualSeed` straddles the cut-line.** Positions 4/5 tied on the name fallback still render position 4 with a confident "Виходить у плейоф"; the only "provisional" signal is the `*` + legend. _Engine half addressed in Story 4.1:_ `seedPlayoff` now returns `PlayoffBracket.needsManualSeed` (true when any of the top four used the name fallback). Surfacing it on the standings table / the playoff-formation button is Story 4.2.
 - **`normalizeTournamentTab` / `defaultTab` / the `qualifies` cut-off / the zero-filled "Результатів поки немає" row have no automated coverage.** Consistent with the repo's no-page/component-test posture; `verify-group-stage-schema.mts` covers the `getStandings` data. A regression in "which tab do I land on" ships undetected. Same class as every prior page-wiring gap.
 
 ## Deferred from / decided in: Story 3.8 implementation (2026-09-07)
