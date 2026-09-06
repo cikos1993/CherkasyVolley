@@ -13,6 +13,8 @@ import {
 } from "@/data/matches";
 import { getTournamentForAdmin } from "@/data/tournaments";
 import { validateMatchSchedule, type MatchScheduleFieldErrors } from "@/domain/matchSchedule";
+import type { SetScore } from "@/domain/scoring";
+import type { Discipline, ScoringPreset, TournamentType } from "@/domain/tournamentForm";
 import { MATCH_SETS_MAX, validateMatchScore } from "@/domain/validation";
 
 export type MatchScheduleFormState = {
@@ -30,9 +32,7 @@ export type MatchResultFormState = {
 // `SetScore` columns. The set-count decision is left to `validateMatchScore`.
 const SCORE_TOKEN = /^\d{1,3}$/;
 
-type ParsedSets =
-  | { ok: true; sets: { setNo: number; homePoints: number; awayPoints: number }[] }
-  | { ok: false; state: MatchResultFormState };
+type ParsedSets = { ok: true; sets: SetScore[] } | { ok: false; state: MatchResultFormState };
 
 /** Reads `home-N` / `away-N` pairs from the form into a contiguous set list. */
 function parseSetsFromForm(formData: FormData): ParsedSets {
@@ -52,7 +52,7 @@ function parseSetsFromForm(formData: FormData): ParsedSets {
     return { ok: false, state: { formError: "Заповніть партії по порядку, без пропусків." } };
   }
 
-  const sets: { setNo: number; homePoints: number; awayPoints: number }[] = [];
+  const sets: SetScore[] = [];
   for (const { setNo, home, away } of raw) {
     if (!SCORE_TOKEN.test(home) || !SCORE_TOKEN.test(away)) {
       setErrors[setNo] = "Вкажіть рахунок партії цілим невідʼємним числом.";
@@ -75,8 +75,8 @@ function parseSetsFromForm(formData: FormData): ParsedSets {
  */
 function parseAndValidate(
   formData: FormData,
-  preset: "CLASSIC" | "CUSTOM",
-  tournamentType: "CHAMPIONSHIP" | "VETERAN" | "WOMEN" | "YOUTH",
+  preset: ScoringPreset,
+  tournamentType: TournamentType,
 ): ParsedSets {
   const parsed = parseSetsFromForm(formData);
   if (!parsed.ok) return parsed;
@@ -94,7 +94,7 @@ function parseAndValidate(
 }
 
 /** Revalidates every surface a match result appears on. */
-function revalidateMatchSurfaces(discipline: string, tournamentId: string, matchId: string) {
+function revalidateMatchSurfaces(discipline: Discipline, tournamentId: string, matchId: string) {
   const publicRoot = discipline === "BEACH" ? "/beach" : "/classic";
   revalidatePath(`${publicRoot}/${tournamentId}`);
   revalidatePath(`/admin/tournaments/${tournamentId}/schedule`);

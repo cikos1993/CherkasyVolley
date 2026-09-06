@@ -17,7 +17,7 @@ context:
 
 # Story 3.7: Виправити або видалити результат
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -121,16 +121,37 @@ PRD §4.6 FR-16 (`prd.md`, in context): "Адмін змінює чи видал
   - [x] `replaceMatchResult(<other tournament id>, matchId, …)` → `{ ok: false, reason: "not_found" }`; `deleteMatchResult(<other tournament id>, matchId)` → `{ count: 0 }`.
   - [x] Create a `SEMIFINAL` match on the tournament; `replaceMatchResult(tId, semifinalId, …)` → `{ ok: false, reason: "not_found" }` (stage scope).
   - [x] Full teardown (delete tournament — cascades — and teams).
-  - [x] Re-run all prior verify scripts (13 incl. `verify-match-result.mts`) — no regression.
+  - [x] Re-run all 12 prior verify scripts — no regression.
   - [x] Real command output + notes in the Dev Agent Record.
 
 - [x] **Task 8 — Verification gate** (AC: all)
   - [x] `pnpm build` → `pnpm typecheck` → `pnpm lint` → `pnpm test` (no new domain surface — `validateMatchScore` / `matchSetSummary` already covered; **no new Vitest expected**, confirm the count is unchanged).
   - [x] Import-boundary grep: no new Prisma-client import outside `src/data/**`; `match-result-panel.tsx` imports only `@/actions`, `@/components`, `@/domain` (pure), `@/lib`.
-  - [x] `scripts/verify-edit-delete-result.mts` green; all 13 prior verify scripts green.
+  - [x] `scripts/verify-edit-delete-result.mts` green; all 12 prior verify scripts green.
   - [x] Manual signed-in pass — the documented residual gate (no session available to tooling), same as 3.5/3.6: on a match with a result, "Виправити" → change 3:0 → 3:1 → save → toast, panel shows the new score; "Видалити результат" → confirm → toast, screen flips to the empty score form; the schedule row loses its `success` check.
 
 - [x] **Task 9 — Commit(s)** — one commit + `git push origin main` per completed task group. `build`/`typecheck`/`lint`/`test` gated each.
+
+### Review Findings
+
+_Code review (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Verification Gap Reviewer, Acceptance Auditor) over `git diff 41c0268..HEAD`. All 4 layers completed. 0 decision-needed, 8 patch, 1 defer, 16 dismissed._
+
+#### Patch
+
+_All 8 patches applied in the review-fix pass. `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 135/135, `verify-edit-delete-result.mts` now 20 assertions (was 12) + all prior verify scripts green._
+
+- [x] [Review][Patch] `replaceMatchResult` hardening `[src/data/matches.ts]` — three gaps, one function: **(a)** no `sets.length > 0` guard — an empty array would `deleteMany` everything and `createMany` nothing, a silent full-delete through the "edit" path; **(b)** the in-transaction `findFirst` doesn't re-check that a result still exists, so a `removeMatchResult` landing between `editMatchResult`'s non-transactional `getMatchForResult` guard and the transaction lets the edit **resurrect a just-deleted result** — `createMatchResult` closes exactly this window with an in-tx `_count` check (the pattern the Story 3.4 redraw review established); **(c)** no `P2002` arm in the catch — a genuine concurrent-edit race (the `deleteMany`+`createMany` is not atomic against another editor's insert) trips `@@unique([matchId, setNo])` and currently crashes with an unhandled 500. Fix: top-level `if (sets.length === 0) → not_found`; `select: { _count: { select: { sets: true } } }` + `if (_count.sets === 0) → not_found`; `if (isUniqueViolation(error, SET_SCORE_NATURAL_KEY_INDEX)) → not_found` in the catch.
+- [x] [Review][Patch] `parseAndValidate` / `revalidateMatchSurfaces` hardcode their unions `[src/actions/matches.ts]` — `parseAndValidate`'s `tournamentType` param is spelled `"CHAMPIONSHIP" | "VETERAN" | "WOMEN" | "YOUTH"` inline (drifts silently if a type is added) and `revalidateMatchSurfaces(discipline: string, …)` is a bare `string` (a `"beach"` casing typo routes to `/classic` with no type error). Import `TournamentType` / `ScoringPreset` from `@/domain/tournamentForm` and type both.
+- [x] [Review][Patch] Three names for one shape `[src/components/match-result-form.tsx, src/components/match-result-panel.tsx, src/data/matches.ts, src/actions/matches.ts]` — `SetInput` (form), a local `SetScore` (panel — shadows the concept), and the inline `{ setNo; homePoints; awayPoints }[]` literal repeated in `createMatchResult` / `replaceMatchResult` params and `ParsedSets`. `@/domain/scoring` already exports `interface SetScore` with exactly this shape — consolidate on it (a sanctioned `data → domain` / `view → domain` type import).
+- [x] [Review][Patch] `verify-edit-delete-result.mts` — the `deleteMatchResult` row-scoping is unverified `[scripts/verify-edit-delete-result.mts]` — the script records **one** result, so dropping `matchId` (or `stage`) from `deleteMatchResult`'s where-clause still passes every assertion (`removed.count === 5`, `count === 0` for the cross-tournament case which has no results anyway). A regression that wipes *every* group result on one "Видалити результат" click ships green. Fix: record a result on `main.matchIds[1]` too; run the cross-tournament / `SEMIFINAL` `deleteMatchResult` checks **before** the real delete; after deleting `matchIds[0]`, assert `matchIds[1]`'s `SetScore` rows and standings row are untouched.
+- [x] [Review][Patch] `verify-edit-delete-result.mts` — no "does not affect other data" symmetry check `[scripts/verify-edit-delete-result.mts]` — `verify-match-schedule.mts` established the pattern; add: set `scheduledAt` / `venueText` on the match, do an edit, assert both are unchanged; assert `Tournament.state` is unchanged after the edit and after the delete.
+- [x] [Review][Patch] Delete-confirm copy diverges from the EXPERIENCE Voice contract `[src/components/match-result-panel.tsx]` — the code uses `"Таблиця групи перерахується."`; EXPERIENCE.md Voice is verbatim `"Видалити результат матчу? Таблиця перерахується."` and the AC block warns "the wording below must not narrow it" (inserting «групи» narrows — AC 1 also covers the playoff bracket). Match the authoritative string.
+- [x] [Review][Patch] Story doc nit `[_bmad-output/implementation-artifacts/3-7-edit-delete-result.md]` — Task 7's "Re-run all prior verify scripts (13 …)" should read **12** (13 total including the new one; the Completion Notes already say 12).
+- [x] [Review][Patch] `replaceMatchResult` doc + README overstate the error handling `[src/data/matches.ts, src/data/README.md]` — `deleteMany` / `createMany` don't raise `P2025`, so the `isRecordNotFound` arm of `isMissingMatch` is dead for `replaceMatchResult` (and `createMatchResult`); only the `P2003` FK path is reachable. Tighten the wording to name P2003 (keep the shared helper — it's cheap defence).
+
+#### Defer
+
+- [x] [Review][Defer] No audit trail for result corrections / deletions `[src/actions/matches.ts]` — editing or wiping a recorded score is a sensitive operation; nothing records who did it or the prior value. Extends the already-tracked "no audit trail for role changes" (1.7 review) / "no audit record for a lifecycle transition" (2.3 review) class. PRD does not require it — folded into `deferred-work.md` for whenever audit infra is picked up.
 
 ## What this story is / is NOT
 
@@ -194,7 +215,7 @@ PRD §4.6 FR-16 (`prd.md`, in context): "Адмін змінює чи видал
 - **No new Vitest.** `validateMatchScore` / `matchSetSummary` / `targetScore` are exhaustively covered (Story 3.1/3.6). `replaceMatchResult` / `deleteMatchResult` are `src/data` round-trips — covered by the verify script, the codebase's established pattern.
 - **`scripts/verify-edit-delete-result.mts`** is the real correctness check — first script to prove `getStandings` *changes* when a result is edited and *un-counts a match* when a result is deleted, plus the `not_found` / stage-scope guards on both writers.
 - **No component/action test** for `match-result-panel.tsx` / `editMatchResult` / `removeMatchResult` — the standing "no component toolchain / no session mock" gap. Mitigated by the verify script + the documented manual pass.
-- **Regression:** all 13 prior verify scripts re-run; `pnpm build` (same route — a sanity build, not a `.next/types` regen).
+- **Regression:** all 12 prior verify scripts re-run; `pnpm build` (same route — a sanity build, not a `.next/types` regen).
 
 ## Previous story intelligence
 
@@ -251,6 +272,7 @@ claude-sonnet-5 (bmad-dev-story)
 - Task 6: READMEs (`data`/`actions`/`components`), `AGENTS.md` (Stack bullet + verify script), `deferred-work.md` (Story 3.7 section).
 - Task 7: `scripts/verify-edit-delete-result.mts` — 12 assertions green: 3:0 → standings 3/0; edit to 3:2 → standings recomputed to 2/1, 5 `SetScore` rows; delete → 0 rows, match un-counted (`played: 0`); cross-tournament + `SEMIFINAL` → `not_found` / `count 0`.
 - Task 8: `pnpm build` / `typecheck` / `lint` / `test` 135/135 clean (no new Vitest — domain already covered). All 12 prior verify scripts green. No Prisma-client import in any `.tsx`.
+- Review-fix pass (`bmad-code-review`, 4 layers): 8 patches — `replaceMatchResult` now refuses an empty `sets` array, re-checks `_count.sets > 0` inside its transaction (closes the "resurrect a just-deleted result" TOCTOU), and catches `P2002` from a concurrent editor; `parseAndValidate` / `revalidateMatchSurfaces` take `ScoringPreset` / `TournamentType` / `Discipline` instead of inline unions; the `{ setNo; homePoints; awayPoints }` shape is now `@/domain/scoring`'s `SetScore` everywhere (dropped local `SetInput` / shadowing `SetScore`); `verify-edit-delete-result.mts` grew a second group-match result so `deleteMatchResult`'s `matchId` scoping is non-vacuously proven, runs the scoping guards before the real delete, and asserts edit/delete leave `scheduledAt` / `venueText` / `Tournament.state` / the other match untouched (12 → 20 assertions); confirm-dialog copy matches the EXPERIENCE Voice string verbatim ("Таблиця перерахується."); `isMissingMatch` / README wording tightened to name P2003; story "13 prior verify scripts" → 12. `pnpm test` 135/135, all gates green.
 
 ### File List
 
@@ -270,4 +292,6 @@ claude-sonnet-5 (bmad-dev-story)
 | --- | --- |
 | 2026-09-06 | Story drafted (`bmad-create-story`). Status: ready-for-dev. |
 | 2026-09-06 | Implementation complete (`bmad-dev-story`) — all 9 tasks done. `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 135/135 (no new Vitest — domain already covered), `scripts/verify-edit-delete-result.mts` (12 assertions) + all 12 prior verify scripts pass. Status: review. |
+| 2026-09-07 | Code review (`bmad-code-review`, 4 layers) — 0 decision-needed, 8 patches applied, 1 deferred (no audit trail), 16 dismissed. `replaceMatchResult` TOCTOU + P2002; type-safe helpers; `SetScore` consolidation; verify script 12 → 20 assertions (deleteMatchResult scoping + "does not affect other data"); EXPERIENCE-verbatim confirm copy. All gates green. Status: done. |
+
 

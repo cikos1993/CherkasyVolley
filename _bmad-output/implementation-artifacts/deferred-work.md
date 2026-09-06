@@ -2,6 +2,12 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from: code review of 3-7-edit-delete-result (2026-09-07)
+
+_Implementation review (`bmad-code-review`, 4 layers) over `git diff 41c0268..HEAD`. All 4 layers completed. 0 decision-needed, 8 patch, 1 deferred, 16 dismissed._
+
+- **No audit trail for result corrections / deletions.** `editMatchResult` / `removeMatchResult` change or wipe a recorded score with no record of who did it or the prior value. Extends the "no audit trail for role changes" (1.7 review) and "no audit record for a lifecycle transition" (2.3 review) class — one small `AuditLog` (actor, entity, action, before/after, timestamp) would cover all three. PRD doesn't require it.
+
 ## Deferred from / decided in: Story 3.7 implementation (2026-09-06)
 
 - **No action-level test for `editMatchResult` / `removeMatchResult`** beyond `scripts/verify-edit-delete-result.mts`. Same class as every prior action (no `requireAdmin` / session-mock infra). The domain validator is fully unit-tested; untested is the `requireAdmin` gate, the `getMatchForResult` branches, and the `count === 0` path.

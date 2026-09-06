@@ -2,7 +2,7 @@ import { db } from "@/data/client";
 import { isRecordNotFound, isUniqueViolation } from "@/data/errors";
 import { Prisma } from "@/generated/prisma/client";
 import type { MatchScheduleInput } from "@/domain/matchSchedule";
-import { computeStandings, type MatchResult } from "@/domain/scoring";
+import { computeStandings, type MatchResult, type SetScore } from "@/domain/scoring";
 import { orderStandings, type OrderedStandingsRow } from "@/domain/tiebreak";
 
 /**
@@ -179,7 +179,7 @@ export function getMatchForResult(tournamentId: string, matchId: string) {
 export async function createMatchResult(
   tournamentId: string,
   matchId: string,
-  sets: { setNo: number; homePoints: number; awayPoints: number }[],
+  sets: SetScore[],
 ): Promise<{ ok: true } | { ok: false; reason: "not_found" | "exists" }> {
   try {
     return await db.$transaction(async (tx) => {
@@ -204,6 +204,9 @@ export async function createMatchResult(
   }
 }
 
+// A concurrent redraw that removed the match mid-write surfaces as a `P2003`
+// FK violation from `createMany`; `P2025` is kept as defence in case a future
+// caller uses `update`/`delete` (which raise it) instead of the `*Many` forms.
 function isMissingMatch(error: unknown): boolean {
   return (
     isRecordNotFound(error) ||
@@ -213,32 +216,36 @@ function isMissingMatch(error: unknown): boolean {
 
 /**
  * Replaces a group match's result with a fresh set of scores — the edit path
- * (Story 3.7). One transaction: the match must exist, belong to `tournamentId`
- * and be `stage: "GROUP"`; then every existing `SetScore` row is deleted and
- * the new ones inserted. No "already has a result" check — the caller
- * (`editMatchResult`) has confirmed that; this is a plain delete-then-insert.
- * A concurrent redraw that removes the match mid-transaction is reported as
- * `"not_found"`, not thrown.
+ * (Story 3.7). One transaction: the match must exist, belong to `tournamentId`,
+ * be `stage: "GROUP"`, and **still have a result** (re-checked in the tx, so a
+ * `deleteMatchResult` landing between the caller's guard and this write can't
+ * be silently resurrected); then every existing `SetScore` row is deleted and
+ * the new ones inserted. An empty `sets` array is refused (that is a delete, not
+ * an edit). A concurrent redraw (`P2003`) or concurrent editor (`P2002`) is
+ * reported as `"not_found"`, not thrown.
  */
 export async function replaceMatchResult(
   tournamentId: string,
   matchId: string,
-  sets: { setNo: number; homePoints: number; awayPoints: number }[],
+  sets: SetScore[],
 ): Promise<{ ok: true } | { ok: false; reason: "not_found" }> {
+  if (sets.length === 0) return { ok: false, reason: "not_found" };
   try {
     return await db.$transaction(async (tx) => {
       const match = await tx.match.findFirst({
         where: { id: matchId, tournamentId, stage: "GROUP" },
-        select: { id: true },
+        select: { _count: { select: { sets: true } } },
       });
-      if (!match) return { ok: false as const, reason: "not_found" as const };
+      if (!match || match._count.sets === 0) {
+        return { ok: false as const, reason: "not_found" as const };
+      }
 
       await tx.setScore.deleteMany({ where: { matchId } });
       await tx.setScore.createMany({ data: sets.map((set) => ({ ...set, matchId })) });
       return { ok: true as const };
     });
   } catch (error) {
-    if (isMissingMatch(error)) {
+    if (isUniqueViolation(error, SET_SCORE_NATURAL_KEY_INDEX) || isMissingMatch(error)) {
       return { ok: false, reason: "not_found" };
     }
     throw error;
@@ -251,7 +258,10 @@ export async function replaceMatchResult(
  * filter (`tournamentId` + `stage: "GROUP"`), so a cross-tournament `matchId`
  * or an already-empty match deletes nothing (`{ count: 0 }`).
  */
-export function deleteMatchResult(tournamentId: string, matchId: string) {
+export function deleteMatchResult(
+  tournamentId: string,
+  matchId: string,
+): Promise<{ count: number }> {
   return db.setScore.deleteMany({
     where: { matchId, match: { tournamentId, stage: "GROUP" } },
   });

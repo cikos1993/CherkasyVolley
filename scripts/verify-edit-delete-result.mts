@@ -79,6 +79,23 @@ try {
     select: { homeEntryId: true, awayEntryId: true },
   });
 
+  // A second group match with its own result — nothing done to matchId may
+  // touch it (this is what proves deleteMatchResult / replaceMatchResult are
+  // scoped by matchId, not just by tournament+stage).
+  const otherMatchId = main.matchIds[1];
+  await createMatchResult(main.tournamentId, otherMatchId, [
+    { setNo: 1, homePoints: 25, awayPoints: 10 },
+    { setNo: 2, homePoints: 25, awayPoints: 10 },
+    { setNo: 3, homePoints: 25, awayPoints: 10 },
+  ]);
+
+  // --- a schedule stamped on matchId — an edit must not disturb it ---
+  const whenBefore = new Date("2026-06-13T08:00:00.000Z");
+  await db.match.update({
+    where: { id: matchId },
+    data: { scheduledAt: whenBefore, venueText: "СК «Спартак»" },
+  });
+
   // --- record a 3:0 ---
   await createMatchResult(main.tournamentId, matchId, [
     { setNo: 1, homePoints: 25, awayPoints: 20 },
@@ -88,6 +105,50 @@ try {
   const s1 = await getStandings(main.tournamentId);
   const home1 = s1.find((s) => s.row.entryId === homeEntryId);
   check("after 3:0 — home has points 3, wins 1", home1?.row.points === 3 && home1.row.wins === 1);
+
+  // --- scoping guards (run while both results still exist) ---
+  const crossReplace = await replaceMatchResult(other.tournamentId, matchId, [
+    { setNo: 1, homePoints: 25, awayPoints: 20 },
+    { setNo: 2, homePoints: 25, awayPoints: 20 },
+    { setNo: 3, homePoints: 25, awayPoints: 20 },
+  ]);
+  check(
+    "replaceMatchResult with a cross-tournament matchId → not_found",
+    !crossReplace.ok && crossReplace.reason === "not_found",
+  );
+  const crossDelete = await deleteMatchResult(other.tournamentId, matchId);
+  check("deleteMatchResult with a cross-tournament matchId → count 0", crossDelete.count === 0);
+  check(
+    "the cross-tournament attempts left matchId's 3 SetScore rows intact",
+    (await db.setScore.count({ where: { matchId } })) === 3,
+  );
+
+  const semifinal = await db.match.create({
+    data: {
+      tournamentId: main.tournamentId,
+      stage: "SEMIFINAL",
+      groupId: null,
+      homeEntryId: null,
+      awayEntryId: null,
+    },
+  });
+  const playoffReplace = await replaceMatchResult(main.tournamentId, semifinal.id, [
+    { setNo: 1, homePoints: 25, awayPoints: 20 },
+    { setNo: 2, homePoints: 25, awayPoints: 20 },
+    { setNo: 3, homePoints: 25, awayPoints: 20 },
+  ]);
+  check(
+    "replaceMatchResult on a SEMIFINAL match → not_found",
+    !playoffReplace.ok && playoffReplace.reason === "not_found",
+  );
+  check(
+    "deleteMatchResult on a SEMIFINAL match → count 0",
+    (await deleteMatchResult(main.tournamentId, semifinal.id)).count === 0,
+  );
+  check(
+    "replaceMatchResult refuses an empty sets array → not_found",
+    !(await replaceMatchResult(main.tournamentId, matchId, [])).ok,
+  );
 
   // --- edit to a 3:2 (win-by-2, decisive 5th to 15) ---
   const edited = await replaceMatchResult(main.tournamentId, matchId, [
@@ -109,48 +170,40 @@ try {
     "getStandings recomputed — 3:2 now gives home 2 points, away 1",
     home2?.row.points === 2 && away2?.row.points === 1 && home2.row.wins === 1,
   );
+  const matchAfterEdit = await db.match.findUniqueOrThrow({ where: { id: matchId } });
+  check(
+    "the edit did not touch scheduledAt / venueText",
+    matchAfterEdit.scheduledAt?.getTime() === whenBefore.getTime() &&
+      matchAfterEdit.venueText === "СК «Спартак»",
+  );
+  check(
+    "the edit left the other match's result intact",
+    (await db.setScore.count({ where: { matchId: otherMatchId } })) === 3,
+  );
 
-  // --- delete → match un-counted ---
+  // --- delete → match un-counted, nothing else touched ---
   const removed = await deleteMatchResult(main.tournamentId, matchId);
   check("deleteMatchResult removed all 5 SetScore rows", removed.count === 5);
   check("0 SetScore rows after the delete", (await db.setScore.count({ where: { matchId } })) === 0);
+  check(
+    "the delete left the other match's result intact",
+    (await db.setScore.count({ where: { matchId: otherMatchId } })) === 3,
+  );
   const s3 = await getStandings(main.tournamentId);
   const home3 = s3.find((s) => s.row.entryId === homeEntryId);
   check(
     "getStandings no longer counts the deleted match — home played 0, points 0",
     home3?.row.played === 0 && home3.row.points === 0,
   );
-
-  // --- scoping guards ---
-  const crossReplace = await replaceMatchResult(other.tournamentId, matchId, [
-    { setNo: 1, homePoints: 25, awayPoints: 20 },
-    { setNo: 2, homePoints: 25, awayPoints: 20 },
-    { setNo: 3, homePoints: 25, awayPoints: 20 },
-  ]);
   check(
-    "replaceMatchResult with a cross-tournament matchId → not_found",
-    !crossReplace.ok && crossReplace.reason === "not_found",
+    "the other match still counts — exactly its 2 entries show played 1",
+    s3.filter((s) => s.row.played === 1).length === 2,
   );
-  const crossDelete = await deleteMatchResult(other.tournamentId, matchId);
-  check("deleteMatchResult with a cross-tournament matchId → count 0", crossDelete.count === 0);
 
-  const semifinal = await db.match.create({
-    data: {
-      tournamentId: main.tournamentId,
-      stage: "SEMIFINAL",
-      groupId: null,
-      homeEntryId: null,
-      awayEntryId: null,
-    },
-  });
-  const playoffReplace = await replaceMatchResult(main.tournamentId, semifinal.id, [
-    { setNo: 1, homePoints: 25, awayPoints: 20 },
-    { setNo: 2, homePoints: 25, awayPoints: 20 },
-    { setNo: 3, homePoints: 25, awayPoints: 20 },
-  ]);
+  const tournamentAfter = await db.tournament.findUniqueOrThrow({ where: { id: main.tournamentId } });
   check(
-    "replaceMatchResult on a SEMIFINAL match → not_found",
-    !playoffReplace.ok && playoffReplace.reason === "not_found",
+    "neither edit nor delete changed Tournament.state",
+    tournamentAfter.state === "GROUP_STAGE",
   );
 } finally {
   for (const tournamentId of tournamentIds) {

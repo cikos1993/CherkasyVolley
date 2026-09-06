@@ -7,13 +7,12 @@ import { Loader2Icon } from "lucide-react";
 import { editMatchResult, enterMatchResult, type MatchResultFormState } from "@/actions/matches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { matchSetSummary } from "@/domain/scoring";
+import { matchSetSummary, type SetScore } from "@/domain/scoring";
 import type { ScoringPreset, TournamentType } from "@/domain/tournamentForm";
 import { MATCH_SETS_MAX, MATCH_SETS_MIN, targetScore } from "@/domain/validation";
 import { notify } from "@/lib/notify";
 
 type Row = { home: string; away: string };
-type SetInput = { setNo: number; homePoints: number; awayPoints: number };
 
 type MatchResultFormProps = {
   tournamentId: string;
@@ -24,7 +23,7 @@ type MatchResultFormProps = {
   awayTeam: string;
 } & (
   | { mode?: "create" }
-  | { mode: "edit"; initialSets: SetInput[]; onCancel: () => void }
+  | { mode: "edit"; initialSets: SetScore[]; onCancel: () => void }
 );
 
 function emptyRows(count: number): Row[] {
@@ -73,7 +72,7 @@ export function MatchResultForm(props: MatchResultFormProps) {
   // The live tally counts only the contiguous run of fully-filled sets from
   // set 1 — the same shape the server accepts.
   const summary = useMemo(() => {
-    const contiguous: SetInput[] = [];
+    const contiguous: SetScore[] = [];
     for (const [index, row] of rows.entries()) {
       if (!isScore(row.home) || !isScore(row.away)) break;
       contiguous.push({ setNo: index + 1, homePoints: Number(row.home), awayPoints: Number(row.away) });

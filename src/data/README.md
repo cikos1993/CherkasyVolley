@@ -146,12 +146,14 @@ goes through a named function exported from here — `getPublicTournament`,
   `SET_SCORE_NATURAL_KEY_INDEX` is that constraint's Postgres index name.
   **`replaceMatchResult(tournamentId, matchId, sets)` / `deleteMatchResult(tournamentId,
   matchId)` (Story 3.7)** — the edit and delete paths. `replaceMatchResult` is a
-  plain delete-then-insert in one transaction (no `_count` check — `editMatchResult`
-  confirmed a result exists); `{ ok: true } | { ok: false; reason: "not_found" }`,
-  a concurrent redraw caught via the shared `isMissingMatch` (`P2025`/`P2003`).
-  `deleteMatchResult` is `setScore.deleteMany` scoped by the nested `match` filter
-  (`tournamentId` + `stage: "GROUP"`) → `{ count }`; a mismatched pair or an
-  already-empty match deletes nothing.
+  delete-then-insert in one transaction that **re-checks `_count.sets > 0` inside
+  the tx** (so a `deleteMatchResult` racing the caller's guard can't be silently
+  resurrected — the Story 3.4 redraw pattern) and refuses an empty `sets` array;
+  `{ ok: true } | { ok: false; reason: "not_found" }`, catching a concurrent
+  editor (`P2002`) or redraw (`P2003`) as `not_found`. `deleteMatchResult` is
+  `setScore.deleteMany` scoped by **both** `matchId` and the nested `match`
+  filter (`tournamentId` + `stage: "GROUP"`) → `{ count }`; a mismatched pair or
+  an already-empty match deletes nothing.
 
 The `Tournament`, `Team`, `TournamentEntry`, `Player`, `Group`, `GroupSlot`, `Match`
 and `SetScore` entities (schema landed across Story 2.1, 2.4, and 3.2, migrations

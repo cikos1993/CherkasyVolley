@@ -7,11 +7,9 @@ import { removeMatchResult } from "@/actions/matches";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { MatchResultForm } from "@/components/match-result-form";
 import { Button } from "@/components/ui/button";
-import { matchSetSummary } from "@/domain/scoring";
+import { matchSetSummary, type SetScore } from "@/domain/scoring";
 import type { ScoringPreset, TournamentType } from "@/domain/tournamentForm";
 import { notify } from "@/lib/notify";
-
-type SetScore = { setNo: number; homePoints: number; awayPoints: number };
 
 export function MatchResultPanel({
   tournamentId,
@@ -91,7 +89,7 @@ export function MatchResultPanel({
         <ConfirmDialog
           trigger={<Button variant="destructive">Видалити результат</Button>}
           title="Видалити результат матчу?"
-          description="Таблиця групи перерахується."
+          description="Таблиця перерахується."
           confirmLabel="Видалити"
           destructive
           onConfirm={remove}
