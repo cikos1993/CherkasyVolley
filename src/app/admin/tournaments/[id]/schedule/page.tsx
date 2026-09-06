@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { MatchScheduleList } from "@/components/match-schedule";
+import { PlayoffPlacements, type PlayoffPlacementRow } from "@/components/playoff-placements";
 import { PlayoffSchedule, type PlayoffScheduleSlot } from "@/components/playoff-schedule";
 import { listGroupMatchesForTournament } from "@/data/matches";
 import { getPlayoffBracket, type PlayoffBracketPairView } from "@/data/playoff";
@@ -50,28 +51,39 @@ export default async function AdminTournamentSchedulePage({
   }));
 
   const inPlayoff = tournament.state === "PLAYOFF" || tournament.state === "COMPLETED";
-  const playoffSlots: PlayoffScheduleSlot[] = inPlayoff
-    ? await getPlayoffBracket(id).then((bracket) => {
-        const row = (
-          key: string,
-          label: string,
-          pair: PlayoffBracketPairView,
-        ): PlayoffScheduleSlot => ({
-          key,
-          label,
-          matchId: pair.matchId,
-          homeTeam: pair.homeTeam,
-          awayTeam: pair.awayTeam,
-          score: pair.score,
-        });
-        return [
-          row("SF1", "Півфінал 1", bracket.semifinals[0]),
-          row("SF2", "Півфінал 2", bracket.semifinals[1]),
-          row("THIRD_PLACE", "Матч за 3-тє місце", bracket.thirdPlace),
-          row("FINAL", "Фінал", bracket.final),
-        ];
-      })
+  const bracket = inPlayoff ? await getPlayoffBracket(id) : null;
+
+  const toSlot = (
+    key: string,
+    label: string,
+    pair: PlayoffBracketPairView,
+  ): PlayoffScheduleSlot => ({
+    key,
+    label,
+    matchId: pair.matchId,
+    homeTeam: pair.homeTeam,
+    awayTeam: pair.awayTeam,
+    score: pair.score,
+  });
+
+  const playoffSlots: PlayoffScheduleSlot[] = bracket
+    ? [
+        toSlot("SF1", "Півфінал 1", bracket.semifinals[0]),
+        toSlot("SF2", "Півфінал 2", bracket.semifinals[1]),
+        toSlot("THIRD_PLACE", "Матч за 3-тє місце", bracket.thirdPlace),
+        toSlot("FINAL", "Фінал", bracket.final),
+      ]
     : [];
+
+  const placementRows: PlayoffPlacementRow[] = bracket
+    ? [
+        { label: "1-е місце", teamName: bracket.placements.first?.teamName ?? null },
+        { label: "2-е місце", teamName: bracket.placements.second?.teamName ?? null },
+        { label: "3-є місце", teamName: bracket.placements.third?.teamName ?? null },
+        { label: "4-е місце", teamName: bracket.placements.fourth?.teamName ?? null },
+      ]
+    : [];
+  const hasPlacements = placementRows.some((row) => row.teamName !== null);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-8">
@@ -90,6 +102,14 @@ export default async function AdminTournamentSchedulePage({
           <div className="mt-4">
             <PlayoffSchedule tournamentId={id} slots={playoffSlots} />
           </div>
+          {hasPlacements ? (
+            <div className="mt-6">
+              <h3 className="text-sm font-semibold text-muted-foreground">Місця</h3>
+              <div className="mt-2">
+                <PlayoffPlacements rows={placementRows} />
+              </div>
+            </div>
+          ) : null}
         </section>
       ) : null}
     </main>
