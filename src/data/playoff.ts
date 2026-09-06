@@ -4,6 +4,7 @@ import { setTournamentState } from "@/data/tournaments";
 import { Prisma } from "@/generated/prisma/client";
 import {
   advanceBracket,
+  playoffPlacements,
   type BracketPair,
   type BracketSlot,
   type PlayoffBracket,
@@ -46,10 +47,25 @@ export interface PlayoffBracketPairView {
   venueText: string | null;
 }
 
+/** One final placement (1–4) with the team name resolved. */
+export interface PlayoffPlacementView {
+  entryId: string;
+  teamName: string;
+}
+
+/** Final placements 1–4 — each null until its deciding match has a result. */
+export interface PlayoffPlacementsView {
+  first: PlayoffPlacementView | null;
+  second: PlayoffPlacementView | null;
+  third: PlayoffPlacementView | null;
+  fourth: PlayoffPlacementView | null;
+}
+
 export interface PlayoffBracketView {
   semifinals: [PlayoffBracketPairView, PlayoffBracketPairView];
   thirdPlace: PlayoffBracketPairView;
   final: PlayoffBracketPairView;
+  placements: PlayoffPlacementsView;
 }
 
 function toMatchState(row: PlayoffMatchRow): PlayoffMatchState {
@@ -59,6 +75,30 @@ function toMatchState(row: PlayoffMatchRow): PlayoffMatchState {
     away: row.awayEntryId ? { entryId: row.awayEntryId, seed: null } : null,
     sets: row.sets,
   };
+}
+
+/**
+ * The playoff matches as `PlayoffMatchState[]` — the shape the bracket engine
+ * and the semifinal-edit gate take. Flat select (no relations): a plain
+ * action-level read, cheaper than `readPlayoffRows` and safe to call before a
+ * write. Empty until the playoff is formed.
+ */
+export async function readPlayoffMatchStates(tournamentId: string): Promise<PlayoffMatchState[]> {
+  const rows = await db.match.findMany({
+    where: { tournamentId, stage: { in: [...PLAYOFF_STAGES] } },
+    select: {
+      slot: true,
+      homeEntryId: true,
+      awayEntryId: true,
+      sets: { select: { setNo: true, homePoints: true, awayPoints: true }, orderBy: { setNo: "asc" } },
+    },
+  });
+  return rows.map((row) => ({
+    slot: row.slot!,
+    home: row.homeEntryId ? { entryId: row.homeEntryId, seed: null } : null,
+    away: row.awayEntryId ? { entryId: row.awayEntryId, seed: null } : null,
+    sets: row.sets,
+  }));
 }
 
 function readPlayoffRows(
@@ -136,12 +176,15 @@ export function savePlayoffFormation(
  * sole participant-deriver, run on every read). Reads the up-to-four playoff
  * `Match` rows, hands them to the engine, and decorates each pair with the
  * `Match` id (null until the row exists), the team names, the score summary,
- * and the schedule. The shared read for this story's admin schedule section
- * and Story 4.6's public bracket — no admin-only fields.
+ * and the schedule, plus the final placements 1–4. The shared read for this
+ * story's admin schedule section and Story 4.6's public bracket — no admin-only
+ * fields.
  */
 export async function getPlayoffBracket(tournamentId: string): Promise<PlayoffBracketView> {
   const rows = await readPlayoffRows(db, tournamentId);
-  const bracket = advanceBracket(rows.map(toMatchState));
+  const states = rows.map(toMatchState);
+  const bracket = advanceBracket(states);
+  const placements = playoffPlacements(states);
 
   const bySlot = new Map(rows.map((row) => [row.slot, row]));
   const teamNames = new Map<string, string>();
@@ -149,6 +192,9 @@ export async function getPlayoffBracket(tournamentId: string): Promise<PlayoffBr
     if (row.homeEntryId && row.homeEntry) teamNames.set(row.homeEntryId, row.homeEntry.team.name);
     if (row.awayEntryId && row.awayEntry) teamNames.set(row.awayEntryId, row.awayEntry.team.name);
   }
+
+  const resolvePlacement = (entryId: string | null): PlayoffPlacementView | null =>
+    entryId ? { entryId, teamName: teamNames.get(entryId) ?? "—" } : null;
 
   const decorate = (pair: BracketPair): PlayoffBracketPairView => {
     const row = bySlot.get(pair.slot) ?? null;
@@ -169,6 +215,12 @@ export async function getPlayoffBracket(tournamentId: string): Promise<PlayoffBr
     semifinals: [decorate(bracket.semifinals[0]), decorate(bracket.semifinals[1])],
     thirdPlace: decorate(bracket.thirdPlace),
     final: decorate(bracket.final),
+    placements: {
+      first: resolvePlacement(placements.first),
+      second: resolvePlacement(placements.second),
+      third: resolvePlacement(placements.third),
+      fourth: resolvePlacement(placements.fourth),
+    },
   };
 }
 
