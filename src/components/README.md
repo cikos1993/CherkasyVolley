@@ -397,9 +397,27 @@ the admin schedule page in the `PLAYOFF`/`COMPLETED` states.
 read-only. `teamNames` is the four places in order; a `null` entry renders
 «— (матч не зіграно)» (muted). The ordinal label (owned by the component:
 «1-е / 2-е / 3-тє / 4-е місце») is the cue, not colour; the `TrophyIcon` on
-1st is decorative (`aria-hidden`, `text-primary`). `<ol aria-label>`. The admin
-schedule page passes `getPlayoffBracket().placements` team names and renders it
-under «Місця» once at least one place is decided.
+1st is decorative (`aria-hidden`, `text-primary`). `<ol aria-label>`. Reused
+verbatim by both the admin schedule page and the public «Плейоф» tab (Story 4.6),
+each passing `getPlayoffBracket().placements` team names, rendered under «Місця»
+once at least one place is decided.
+
+## `bracket.tsx`
+
+`Bracket({ pairs })` (Story 4.6) — a **server** component, read-only: the public
+playoff bracket on `/classic/[tournament]?tab=playoff`. `pairs` is a
+`BracketPairVM[]` (`slot`, `homeTeam`/`awayTeam: string | null`, `score: string
+| null`) — the page maps `getPlayoffBracket()`'s `PlayoffBracketView` (the
+`playoff-schedule.tsx` `toSlot` precedent; `src/components` may not import
+`@/data`). The component owns the slot → label copy («Півфінал 1/2», «Фінал»,
+«Матч за 3-тє місце»). A pair with a `null` side renders the `bracket-pair-tbd`
+state (white card, `border-dashed`, «очікує суперників» — dashed border + text,
+never colour alone); a decided pair renders `bg-muted rounded-md`, teams left,
+`score` right (`tabular-nums`, omitted when `null`). Layout `grid sm:grid-cols-2`
+— semifinals left, final + third-place right; single stacked column below 640px.
+No winner emphasis (the score and the `PlayoffPlacements` list below carry the
+outcome). `#B0B0B4` (DESIGN's TBD colour) has no token — `border-border` /
+`text-muted-foreground` approximate it, the `standings-table.tsx` precedent.
 
 ## `public-schedule.tsx`
 

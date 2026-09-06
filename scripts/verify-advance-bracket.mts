@@ -2,7 +2,8 @@ import { config } from "dotenv";
 config({ path: [".env.local", ".env"] });
 
 // Regression check for playoff auto-advance (Story 4.3) + final placements and
-// the semifinal-edit gate (Story 4.4):
+// the semifinal-edit gate (Story 4.4). getPlayoffBracket's pair views also back
+// the public playoff bracket (Story 4.6).
 //   pnpm exec tsx scripts/verify-advance-bracket.mts
 // Self-cleaning — one throwaway 4-team tournament: draw, record every group
 // result, form the playoff, then drive semifinal result entry / edit / delete
@@ -141,6 +142,15 @@ try {
       bracket.final.homeTeam === standings[0].teamName &&
       bracket.final.awayTeam === standings[1].teamName,
   );
+  // Pair-view shape the public Bracket component maps: a played semifinal carries
+  // a "X:Y" score, a READY-but-unplayed final carries null, both sides named.
+  check(
+    "played semifinal pair-view has both team names and a score string",
+    bracket.semifinals[0].homeTeam !== null &&
+      bracket.semifinals[0].awayTeam !== null &&
+      bracket.semifinals[0].score === "3:0",
+  );
+  check("READY final pair-view has a null score", bracket.final.score === null);
   check(
     "placements are all null while the final and third-place are unplayed",
     bracket.placements.first === null &&

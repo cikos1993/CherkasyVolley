@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { Bracket, type BracketPairVM } from "@/components/bracket";
 import { CompletedBanner } from "@/components/completed-banner";
 import { EmptyState } from "@/components/empty-state";
+import { PlayoffPlacements } from "@/components/playoff-placements";
 import { PublicSchedule } from "@/components/public-schedule";
 import { StandingsTable } from "@/components/standings-table";
 import { StatusBadge } from "@/components/status-badge";
 import { normalizeTournamentTab, TournamentTabs } from "@/components/tournament-tabs";
 import { listEntriesForTournament } from "@/data/entries";
 import { getStandings, listGroupMatchesForTournament } from "@/data/matches";
+import { getPlayoffBracket, type PlayoffBracketPairView } from "@/data/playoff";
 import { formatKyivDateTime } from "@/domain/matchSchedule";
 import { matchScoreLabel } from "@/domain/scoring";
 import { PLAYOFF_QUALIFIERS } from "@/domain/tiebreak";
@@ -55,6 +58,35 @@ export default async function PublicTournamentPage({
     needsManualSeed: entry.needsManualSeed,
   }));
   const standingsHaveResults = standings.some((entry) => entry.row.played > 0);
+
+  const bracket = activeTab === "playoff" ? await getPlayoffBracket(id) : null;
+  const toBracketPair = (
+    slot: BracketPairVM["slot"],
+    pair: PlayoffBracketPairView,
+  ): BracketPairVM => ({
+    slot,
+    homeTeam: pair.homeTeam,
+    awayTeam: pair.awayTeam,
+    score: pair.score,
+  });
+  const bracketPairs: BracketPairVM[] = bracket
+    ? [
+        toBracketPair("SF1", bracket.semifinals[0]),
+        toBracketPair("SF2", bracket.semifinals[1]),
+        toBracketPair("FINAL", bracket.final),
+        toBracketPair("THIRD_PLACE", bracket.thirdPlace),
+      ]
+    : [];
+  const placementTeamNames: (string | null)[] = bracket
+    ? [
+        bracket.placements.first?.teamName ?? null,
+        bracket.placements.second?.teamName ?? null,
+        bracket.placements.third?.teamName ?? null,
+        bracket.placements.fourth?.teamName ?? null,
+      ]
+    : [];
+  const hasPlacements = placementTeamNames.some((name) => name !== null);
+
   const matches =
     activeTab === "schedule"
       ? (await listGroupMatchesForTournament(id)).map((match) => ({
@@ -112,9 +144,17 @@ export default async function PublicTournamentPage({
         {activeTab === "schedule" ? <PublicSchedule matches={matches} /> : null}
 
         {activeTab === "playoff" ? (
-          <p className="text-sm text-muted-foreground">
-            Сітка плейофа зʼявиться в наступному оновленні.
-          </p>
+          <div className="grid gap-6">
+            <Bracket pairs={bracketPairs} />
+            {hasPlacements ? (
+              <div>
+                <h2 className="text-sm font-semibold text-muted-foreground">Місця</h2>
+                <div className="mt-2">
+                  <PlayoffPlacements teamNames={placementTeamNames} />
+                </div>
+              </div>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </main>
