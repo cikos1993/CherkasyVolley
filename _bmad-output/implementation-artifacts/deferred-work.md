@@ -2,6 +2,13 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from / decided in: Story 3.7 implementation (2026-09-06)
+
+- **No action-level test for `editMatchResult` / `removeMatchResult`** beyond `scripts/verify-edit-delete-result.mts`. Same class as every prior action (no `requireAdmin` / session-mock infra). The domain validator is fully unit-tested; untested is the `requireAdmin` gate, the `getMatchForResult` branches, and the `count === 0` path.
+- **The "плейоф-сітка, якщо існує" half of AC 1 has no code and no surface.** Playoff is Epic 4 (`domain/bracket.ts` + AD-5's freeze rule). The 4 `revalidatePath` calls reach the future playoff tab; editing a group result after a bracket is formed will change the seeding standings but must not re-seed a frozen bracket — that logic belongs to Epic 4, not here.
+- **`replaceMatchResult`'s delete-then-insert is not guarded against a truly concurrent second editor.** Two admins editing the same match's result at once can interleave so one's write is lost (no `updatedAt`/version check). Same accepted TOCTOU class as every other check-then-act at this project's 2–5-admin scale; a redraw racing the edit is handled (`isMissingMatch` → `not_found`).
+- **No `Tournament.state` guard on edit/delete** — consistent with `enterMatchResult` / `scheduleMatch`. A `COMPLETED` lock on result editing is FR-7 (Story 4.5); until then a completed tournament's archived results are editable.
+
 ## Deferred from / decided in: Story 3.6 implementation (2026-09-06)
 
 - **No action-level test for `enterMatchResult` beyond `scripts/verify-match-result.mts`.** Same class as every prior action (no `requireAdmin` / session-mock infra). `validateMatchScore` is exhaustively unit-tested (Story 3.1); untested is the `requireAdmin` gate, the `getMatchForResult` branches, the `parseSetsFromForm` gap/non-integer paths, and the `"Партія N:"` message-mapping.

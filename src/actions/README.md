@@ -148,4 +148,14 @@ Actions are wired in their feature stories.
   `formError`) → `revalidatePath` (the public tournament route, the admin schedule
   page, the match screen, and `/admin/tournaments/${id}` — the first result flips
   `hasAnyGroupResult`, which the redraw button reads). First-entry only; editing
-  is Story 3.7.
+  is `editMatchResult`.
+  **`editMatchResult(tournamentId, matchId, _prev, formData)` / `removeMatchResult(tournamentId,
+  matchId)` (Story 3.7)** — `editMatchResult` is `enterMatchResult`'s sibling for a
+  match that **already** has a result (`sets.length === 0` → `formError`); same
+  `parseAndValidate` (shared parse + `validateMatchScore` + `Партія N:` mapping)
+  and `revalidateMatchSurfaces` (the shared 4-path helper), writing through
+  `replaceMatchResult`. `removeMatchResult` is the `ActionResult<undefined>` shape
+  (`removePlayer` template): `requireAdmin` → `getMatchForResult` (not found / not
+  `GROUP` → `NOT_FOUND`) → `deleteMatchResult` (`count === 0` → `NOT_FOUND`
+  "Результат уже видалено.") → `revalidateMatchSurfaces` → `{ ok: true }`. Neither
+  has a `Tournament.state` guard (a `COMPLETED` lock is FR-7 / Story 4.5).

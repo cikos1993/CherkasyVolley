@@ -144,6 +144,14 @@ goes through a named function exported from here — `getPublicTournament`,
   reported as `"exists"`, not thrown. No score validation here — the caller
   (`enterMatchResult`) has already run `src/domain/validation.ts`.
   `SET_SCORE_NATURAL_KEY_INDEX` is that constraint's Postgres index name.
+  **`replaceMatchResult(tournamentId, matchId, sets)` / `deleteMatchResult(tournamentId,
+  matchId)` (Story 3.7)** — the edit and delete paths. `replaceMatchResult` is a
+  plain delete-then-insert in one transaction (no `_count` check — `editMatchResult`
+  confirmed a result exists); `{ ok: true } | { ok: false; reason: "not_found" }`,
+  a concurrent redraw caught via the shared `isMissingMatch` (`P2025`/`P2003`).
+  `deleteMatchResult` is `setScore.deleteMany` scoped by the nested `match` filter
+  (`tournamentId` + `stage: "GROUP"`) → `{ count }`; a mismatched pair or an
+  already-empty match deletes nothing.
 
 The `Tournament`, `Team`, `TournamentEntry`, `Player`, `Group`, `GroupSlot`, `Match`
 and `SetScore` entities (schema landed across Story 2.1, 2.4, and 3.2, migrations

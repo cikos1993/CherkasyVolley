@@ -323,8 +323,15 @@ zero-players line).
 
 ## `match-result-form.tsx`
 
-`MatchResultForm({ tournamentId, matchId, preset, homeTeam, awayTeam })` (Story
-3.6) — the Score input (UX-DR8) on `/admin/tournaments/[id]/matches/[matchId]`.
+`MatchResultForm(props)` (Story 3.6; `mode: "create" | "edit"` added Story 3.7)
+— the Score input (UX-DR8) on `/admin/tournaments/[id]/matches/[matchId]`.
+Discriminated-union props (the `player-form.tsx` shape): `edit` adds
+`initialSets` + `onCancel`, binds `editMatchResult` instead of `enterMatchResult`,
+seeds rows from `initialSets`, labels the submit "Зберегти зміни" + shows a
+"Скасувати" button, and on a clean save toasts "Зміни збережено" and calls
+`props.onCancel()`. Everything else (per-set target, live tally, add/remove-set,
+`aria-label`s, `Object.keys(state).length === 0` success, toast-only `formError`)
+is identical across modes.
 `useActionState(enterMatchResult.bind(null, tournamentId, matchId), {})`; fully
 controlled (`useState<Row[]>` seeded with 3 empty rows). `CUSTOM` → the 3 rows
 are fixed; `CLASSIC` → "Додати партію" appends up to 5, "Прибрати партію" drops a
@@ -342,3 +349,16 @@ while pending (EXPERIENCE — synchronous edit, no optimistic UI).
 The `match-schedule.tsx` row (Story 3.5) gained a `<Link>` to this screen —
 «Внести результат» when no result, else a `text-success` `CheckIcon` + «Результат:
 X:Y».
+
+## `match-result-panel.tsx`
+
+`MatchResultPanel({ tournamentId, matchId, preset, tournamentType, homeTeam,
+awayTeam, sets })` (Story 3.7) — the match screen's view **when a result
+exists**, the `roster.tsx` in-place-edit precedent. Local `editing` `useState`:
+`false` → the read-only set list + `matchSetSummary` tally, an "Виправити"
+`Button` (toggles `editing`), and a `ConfirmDialog`-gated "Видалити результат"
+(`destructive`; "Видалити результат матчу? Таблиця групи перерахується."; the
+`roster.tsx` `remove()` shape — `catch → toast + throw`, `{ ok: false } → toast +
+return false`, success → toast + `router.refresh()`). `true` →
+`<MatchResultForm mode="edit" initialSets={sets} onCancel={() => setEditing(false)} … />`.
+The page renders this for `match.sets.length > 0`, else the create-mode form.
