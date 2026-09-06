@@ -2,6 +2,13 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from: code review of 4-1-domain-engine-bracket (2026-09-07)
+
+_Implementation review (`bmad-code-review`, 4 layers) over `git diff 914c875..HEAD`. Verification Gap found none. 0 decision-needed, 8 patch, 2 deferred, 6 dismissed._
+
+- **A semifinal result edited after downstream matches are decided can put a team in two final places.** `advanceBracket` correctly implements the spec's freeze rule (final frozen once it has its own `SetScore`, third-place still re-derives from the corrected semifinal). But the sequence "play the final → then correct a semifinal → then play the third-place match" can make `playoffPlacements` return the same `entryId` as 1st and 3rd. The engine trusts a consistent match set. The fix — gating semifinal result edits once downstream matches exist (FR-16 / AD-5) — belongs to Story 4.4 (playoff results) or 4.5 (finish tournament), not to `bracket.ts`.
+- **`needsManualSeed` does not survive the `advanceBracket` render path** (also noted under "Story 4.1 implementation" below). `advanceBracket` hardcodes `needsManualSeed: false`; since the bracket is re-derived through `advanceBracket` on every render, the seed-time "top-4 decided by name tiebreak" warning that `seedPlayoff` computes can only be shown at formation time. Story 4.2 must persist the flag (on `Group` or a bracket row) or the render path must re-run `seedPlayoff` against fresh standings.
+
 ## Deferred from / decided in: Story 4.1 implementation (2026-09-07)
 
 - **Two persisted `SEMIFINAL` `Match` rows share `MatchStage.SEMIFINAL`.** `domain/bracket.ts` distinguishes the semifinals with a `slot: "SF1" | "SF2"` discriminator, but the DB enum has one `SEMIFINAL` value. Story 4.2 (playoff formation) needs a way to map the two persisted rows back to `SF1`/`SF2` when building `PlayoffMatchState[]` — `createdAt` order is the cheap option, a small schema field the explicit one. Not solved in 4.1.

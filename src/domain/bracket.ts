@@ -1,14 +1,14 @@
 /**
- * Playoff bracket seeding and advancement (glossary "Плейоф"). Pure — no
- * framework, no IO. The v1 playoff is a fixed four-team bracket: two
+ * Playoff bracket seeding and advancement (glossary "Плейоф", FR-19–21). Pure
+ * — no framework, no IO. The v1 playoff is a fixed four-team bracket: two
  * semifinals (seed 1 v 4, seed 2 v 3), then a third-place match and a final
  * whose participants are the semifinal losers and winners.
  *
  * `advanceBracket` is the single place next-round participants are derived,
- * for both the write path and rendering: a downstream pairing tracks the
- * semifinal results only until its own match has a recorded set — after that
- * it is frozen, so correcting a semifinal later cannot rewrite a match that
- * has already been played.
+ * for both the write path and rendering (AD-5): a downstream pairing tracks
+ * the semifinal results only until its own match has a recorded set — after
+ * that it is frozen, so correcting a semifinal later cannot rewrite a match
+ * that has already been played.
  */
 
 import { matchSetSummary, type SetScore } from "@/domain/scoring";
@@ -29,8 +29,9 @@ export type BracketStage = "SEMIFINAL" | "THIRD_PLACE" | "FINAL";
 export interface BracketParticipant {
   entryId: string;
   /**
-   * Group-standings seed (1–4) when the participant is known from seeding;
-   * null once it is only known through advancement (a semifinal outcome).
+   * Group-standings seed (1–4) for a team placed by `seedPlayoff`. A team that
+   * reaches a later round keeps the seed it carried out of its semifinal; a
+   * caller that synthesises a participant without a known seed uses null.
    */
   seed: number | null;
 }
@@ -82,19 +83,25 @@ export interface PlayoffPlacements {
   fourth: string | null;
 }
 
-const DOWNSTREAM_STAGE: Record<"THIRD_PLACE" | "FINAL", BracketStage> = {
-  THIRD_PLACE: "THIRD_PLACE",
-  FINAL: "FINAL",
-};
-
 interface MatchOutcome {
   winner: BracketParticipant;
   loser: BracketParticipant;
 }
 
+/**
+ * Indexes matches by slot. Rejects a duplicate slot: unlike the group table,
+ * nothing in the schema stops the data layer from producing two `SF1` rows
+ * (both semifinals persist as `MatchStage.SEMIFINAL`), so a collision here is
+ * a real bug rather than something to resolve silently.
+ */
 function indexBySlot(matches: PlayoffMatchState[]): Map<BracketSlot, PlayoffMatchState> {
   const bySlot = new Map<BracketSlot, PlayoffMatchState>();
-  for (const match of matches) bySlot.set(match.slot, match);
+  for (const match of matches) {
+    if (bySlot.has(match.slot)) {
+      throw new Error(`advanceBracket: two matches for slot ${match.slot}`);
+    }
+    bySlot.set(match.slot, match);
+  }
   return bySlot;
 }
 
@@ -117,12 +124,24 @@ function hasOwnResult(match: PlayoffMatchState | undefined): boolean {
   return match !== undefined && match.sets.length > 0;
 }
 
+function pairStatus(
+  home: BracketParticipant | null,
+  away: BracketParticipant | null,
+  match: PlayoffMatchState | undefined,
+): BracketPairStatus {
+  if (hasOwnResult(match)) return "PLAYED";
+  return home && away ? "READY" : "AWAITING";
+}
+
 /**
- * Builds the initial bracket from the ordered group standings. `standings`
- * must be ordered so index 0 is seed 1 (`orderStandings`'s contract). Uses
- * the top `PLAYOFF_QUALIFIERS` rows; the higher seed hosts. The final and
- * third-place match come back with no participants — `advanceBracket` fills
- * them once the semifinals are played.
+ * Builds the initial bracket from the ordered group standings (FR-19).
+ * `standings` must be the output of `orderStandings` — ordered so index 0 is
+ * seed 1, and free of duplicate entries (the same trust `scoring.ts` places
+ * in its inputs). The bracket is fixed at `PLAYOFF_QUALIFIERS` teams / two
+ * semifinals; the pairings below are hardwired to that size (seed 1 v 4,
+ * seed 2 v 3), higher seed hosting. The final and third-place match come
+ * back with no participants — `advanceBracket` fills them once the
+ * semifinals are played.
  */
 export function seedPlayoff(standings: OrderedStandingsRow[]): PlayoffBracket {
   if (standings.length < PLAYOFF_QUALIFIERS) {
@@ -146,7 +165,7 @@ export function seedPlayoff(standings: OrderedStandingsRow[]): PlayoffBracket {
 
   const tbd = (slot: "THIRD_PLACE" | "FINAL"): BracketPair => ({
     slot,
-    stage: DOWNSTREAM_STAGE[slot],
+    stage: slot,
     home: null,
     away: null,
     status: "AWAITING",
@@ -161,8 +180,8 @@ export function seedPlayoff(standings: OrderedStandingsRow[]): PlayoffBracket {
 }
 
 /**
- * Resolves the current bracket from the state of its matches. The semifinals
- * pass through as stored. For the final and third-place match:
+ * Resolves the current bracket from the state of its matches (FR-20). The
+ * semifinals pass through as stored. For the final and third-place match:
  *
  * - a match with a recorded set is frozen — its stored participants are
  *   returned unchanged (AD-5);
@@ -171,20 +190,20 @@ export function seedPlayoff(standings: OrderedStandingsRow[]): PlayoffBracket {
  * - otherwise both participants are undecided.
  *
  * Accepts two to four matches — a slot absent from `matches` is treated as
- * not yet created. Matches are matched by `slot`, not array order.
+ * not yet created. Matches are matched by `slot`, not array order. Trusts a
+ * self-consistent set: it does not detect a team appearing in two slots
+ * (e.g. a semifinal corrected after a later-round match was already played).
  */
 export function advanceBracket(matches: PlayoffMatchState[]): PlayoffBracket {
   const bySlot = indexBySlot(matches);
   const sf1 = bySlot.get("SF1");
   const sf2 = bySlot.get("SF2");
 
-  const semifinalPair = (slot: "SF1" | "SF2", match: PlayoffMatchState | undefined): BracketPair => ({
-    slot,
-    stage: "SEMIFINAL",
-    home: match?.home ?? null,
-    away: match?.away ?? null,
-    status: hasOwnResult(match) ? "PLAYED" : "READY",
-  });
+  const semifinalPair = (slot: "SF1" | "SF2", match: PlayoffMatchState | undefined): BracketPair => {
+    const home = match?.home ?? null;
+    const away = match?.away ?? null;
+    return { slot, stage: "SEMIFINAL", home, away, status: pairStatus(home, away, match) };
+  };
 
   const sf1Outcome = matchOutcome(sf1);
   const sf2Outcome = matchOutcome(sf2);
@@ -196,15 +215,20 @@ export function advanceBracket(matches: PlayoffMatchState[]): PlayoffBracket {
     fromSf2: BracketParticipant | null,
   ): BracketPair => {
     const match = bySlot.get(slot);
-    const stage = DOWNSTREAM_STAGE[slot];
 
     if (hasOwnResult(match)) {
-      return { slot, stage, home: match?.home ?? null, away: match?.away ?? null, status: "PLAYED" };
+      return {
+        slot,
+        stage: slot,
+        home: match?.home ?? null,
+        away: match?.away ?? null,
+        status: "PLAYED",
+      };
     }
     if (bothSemifinalsPlayed) {
-      return { slot, stage, home: fromSf1, away: fromSf2, status: "READY" };
+      return { slot, stage: slot, home: fromSf1, away: fromSf2, status: "READY" };
     }
-    return { slot, stage, home: null, away: null, status: "AWAITING" };
+    return { slot, stage: slot, home: null, away: null, status: "AWAITING" };
   };
 
   return {
@@ -216,10 +240,11 @@ export function advanceBracket(matches: PlayoffMatchState[]): PlayoffBracket {
 }
 
 /**
- * Final placements 1–4 from the playoff results: the final decides first and
- * second, the third-place match decides third and fourth. A place is null
- * while its deciding match has no usable result. Never stored — recomputed
- * from match state (AD-4). Places 5+ come from the group table elsewhere.
+ * Final placements 1–4 from the playoff results (FR-21): the final decides
+ * first and second, the third-place match decides third and fourth. A place
+ * is null while its deciding match has no usable result. Never stored —
+ * recomputed from match state (AD-4). Places 5+ come from the group table
+ * elsewhere.
  */
 export function playoffPlacements(matches: PlayoffMatchState[]): PlayoffPlacements {
   const bySlot = indexBySlot(matches);

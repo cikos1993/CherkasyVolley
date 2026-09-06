@@ -16,7 +16,7 @@ context:
 
 # Story 4.1: Чистий двигун — сітка плейофа
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -134,6 +134,35 @@ FR / AD / SPEC anchors (in context):
 
 - [x] **Task 6 — Commit(s)** — `feat(domain): playoff bracket engine …` (Tasks 1–3) + `docs: …` (Tasks 4–5), each `git push origin main`, `build`/`typecheck`/`lint`/`test` gated.
 
+### Review Findings
+
+_Code review (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Verification Gap Reviewer, Acceptance Auditor) over `git diff 914c875..HEAD` (`src/domain/bracket.ts`, `bracket.test.ts`, `README.md`). Verification Gap found none. 0 decision-needed, 8 patch, 2 deferred, 6 dismissed._
+
+#### Patch
+
+- [x] [Review][Patch] `semifinalPair` reports `READY` for a participant-less / absent semifinal `[src/domain/bracket.ts:181]` — `advanceBracket`'s `semifinalPair` sets `status` to `PLAYED`/`READY` only, never inspecting `home`/`away`. An absent semifinal slot (allowed — "accepts 2, 3, or 4 input matches") or a null-participant row comes back `{ home: null, away: null, status: "READY" }`, contradicting the `BracketPairStatus` contract ("`AWAITING` — at least one participant is undecided"). Compute `status` as `PLAYED` (has result) → `AWAITING` (a participant is null) → `READY`; add a test. (blind-hunter + edge-case-hunter + verification-gap + acceptance-auditor)
+- [x] [Review][Patch] `BracketParticipant.seed` doc comment contradicts the code `[src/domain/bracket.ts:31]` — the comment says the seed is "null once it is only known through advancement," but `advanceBracket` carries the semifinal participant object (with `seed: 1..4`) straight through to the final / third-place. Fix the comment to state the seed is carried over from the semifinal slot. (blind-hunter + acceptance-auditor)
+- [x] [Review][Patch] `DOWNSTREAM_STAGE` is a pointless identity map `[src/domain/bracket.ts:88]` — `{ THIRD_PLACE: "THIRD_PLACE", FINAL: "FINAL" }`; `slot` (`"THIRD_PLACE" | "FINAL"`) is already assignable to `BracketStage`. Replace `DOWNSTREAM_STAGE[slot]` with `slot` and delete the const. (blind-hunter)
+- [x] [Review][Patch] `indexBySlot` silently collapses a duplicate `slot` (last wins) `[src/domain/bracket.ts:63]` — unlike `computeStandings`'s dup-`entryId` exposure (blocked by a DB unique constraint), the `SF1`/`SF2` split is pure `src/data` logic (Story 4.2, unsolved) with no DB guard. Add `if (bySlot.has(match.slot)) throw`. (edge-case-hunter + blind-hunter)
+- [x] [Review][Patch] Hardcoded 4-team pairings vs `PLAYOFF_QUALIFIERS` `[src/domain/bracket.ts:130]` — `seedPlayoff` uses the constant for the length check / slice but hardwires `semifinal("SF1", 1, 4)` / `("SF2", 2, 3)` and the whole `PlayoffBracket` shape. Add a comment that the pairings assume a 4-team bracket. (blind-hunter)
+- [x] [Review][Patch] Doc comments omit the FR numbers the sibling modules cite `[src/domain/bracket.ts]` — `validation.ts` / `scoring.ts` / `tiebreak.ts` cite `FR-5` / `AD-4` / `FR-17` in their doc comments; `bracket.ts` cites `AD-5` / `AD-4` but not `FR-19` / `FR-20` / `FR-21`. Add them to `seedPlayoff` / `advanceBracket` / `playoffPlacements`. (acceptance-auditor)
+- [x] [Review][Patch] No "trusts a consistent match set" note `[src/domain/bracket.ts]` — `scoring.ts` explicitly documents that it trusts `matches` to have no self-paired / duplicate entry. `bracket.ts` should state the analogous assumptions: `seedPlayoff` trusts the top 4 standings rows to be distinct entries; `advanceBracket` trusts a non-contradictory set of playoff matches (it does not detect a team landing in two places when a semifinal is edited after downstream matches are decided). (blind-hunter + edge-case-hunter)
+- [x] [Review][Patch] Test-coverage gaps `[src/domain/bracket.test.ts]` — add: (a) `advanceBracket` with all four slots populated, asserting the whole resolved bracket (the "synthesises" test only checks `.slot`); (b) `playoffPlacements` with the third-place match played but the final not → `first`/`second` `null`, `third`/`fourth` populated; (c) `seedPlayoff([])` throws; (d) `seedPlayoff` follows array order, not row stats (feed rows whose stats would sort differently); (e) a `seedPlayoff` → `advanceBracket` round-trip. (verification-gap + blind-hunter + acceptance-auditor)
+
+#### Defer
+
+- [x] [Review][Defer] A semifinal result edited after downstream matches are decided can put a team in two final places `[src/domain/bracket.ts:150]` — deferred, action-layer concern. `advanceBracket` faithfully implements the spec's freeze rule (final frozen, third-place re-derives), but the combination can make `playoffPlacements` return the same `entryId` as 1st and 3rd. Gating semifinal edits once downstream matches exist (FR-16 / AD-5) belongs to Story 4.4 (playoff results) / 4.5 (finish tournament).
+- [x] [Review][Defer] `needsManualSeed` does not survive the render path `[src/domain/bracket.ts:200]` — deferred, already tracked. `advanceBracket` hardcodes `needsManualSeed: false`; rendering goes through `advanceBracket`; so the seed-time warning `seedPlayoff` computes can't reach the UI after formation. Story 4.2 persists the flag or re-runs `seedPlayoff`. Already in `deferred-work.md` (Story 4.1 section).
+
+#### Dismissed as noise / out of scope (6)
+
+- Freeze on `matchOutcome(match) !== null` rather than `sets.length > 0` (blind-hunter, edge-case-hunter) — contradicts the spec's explicit choice and AD-5's literal wording ("доки в самому матчі немає `SetScore`").
+- Export a `BracketSlot → BracketStage` map for the data layer (blind-hunter) — every `BracketPair` already carries its `stage`; no external lookup is needed (the real cleanup is the `DOWNSTREAM_STAGE` patch).
+- `advanceBracket` marks a level-tally match `PLAYED` while `playoffPlacements` returns `null` for it (verification-gap, edge-case-hunter) — reachable only with a score `validateMatchScore` rejects; both behaviours are individually defensible.
+- `advanceBracket` / `playoffPlacements` duplicate `indexBySlot` + `matchOutcome` (blind-hunter) — deliberate parallel signatures; ~2 lines; coupling them to a shared `PlayoffBracket` is premature.
+- `RangeError` vs `Error` consistency with sibling modules (blind-hunter) — the spec explicitly chose `throw new RangeError`; it is an invariant guard, not a user-facing precondition like `checkCan*`.
+- README entry is one dense paragraph (blind-hunter) — matches every sibling module entry's style; none of them use per-function sub-bullets.
+
 ## Dev Notes
 
 ### What this story is / is NOT
@@ -241,6 +270,7 @@ claude-sonnet-5 (bmad-dev-story)
 - Task 2: `advanceBracket(matches)` — indexes the input by `slot`, passes the semifinals through (`PLAYED` when they carry sets, else `READY`), and for the final / third-place match applies AD-5: a slot whose own match has sets is frozen and returned as stored; otherwise, once both semifinals have a `matchOutcome`, the final gets the two winners and the third-place match the two losers (`READY`); otherwise `AWAITING`. Accepts 2–4 matches. `matchOutcome` derives winner/loser from `matchSetSummary` (no winner column — AD-4); a level or empty tally counts as no result. `playoffPlacements(matches)` maps the final → places 1/2 and the third-place match → places 3/4, `null` where undecided. `advanceBracket` returns `needsManualSeed: false` (seed-time flag, `seedPlayoff`'s job).
 - Task 3: `bracket.test.ts` — 20 cases across the three functions, asserting concrete `home`/`away` sides and exact `status` (not normalised sets), and exercising the freeze rule by mutating a result and re-calling `advanceBracket` (the Story 3.1 review lesson). `pnpm test` 155/155.
 - `pnpm typecheck` / `pnpm lint` clean. `bracket.ts` imports only `@/domain/scoring` and `@/domain/tiebreak`. No existing `.ts` touched.
+- Review fixes (8 patches): (1) `advanceBracket`'s `semifinalPair` now reports `AWAITING` (via a shared `pairStatus` helper) when a semifinal is absent / has a null participant, instead of a contract-violating `READY`; (2) `BracketParticipant.seed` doc comment corrected to describe the carry-through behaviour; (3) removed the `DOWNSTREAM_STAGE` identity map — `stage: slot` directly; (4) `indexBySlot` now throws on a duplicate `slot` (no DB guard on the SF1/SF2 split); (5) `seedPlayoff` doc notes the pairings are hardwired to a 4-team bracket; (6) doc comments cite `FR-19` / `FR-20` / `FR-21` (sibling-module convention); (7) `seedPlayoff` / `advanceBracket` docs state the "trusts a self-consistent input" assumption, matching `scoring.ts`; (8) +6 tests — absent-semifinal `AWAITING`, duplicate-slot throw, full four-slot bracket, `seedPlayoff` → `advanceBracket` round-trip, `seedPlayoff([])` throws, `seedPlayoff` follows array order not stats, `playoffPlacements` third-place-only. `pnpm build`/`typecheck`/`lint` clean, `pnpm test` **161/161**. 2 findings deferred (a semifinal edited after downstream matches → possible double placement; `needsManualSeed` not on the render path), 6 dismissed.
 
 ### File List
 
@@ -256,3 +286,4 @@ claude-sonnet-5 (bmad-dev-story)
 | --- | --- |
 | 2026-09-07 | Story drafted (`bmad-create-story`, 4 research subagents: epics / architecture+PRD+SPEC / UX / 3.1-precedent+`src/domain`). Status: ready-for-dev. |
 | 2026-09-07 | Implementation complete (`bmad-dev-story`) — all 6 tasks. `src/domain/bracket.ts` (`seedPlayoff` / `advanceBracket` / `playoffPlacements`) + `bracket.test.ts` (20 cases). `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 155/155 (+20). No schema / action / UI / route change; `MatchStage` enum and the `PLAYOFF`/`COMPLETED` transition stubs untouched. Status: review. |
+| 2026-09-07 | Code review (`bmad-code-review`, 4 layers). Verification Gap found none. 8 patches applied (semifinal `AWAITING` contract, seed doc, `DOWNSTREAM_STAGE` removal, duplicate-slot throw, 4-team comment, FR citations, trusts-consistent-input note, +6 tests), 2 deferred, 6 dismissed. `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 161/161. Status: done. |

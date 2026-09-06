@@ -98,6 +98,21 @@ describe("seedPlayoff", () => {
 
   it("throws a RangeError for fewer than four rows", () => {
     expect(() => seedPlayoff(TABLE.slice(0, 3))).toThrow(RangeError);
+    expect(() => seedPlayoff([])).toThrow(RangeError);
+  });
+
+  it("follows the array order it is given, not the rows' stats", () => {
+    // Row 0 has the weakest record; a seedPlayoff that re-sorted internally
+    // would put it last instead of at seed 1.
+    const weakestFirst: OrderedStandingsRow[] = [
+      { row: { entryId: "t1", played: 3, wins: 0, losses: 3, points: 0, setsWon: 0, setsLost: 9 }, needsManualSeed: false },
+      orderedRow("t2"),
+      orderedRow("t3"),
+      { row: { entryId: "t4", played: 3, wins: 3, losses: 0, points: 9, setsWon: 9, setsLost: 0 }, needsManualSeed: false },
+    ];
+    const bracket = seedPlayoff(weakestFirst);
+    expect(bracket.semifinals[0].home?.entryId).toBe("t1");
+    expect(bracket.semifinals[0].away?.entryId).toBe("t4");
   });
 
   it("flags needsManualSeed when any of the top four came from the name fallback", () => {
@@ -141,6 +156,24 @@ describe("advanceBracket", () => {
     expect(bracket.thirdPlace).toMatchObject({ home: null, away: null, status: "AWAITING" });
     expect(bracket.semifinals[0].status).toBe("PLAYED");
     expect(bracket.semifinals[1].status).toBe("READY");
+  });
+
+  it("reports an absent semifinal as AWAITING, not READY", () => {
+    const bracket = advanceBracket([
+      { slot: "SF1", home: { entryId: "t1", seed: 1 }, away: { entryId: "t4", seed: 4 }, sets: [] },
+    ]);
+
+    expect(bracket.semifinals[0].status).toBe("READY");
+    expect(bracket.semifinals[1]).toMatchObject({ home: null, away: null, status: "AWAITING" });
+  });
+
+  it("throws when two matches claim the same slot", () => {
+    expect(() =>
+      advanceBracket([
+        { slot: "SF1", home: { entryId: "t1", seed: 1 }, away: { entryId: "t4", seed: 4 }, sets: [] },
+        { slot: "SF1", home: { entryId: "t2", seed: 2 }, away: { entryId: "t3", seed: 3 }, sets: [] },
+      ]),
+    ).toThrow(/slot SF1/);
   });
 
   it("treats a level or empty semifinal set tally as no result", () => {
@@ -216,9 +249,65 @@ describe("advanceBracket", () => {
   });
 
   it("synthesises the final and third-place match when only the semifinals exist", () => {
+    // SF1: t1 beats t4. SF2: t2 beats t3.
     const bracket = advanceBracket(playedSemifinals(HOME_WIN, HOME_WIN));
-    expect(bracket.final.slot).toBe("FINAL");
-    expect(bracket.thirdPlace.slot).toBe("THIRD_PLACE");
+    expect(bracket.final).toMatchObject({
+      slot: "FINAL",
+      stage: "FINAL",
+      home: { entryId: "t1" },
+      away: { entryId: "t2" },
+      status: "READY",
+    });
+    expect(bracket.thirdPlace).toMatchObject({
+      slot: "THIRD_PLACE",
+      stage: "THIRD_PLACE",
+      home: { entryId: "t4" },
+      away: { entryId: "t3" },
+      status: "READY",
+    });
+  });
+
+  it("resolves a fully populated four-slot bracket end to end", () => {
+    const matches: PlayoffMatchState[] = [
+      ...playedSemifinals(HOME_WIN, HOME_WIN), // t1, t2 win; t4, t3 lose
+      { slot: "FINAL", home: { entryId: "t1", seed: 1 }, away: { entryId: "t2", seed: 2 }, sets: AWAY_WIN },
+      { slot: "THIRD_PLACE", home: { entryId: "t4", seed: 4 }, away: { entryId: "t3", seed: 3 }, sets: HOME_WIN },
+    ];
+    const bracket = advanceBracket(matches);
+
+    expect(bracket.semifinals.map((s) => s.status)).toEqual(["PLAYED", "PLAYED"]);
+    expect(bracket.final).toMatchObject({
+      home: { entryId: "t1" },
+      away: { entryId: "t2" },
+      status: "PLAYED",
+    });
+    expect(bracket.thirdPlace).toMatchObject({
+      home: { entryId: "t4" },
+      away: { entryId: "t3" },
+      status: "PLAYED",
+    });
+  });
+
+  it("round-trips seedPlayoff output through advanceBracket", () => {
+    const seeded = seedPlayoff(TABLE);
+    const matches: PlayoffMatchState[] = seeded.semifinals.map((sf, index) => ({
+      slot: sf.slot,
+      home: sf.home,
+      away: sf.away,
+      sets: index === 0 ? HOME_WIN : AWAY_WIN, // SF1: t1 wins; SF2: t3 wins
+    }));
+
+    const advanced = advanceBracket(matches);
+    expect(advanced.final).toMatchObject({
+      home: { entryId: "t1" },
+      away: { entryId: "t3" },
+      status: "READY",
+    });
+    expect(advanced.thirdPlace).toMatchObject({
+      home: { entryId: "t4" },
+      away: { entryId: "t2" },
+      status: "READY",
+    });
   });
 
   it("resolves the same regardless of input order", () => {
@@ -268,6 +357,20 @@ describe("playoffPlacements", () => {
       second: "t3",
       third: null,
       fourth: null,
+    });
+  });
+
+  it("fills 3rd and 4th while 1st and 2nd stay null when only the third-place match is played", () => {
+    const matches: PlayoffMatchState[] = [
+      { slot: "FINAL", home: { entryId: "t1", seed: null }, away: { entryId: "t3", seed: null }, sets: [] },
+      { slot: "THIRD_PLACE", home: { entryId: "t4", seed: null }, away: { entryId: "t2", seed: null }, sets: AWAY_WIN },
+    ];
+
+    expect(playoffPlacements(matches)).toEqual({
+      first: null,
+      second: null,
+      third: "t2",
+      fourth: "t4",
     });
   });
 
