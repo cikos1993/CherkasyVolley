@@ -1,35 +1,30 @@
 import Link from "next/link";
 
-export type TournamentTabKey = "teams" | "schedule" | "standings" | "playoff";
+export type TournamentTabKey = "standings" | "schedule" | "teams" | "playoff";
 
 const TABS: { key: TournamentTabKey; label: string }[] = [
-  { key: "teams", label: "Команди" },
-  { key: "schedule", label: "Розклад" },
   { key: "standings", label: "Таблиця" },
+  { key: "schedule", label: "Розклад" },
+  { key: "teams", label: "Команди" },
   { key: "playoff", label: "Плейоф" },
 ];
 
-/** Coerces a raw `?tab=` value to a known key, defaulting to "teams". */
-export function normalizeTournamentTab(raw: string | string[] | undefined): TournamentTabKey {
+/** Coerces a raw `?tab=` value to a known key, or `null` when it is absent or unknown. */
+export function normalizeTournamentTab(raw: string | string[] | undefined): TournamentTabKey | null {
   const value = Array.isArray(raw) ? raw[0] : raw;
-  return TABS.some((tab) => tab.key === value) ? (value as TournamentTabKey) : "teams";
+  return TABS.some((tab) => tab.key === value) ? (value as TournamentTabKey) : null;
 }
 
 export function TournamentTabs({
   tournamentId,
   active,
-  showStandings,
   showPlayoff,
 }: {
   tournamentId: string;
   active: TournamentTabKey;
-  showStandings: boolean;
   showPlayoff: boolean;
 }) {
-  const tabs = TABS.filter(
-    (tab) =>
-      (tab.key !== "standings" || showStandings) && (tab.key !== "playoff" || showPlayoff),
-  );
+  const tabs = TABS.filter((tab) => tab.key !== "playoff" || showPlayoff);
 
   return (
     <div className="mt-6 flex gap-2 overflow-x-auto">

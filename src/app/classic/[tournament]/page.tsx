@@ -3,13 +3,14 @@ import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/empty-state";
 import { PublicSchedule } from "@/components/public-schedule";
+import { StandingsTable } from "@/components/standings-table";
 import { StatusBadge } from "@/components/status-badge";
 import { normalizeTournamentTab, TournamentTabs } from "@/components/tournament-tabs";
 import { listEntriesForTournament } from "@/data/entries";
-import { listGroupMatchesForTournament } from "@/data/matches";
+import { getStandings, listGroupMatchesForTournament } from "@/data/matches";
 import { formatKyivDateTime } from "@/domain/matchSchedule";
 import { matchScoreLabel } from "@/domain/scoring";
-import { NO_TEAMS } from "@/lib/empty-states";
+import { GROUP_NOT_DRAWN, NO_TEAMS } from "@/lib/empty-states";
 import { resolveTournament } from "../_lib/resolve-tournament";
 
 export async function generateMetadata({ params }: PageProps<"/classic/[tournament]">) {
@@ -28,14 +29,27 @@ export default async function PublicTournamentPage({
 
   const { tab } = await searchParams;
   const showPlayoff = tournament.state === "PLAYOFF" || tournament.state === "COMPLETED";
-  // The Таблиця panel is Story 3.8; until then its chip is hidden (like Плейоф
-  // below PLAYOFF) and a direct ?tab=standings falls back to Команди.
-  const showStandings = false;
-  let activeTab = normalizeTournamentTab(tab);
-  if (activeTab === "standings" && !showStandings) activeTab = "teams";
-  if (activeTab === "playoff" && !showPlayoff) activeTab = "teams";
+  // Таблиця is the landing tab once the group stage is under way (EXPERIENCE IA);
+  // a DRAFT tournament (admin-preview only) has no standings, so land on Команди.
+  const defaultTab = tournament.state === "DRAFT" ? "teams" : "standings";
+  let activeTab = normalizeTournamentTab(tab) ?? defaultTab;
+  if (activeTab === "playoff" && !showPlayoff) activeTab = defaultTab;
 
   const entries = activeTab === "teams" ? await listEntriesForTournament(id) : [];
+  const standings = activeTab === "standings" ? await getStandings(id) : [];
+  const standingsRows = standings.map((entry, index) => ({
+    position: index + 1,
+    teamName: entry.teamName,
+    played: entry.row.played,
+    wins: entry.row.wins,
+    losses: entry.row.losses,
+    points: entry.row.points,
+    setsWon: entry.row.setsWon,
+    setsLost: entry.row.setsLost,
+    qualifies: index < 4,
+    needsManualSeed: entry.needsManualSeed,
+  }));
+  const standingsHaveResults = standings.some((entry) => entry.row.played > 0);
   const matches =
     activeTab === "schedule"
       ? (await listGroupMatchesForTournament(id)).map((match) => ({
@@ -58,14 +72,17 @@ export default async function PublicTournamentPage({
         <StatusBadge state={tournament.state} />
       </div>
 
-      <TournamentTabs
-        tournamentId={id}
-        active={activeTab}
-        showStandings={showStandings}
-        showPlayoff={showPlayoff}
-      />
+      <TournamentTabs tournamentId={id} active={activeTab} showPlayoff={showPlayoff} />
 
       <div className="mt-6">
+        {activeTab === "standings" ? (
+          standings.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{GROUP_NOT_DRAWN.description}</p>
+          ) : (
+            <StandingsTable rows={standingsRows} hasResults={standingsHaveResults} />
+          )
+        ) : null}
+
         {activeTab === "teams" ? (
           entries.length === 0 ? (
             <EmptyState {...NO_TEAMS} />

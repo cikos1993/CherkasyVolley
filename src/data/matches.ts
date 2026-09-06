@@ -5,6 +5,9 @@ import type { MatchScheduleInput } from "@/domain/matchSchedule";
 import { computeStandings, type MatchResult, type SetScore } from "@/domain/scoring";
 import { orderStandings, type OrderedStandingsRow } from "@/domain/tiebreak";
 
+/** An ordered standings row with its team's display name attached (Story 3.8). */
+export type StandingsView = OrderedStandingsRow & { teamName: string };
+
 /**
  * The group standings table for a tournament — the sole `src/data → src/domain`
  * **value** call for standings (every prior `data → domain` edge was
@@ -14,9 +17,9 @@ import { orderStandings, type OrderedStandingsRow } from "@/domain/tiebreak";
  * AC interpretation. Returns `[]` if the tournament has no `Group` (shouldn't
  * happen — every tournament gets one at creation) or the group has no
  * `GroupSlot` rows yet (the real, expected case: a `DRAFT` tournament before
- * the draw).
+ * the draw). Each row carries `teamName` for the public «Таблиця» tab.
  */
-export async function getStandings(tournamentId: string): Promise<OrderedStandingsRow[]> {
+export async function getStandings(tournamentId: string): Promise<StandingsView[]> {
   const tournament = await db.tournament.findUnique({
     where: { id: tournamentId },
     select: { scoringPreset: true, group: { select: { id: true } } },
@@ -65,7 +68,10 @@ export async function getStandings(tournamentId: string): Promise<OrderedStandin
     }));
 
   const rows = computeStandings(entryIds, matches, tournament.scoringPreset);
-  return orderStandings(rows, matches, tournament.scoringPreset, teamNames);
+  return orderStandings(rows, matches, tournament.scoringPreset, teamNames).map((ordered) => ({
+    ...ordered,
+    teamName: teamNames[ordered.row.entryId] ?? "—",
+  }));
 }
 
 /**
