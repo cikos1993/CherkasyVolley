@@ -258,3 +258,29 @@ export function playoffPlacements(matches: PlayoffMatchState[]): PlayoffPlacemen
     fourth: thirdPlaceOutcome?.loser.entryId ?? null,
   };
 }
+
+export type PlayoffResultEditCheck = { ok: true } | { ok: false; message: string };
+
+/**
+ * Whether a semifinal result may still be corrected or removed. `advanceBracket`
+ * trusts a self-consistent set of matches; it does not detect a team ending up
+ * in two positions. Once the final or the third-place match has its own set,
+ * that pairing is frozen but the other still re-derives from the corrected
+ * semifinal — which can place a frozen finalist into third place as well. The
+ * fix is to block the upstream edit while a downstream match has been played;
+ * before then, correcting a semifinal only re-pairs the downstream matches.
+ */
+export function checkCanEditSemifinalResult(matches: PlayoffMatchState[]): PlayoffResultEditCheck {
+  const downstreamPlayed = matches.some(
+    (match) =>
+      (match.slot === "FINAL" || match.slot === "THIRD_PLACE") && match.sets.length > 0,
+  );
+  if (downstreamPlayed) {
+    return {
+      ok: false,
+      message:
+        "Виправлення недоступне: результат наступного матчу плейофа вже внесено. Спершу приберіть його.",
+    };
+  }
+  return { ok: true };
+}

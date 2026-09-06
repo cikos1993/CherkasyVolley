@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   advanceBracket,
+  checkCanEditSemifinalResult,
   playoffPlacements,
   seedPlayoff,
   type PlayoffMatchState,
@@ -381,5 +382,51 @@ describe("playoffPlacements", () => {
       third: null,
       fourth: null,
     });
+  });
+});
+
+describe("checkCanEditSemifinalResult", () => {
+  it("allows the edit for an empty bracket", () => {
+    expect(checkCanEditSemifinalResult([])).toEqual({ ok: true });
+  });
+
+  it("allows the edit when only the two semifinals are played", () => {
+    expect(checkCanEditSemifinalResult(playedSemifinals(HOME_WIN, HOME_WIN))).toEqual({ ok: true });
+  });
+
+  it("allows the edit when a downstream row exists but has no result yet", () => {
+    const matches: PlayoffMatchState[] = [
+      ...playedSemifinals(HOME_WIN, HOME_WIN),
+      { slot: "FINAL", home: { entryId: "t1", seed: null }, away: { entryId: "t2", seed: null }, sets: [] },
+      { slot: "THIRD_PLACE", home: { entryId: "t4", seed: null }, away: { entryId: "t3", seed: null }, sets: [] },
+    ];
+    expect(checkCanEditSemifinalResult(matches)).toEqual({ ok: true });
+  });
+
+  it("blocks the edit once the final has a result", () => {
+    const matches: PlayoffMatchState[] = [
+      ...playedSemifinals(HOME_WIN, HOME_WIN),
+      { slot: "FINAL", home: { entryId: "t1", seed: null }, away: { entryId: "t2", seed: null }, sets: HOME_WIN },
+    ];
+    const check = checkCanEditSemifinalResult(matches);
+    expect(check.ok).toBe(false);
+    expect(check.ok === false && check.message.length).toBeGreaterThan(0);
+  });
+
+  it("blocks the edit once the third-place match has a result", () => {
+    const matches: PlayoffMatchState[] = [
+      ...playedSemifinals(HOME_WIN, HOME_WIN),
+      { slot: "THIRD_PLACE", home: { entryId: "t4", seed: null }, away: { entryId: "t3", seed: null }, sets: AWAY_WIN },
+    ];
+    expect(checkCanEditSemifinalResult(matches).ok).toBe(false);
+  });
+
+  it("blocks the edit when both downstream matches are played", () => {
+    const matches: PlayoffMatchState[] = [
+      ...playedSemifinals(HOME_WIN, HOME_WIN),
+      { slot: "FINAL", home: { entryId: "t1", seed: null }, away: { entryId: "t2", seed: null }, sets: HOME_WIN },
+      { slot: "THIRD_PLACE", home: { entryId: "t4", seed: null }, away: { entryId: "t3", seed: null }, sets: AWAY_WIN },
+    ];
+    expect(checkCanEditSemifinalResult(matches).ok).toBe(false);
   });
 });
