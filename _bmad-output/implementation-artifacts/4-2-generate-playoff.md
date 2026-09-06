@@ -16,7 +16,7 @@ context:
 
 # Story 4.2: Сформувати плейоф
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -187,6 +187,41 @@ FR / AD / SPEC anchors (in context):
 
 - [x] **Task 10 — Commit(s)** — one commit + `git push origin main` per completed task group (migration; data; action; component+page; verify script; docs). `build`/`typecheck`/`lint`/`test` gate each.
 
+### Review Findings
+
+_Code review (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Verification Gap Reviewer, Acceptance Auditor) over `git diff 3304f5f..HEAD` (`src/` + `prisma/` + `scripts/`). 0 decision-needed, 9 patch, 4 deferred, 9 dismissed._
+
+#### Patch
+
+- [x] [Review][Patch] Concurrent formation is not serialized `[src/data/playoff.ts:26]` — `savePlayoffFormation`'s `existingSemifinals > 0` check is check-then-insert under READ COMMITTED; two concurrent `formPlayoff` calls (double-click / two admins) both see zero → four `SEMIFINAL` rows → every later `indexBySlot`/`advanceBracket` read throws "two matches for slot SF1" and the tournament's playoff is bricked. Add `await tx.$queryRaw\`SELECT id FROM "tournament" WHERE id = ${tournamentId} FOR UPDATE\`` as the first statement in the transaction (the `demoteFromAdmin` `SELECT … FOR UPDATE` precedent — `saveDraw` gets the same guarantee from `GroupSlot`'s unique index, which the playoff has no equivalent of). (blind-hunter + edge-case-hunter + acceptance-auditor)
+- [x] [Review][Patch] `savePlayoffFormation` throws a raw `Error` for a normal race; `toActionError` re-throws it → 500 `[src/data/playoff.ts, src/actions/playoff.ts:57]` — "playoff already formed" (double-click) and "group result deleted post-check" are expected conditions, not "shouldn't happen". `formPlayoff`'s `catch` → `toActionError` re-throws anything but `AdminRequiredError`, so the promise rejects. Change `savePlayoffFormation` to return `Promise<{ ok: true } | { ok: false; reason: "already_formed" | "group_incomplete" }>` (the `createMatchResult` convention); `formPlayoff` maps `reason` → `{ ok: false, code: "PRECONDITION_FAILED", message }`. Fix the now-inaccurate "Performs no validation itself" docstring. (blind-hunter + edge-case-hunter + acceptance-auditor)
+- [x] [Review][Patch] `savePlayoffFormation` takes the seeded `PlayoffBracket` directly, not a pre-mapped `PlayoffSemifinalRow[]` `[src/actions/playoff.ts:47, scripts/verify-generate-playoff.mts]` — the `bracket.semifinals.map(sf => ({ slot: sf.slot, homeEntryId: sf.home!.entryId, awayEntryId: sf.away!.entryId }))` mapping is currently duplicated verbatim in the action and the verify script, so the script never exercises the action's copy. Move the mapping inside `savePlayoffFormation(tournamentId, bracket: PlayoffBracket)` — one place, covered by the script. (verification-gap)
+- [x] [Review][Patch] `allGroupMatchesPlayed` uses two separate `count()` queries `[src/data/matches.ts:143]` — the `total` and `played` snapshots can disagree under a concurrent result mutation. One query: `client.match.findMany({ where: { tournamentId, stage: "GROUP" }, select: { _count: { select: { sets: true } } } })` → `rows.length > 0 && rows.every(r => r._count.sets > 0)`. (edge-case-hunter)
+- [x] [Review][Patch] The `needsManualSeed` toast over-claims `[src/components/tournament-actions.tsx, src/components/README.md]` — `seedPlayoff` sets the flag when **any** of the top-4 positions used the name fallback (could be a 1v2 tie), but the toast says «Посів 4-го та 5-го місця». Broaden to «Посів деяких команд визначено за назвою команди — перевірте таблицю групи.»; fix the README / AGENTS wording that says "4/5 cut-line". (blind-hunter + acceptance-auditor)
+- [x] [Review][Patch] `FormPlayoffButton` does not `router.refresh()` on failure `[src/components/tournament-actions.tsx:113]` — after an "already formed" (or "group result deleted") failure the section stays with a stale `allGroupMatchesPlayed` prop and an enabled button, inviting a retry that can't succeed. Call `router.refresh()` in the `else` and `catch` branches. (blind-hunter + edge-case-hunter)
+- [x] [Review][Patch] `notify.warning` renders unstyled; the README overclaims `[src/components/ui/sonner.tsx, src/components/README.md]` — `toastOptions.classNames` styles only `error`/`success`; `toast.warning` falls back to the neutral `--popover` background (icon-distinguished only). Add a `warning` classNames entry (an amber treatment, matching how `error`/`success` are written), and correct the README's "sonner's default warning styling" claim to describe what actually renders. (blind-hunter + acceptance-auditor)
+- [x] [Review][Patch] `verify-group-stage-schema.mts` self-paired-semifinal test now passes for the wrong reason `[scripts/verify-group-stage-schema.mts:314]` — the new `match_slot_stage_check` rejects the `stage: "SEMIFINAL"` insert (no `slot`) before `match_distinct_entries_check` is evaluated, so "rejects home === away" no longer exercises the constraint it names. Add `slot: "SF1"` (matching the three sibling scripts fixed in this story). (edge-case-hunter)
+- [x] [Review][Patch] `verify-generate-playoff.mts` coverage gaps `[scripts/verify-generate-playoff.mts]` — add: (a) a destructive probe of `match_slot_stage_check` (`SEMIFINAL` + `slot: null` rejects; `GROUP` + a slot rejects), the `verify-group-stage-schema.mts` style; (b) the in-transaction `allGroupMatchesPlayed` re-check — delete a `SetScore` mid-flow, call `savePlayoffFormation`, assert it reports failure and leaves zero `SEMIFINAL` rows and `state` unchanged; (c) the "second formation" case asserts the *reason*, not just that it failed; (d) a `needsManualSeed === true` scenario (a group with a genuine top-4 name tie). (verification-gap + blind-hunter)
+
+#### Defer
+
+- [x] [Review][Defer] `allGroupMatchesPlayed(id)` is fetched on every admin-tournament-page render `[src/app/admin/tournaments/[id]/page.tsx:31]` — deferred, folds into the existing "unconditional data fetch on `[id]/page.tsx`" item (the `hasAnyGroupResult` one, 3.4). Two indexed count queries wasted for non-`GROUP_STAGE` tournaments.
+- [x] [Review][Defer] Stale-standings window between `formPlayoff`'s `getStandings` and the write `[src/actions/playoff.ts:41]` — deferred. A group result *edited* (not deleted) via `replaceMatchResult` in the window changes the top-4 order; `allGroupMatchesPlayed` still passes and the semifinals seed from the stale ordering. Closing it needs `getStandings` + `seedPlayoff` inside the formation transaction. Narrow window, deliberate one-time admin action; placements still compute correctly, only the SF pairing could be a beat behind.
+- [x] [Review][Defer] `match_slot_stage_check` enforces slot *presence*, not slot↔stage *correctness* `[prisma/migrations/20260907120000_match_playoff_slot/migration.sql]` — deferred to Story 4.3, which introduces the `FINAL`/`THIRD_PLACE` rows and is the natural place to tighten the CHECK to per-stage (`SEMIFINAL ⇔ slot IN ('SF1','SF2')`, etc.). Our code always sets the slot correctly.
+- [x] [Review][Defer] `seedPlayoff`'s return type permits null semifinal participants `[src/domain/bracket.ts]` — deferred to a `bracket.ts` follow-up. `BracketPair.home` is `BracketParticipant | null`, forcing a `!` at every seed-consuming call site (`formPlayoff`, the verify script). A narrower "seeded semifinal" type with non-null `home`/`away` would remove them.
+
+#### Dismissed as noise / out of scope (9)
+
+- `standings.length < PLAYOFF_QUALIFIERS` checked in both `formPlayoff` and `seedPlayoff` (blind-hunter) — the action guard runs first and prevents `seedPlayoff`'s `RangeError` from ever firing on this path; belt-and-suspenders, matching `checkCanRedraw` + `saveRedraw`.
+- Client gate doesn't check the ≥4-team condition (blind-hunter) — `TEAM_COUNT_MIN = 4` makes a `teamCount < 4` tournament impossible to create; the scenario is unreachable.
+- No `discipline !== "CLASSIC"` guard in `formPlayoff` (edge-case-hunter) — BEACH tournaments can't be created (`allowedTournamentTypes("BEACH")` is empty); consistent with `drawTournament`/`redrawTournament`, which also omit it.
+- The manual-seed warning is a transient toast for a no-remedy condition (blind-hunter) — the standings table already carries the persistent `*` manual-seed markers (Story 3.8); an advisory toast at formation is appropriate.
+- `verify-generate-playoff.mts` skips `$disconnect()` on a thrown error (blind-hunter) — the `try/finally`-then-post-checks shape is shared by every verify script and already tracked in `deferred-work.md`.
+- Script derives `nameKey` as `.toLowerCase()` instead of the domain helper (blind-hunter) — established shortcut for controlled test inputs across the verify scripts.
+- Migration timestamp is one day in the future (blind-hunter + acceptance-auditor) — the whole story's docs use 2026-09-07; renaming a migration already recorded in the dev DB's `_prisma_migrations` is worse than the cosmetic skew.
+- `getStandings` re-queries the tournament after `getTournamentForAdmin` already loaded it (blind-hunter) — `getStandings` is a deliberately self-contained data function; one extra indexed `findUnique` on a cold admin action is negligible.
+- Disabled caption «Доступно…» vs the UX literal «доступно…» (acceptance-auditor) — spec Task 5 explicitly instructed the capitalized standalone form.
+
 ## Dev Notes
 
 ### What this story is / is NOT
@@ -339,7 +374,8 @@ claude-sonnet-5 (bmad-dev-story)
 - `src/lib/notify.ts` (UPDATE)
 - `src/app/admin/tournaments/[id]/page.tsx` (UPDATE)
 - `scripts/verify-generate-playoff.mts` (NEW)
-- `scripts/verify-match-schedule.mts` · `scripts/verify-match-result.mts` · `scripts/verify-edit-delete-result.mts` (UPDATE — `slot` on SEMIFINAL fixtures)
+- `src/components/ui/sonner.tsx` (UPDATE — review: `warning` toast styling)
+- `scripts/verify-match-schedule.mts` · `scripts/verify-match-result.mts` · `scripts/verify-edit-delete-result.mts` · `scripts/verify-group-stage-schema.mts` (UPDATE — `slot` on SEMIFINAL fixtures)
 - `src/data/README.md` · `src/actions/README.md` · `src/components/README.md` · `AGENTS.md` · `_bmad-output/implementation-artifacts/deferred-work.md` (UPDATE)
 
 ## Change Log
@@ -348,3 +384,4 @@ claude-sonnet-5 (bmad-dev-story)
 | --- | --- |
 | 2026-09-07 | Story drafted (`bmad-create-story`, 4 research subagents: epics 4.2 / architecture+PRD+SPEC / UX / code precedent — Story 3.3 draw + 4.1 bracket). Status: ready-for-dev. |
 | 2026-09-07 | Implementation complete (`bmad-dev-story`) — all 10 tasks. Migration `20260907120000_match_playoff_slot` (`MatchSlot` enum + `Match.slot`); `allGroupMatchesPlayed`; `savePlayoffFormation`; `formPlayoff`; `FormPlayoffButton` + page section; `verify-generate-playoff.mts` (18 assertions). `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 161/161, all verify scripts green, `migrate status` clean. Status: review. |
+| 2026-09-07 | Code review (`bmad-code-review`, 4 layers). 9 patches applied: `SELECT … FOR UPDATE` serialises formation; `savePlayoffFormation` returns `{ ok, reason }` (no raw throw → 500), takes the `PlayoffBracket` and owns the mapping; `allGroupMatchesPlayed` is a single query; `needsManualSeed` toast broadened; `FormPlayoffButton` refreshes on every outcome; `notify.warning` styled in `sonner.tsx`; `verify-group-stage-schema.mts` fixture fixed; `verify-generate-playoff.mts` +9 assertions (CHECK probes, `already_formed` reason, `needsManualSeed` cycle, in-tx TOCTOU abort). 4 deferred, 9 dismissed. `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 161/161, all verify scripts green. Status: done. |

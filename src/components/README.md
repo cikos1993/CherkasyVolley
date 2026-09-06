@@ -20,7 +20,8 @@ directly** — the only exceptions are `ui/sonner.tsx` (the `<Toaster>`) and
   (`#1F8A54` background, white text).
 - `notify.warning(message)` — a completed action that needs the user's
   attention (Story 4.2: the playoff was formed, but the top-4 order relied on a
-  name tiebreak). sonner's default warning styling.
+  name tiebreak). Amber background + `TriangleAlertIcon` (`ui/sonner.tsx`'s
+  `classNames.warning` — there is no `--warning` design token yet).
 - `notify.error(message)` — a failed action. Renders on the destructive token
   (`#C4342B` background, white text). The wiring is `toastOptions.classNames` in
   `ui/sonner.tsx`, not sonner's `richColors` (which paints from its own palette,
@@ -183,9 +184,11 @@ groups «Сформувати плейоф» with the draw, not with the confirm
 Client gate `checkTransition(state, "PLAYOFF", { allGroupMatchesPlayed })`; the
 `PRECONDITION_FAILED` caption is overridden to the UX wording «Доступно коли
 всі матчі груп зіграно». On success: `notify.success("Плейоф сформовано")` and,
-when the action returns `needsManualSeed`, a `notify.warning` that the 4/5
-cut-line was settled by team name. Rendered only while `state === "GROUP_STAGE"`
-(the page gates it, alongside the redraw section).
+when the action returns `needsManualSeed`, a `notify.warning` that some seed
+was settled by team name. `router.refresh()` runs on every outcome (`finally`)
+— the section vanishes on success, a stale precondition is corrected on a
+failed race. Rendered only while `state === "GROUP_STAGE"` (the page gates it,
+alongside the redraw section).
 
 ## `team-enrollment.tsx`
 

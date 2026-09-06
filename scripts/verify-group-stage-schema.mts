@@ -316,6 +316,7 @@ try {
       data: {
         tournamentId,
         stage: "SEMIFINAL",
+        slot: "SF1",
         homeEntryId: alphaEntryId,
         awayEntryId: alphaEntryId,
       },

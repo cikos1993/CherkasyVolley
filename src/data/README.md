@@ -104,19 +104,24 @@ goes through a named function exported from here — `getPublicTournament`,
   this inside its own transaction (review fix — closes the TOCTOU window
   between the action's outer check and the write).
   **`allGroupMatchesPlayed(tournamentId, client?)` (Story 4.2)** — whether
-  **every** `GROUP` match has a result (`total > 0 && played === total`); the
-  precondition input for `checkTransition(…, "PLAYOFF", …)`, distinct from
-  `hasAnyGroupResult`'s "any". Takes a transaction client so
-  `savePlayoffFormation` can re-check it inside its own transaction.
-- `playoff.ts` — `savePlayoffFormation(tournamentId, semifinals)` (Story 4.2),
-  the `saveDraw` twin for the playoff. One `db.$transaction`: creates the two
-  `SEMIFINAL` `Match` rows (`groupId: null` — required by `match_group_stage_check`;
-  each with its `slot` `SF1`/`SF2`) from a seeded bracket, then
-  `tournaments.ts`'s `setTournamentState(…, "PLAYOFF", tx)`. Two in-transaction
-  re-checks close the window after the action's `checkTransition`:
-  `allGroupMatchesPlayed` (a group result could have been deleted) and "no
-  `SEMIFINAL` row exists yet" (a concurrent second formation). No validation of
-  its own — the caller (`formPlayoff`) confirmed the transition.
+  **every** `GROUP` match has a result. One `findMany` with `_count` on `sets`
+  (a single snapshot, not two `count`s); the precondition input for
+  `checkTransition(…, "PLAYOFF", …)`, distinct from `hasAnyGroupResult`'s
+  "any". Takes a transaction client so `savePlayoffFormation` can re-check it
+  inside its own transaction.
+- `playoff.ts` — `savePlayoffFormation(tournamentId, bracket)` (Story 4.2), the
+  `saveDraw` twin for the playoff. Takes the seeded `PlayoffBracket` (domain
+  type) and does the `semifinals → row` mapping in one place. One
+  `db.$transaction`: a `SELECT … FOR UPDATE` on the tournament row serialises
+  concurrent formations (`saveDraw` gets the same from `GroupSlot`'s unique
+  index — the playoff has none); then two re-checks that **return a result,
+  not throw** (both are normal races): `allGroupMatchesPlayed` → `{ ok: false,
+  reason: "group_incomplete" }`, and "a `SEMIFINAL` row already exists" →
+  `{ ok: false, reason: "already_formed" }`. On success: `createMany` two
+  `SEMIFINAL` rows (`groupId: null` — required by `match_group_stage_check`,
+  each with its `slot`), then `setTournamentState(…, "PLAYOFF", tx)`. Throws
+  only for a true invariant violation (a seeded semifinal missing a
+  participant).
 - `draw.ts` — `saveDraw(tournamentId, groupId, entryIds, pairings)` (Story
   3.3), the first real writer of `GroupSlot`/`Match`. One `db.$transaction`:
   seats every entry into `GroupSlot`, creates one `GROUP`-stage `Match` per

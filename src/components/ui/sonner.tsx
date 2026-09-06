@@ -33,6 +33,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
             "!bg-destructive !text-destructive-foreground !border-destructive",
           success:
             "!bg-success !text-success-foreground !border-success",
+          // No design token for a warning colour yet (DESIGN.md defines only
+          // success / destructive) — a plain amber until the design-system pass.
+          warning: "!bg-[#B45309] !text-white !border-[#B45309]",
         },
       }}
     />

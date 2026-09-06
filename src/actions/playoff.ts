@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { toActionError, type ActionResult } from "@/actions/result";
 import { requireAdmin } from "@/auth/requireAdmin";
 import { allGroupMatchesPlayed, getStandings } from "@/data/matches";
-import { savePlayoffFormation, type PlayoffSemifinalRow } from "@/data/playoff";
+import { savePlayoffFormation } from "@/data/playoff";
 import { getTournamentForAdmin } from "@/data/tournaments";
 import { seedPlayoff } from "@/domain/bracket";
 import { PLAYOFF_QUALIFIERS } from "@/domain/tiebreak";
@@ -54,13 +54,17 @@ export async function formPlayoff(
     }
 
     const bracket = seedPlayoff(standings);
-    const semifinals: PlayoffSemifinalRow[] = bracket.semifinals.map((semifinal) => ({
-      slot: semifinal.slot,
-      homeEntryId: semifinal.home!.entryId,
-      awayEntryId: semifinal.away!.entryId,
-    }));
-
-    await savePlayoffFormation(tournamentId, semifinals);
+    const result = await savePlayoffFormation(tournamentId, bracket);
+    if (!result.ok) {
+      return {
+        ok: false,
+        code: "PRECONDITION_FAILED",
+        message:
+          result.reason === "already_formed"
+            ? "Плейоф уже сформовано — оновіть сторінку."
+            : "Результат групового матчу зник — оновіть сторінку.",
+      };
+    }
 
     const publicRoot = tournament.discipline === "BEACH" ? "/beach" : "/classic";
     revalidatePath(publicRoot);

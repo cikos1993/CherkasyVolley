@@ -132,11 +132,12 @@ Actions are wired in their feature stories.
   "PLAYOFF", { allGroupMatchesPlayed })` (this one call is both AC gates — the edge
   *and* the "all matches played" precondition) → `getStandings` (guard
   `< PLAYOFF_QUALIFIERS` → `PRECONDITION_FAILED`) → `seedPlayoff` (`src/domain/bracket`)
-  → `savePlayoffFormation` (`src/data/playoff.ts`, one transaction: two `SEMIFINAL`
-  `Match` rows + `setTournamentState`, with in-tx re-checks) → `revalidatePath`
+  → `savePlayoffFormation(tournamentId, bracket)` (`src/data/playoff.ts`, one
+  transaction — a `{ ok: false, reason: "already_formed" | "group_incomplete" }`
+  from a race is mapped to `PRECONDITION_FAILED`) → `revalidatePath`
   (including `/admin/tournaments` and the public tournament page, which gains its
-  «Плейоф» tab). Returns `needsManualSeed` so `FormPlayoffButton` can warn about a
-  name-tiebreak seed. v1 has exactly one `Group` per tournament, so FR-19's
+  «Плейоф» tab). Returns `needsManualSeed` so `FormPlayoffButton` can warn that
+  the top-4 order used the team-name tiebreak. v1 has exactly one `Group` per tournament, so FR-19's
   "multi-group not supported" needs no branch. Dedicated action (not
   `transitionTournament`) — see the note above.
 - `matches.ts` — `scheduleMatch(tournamentId, matchId, _prev, formData)` (Story 3.5):

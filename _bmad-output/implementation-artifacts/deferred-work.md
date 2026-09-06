@@ -2,6 +2,16 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from: code review of 4-2-generate-playoff (2026-09-07)
+
+_Implementation review (`bmad-code-review`, 4 layers) over `git diff 3304f5f..HEAD`. 0 decision-needed, 9 patch, 4 deferred, 9 dismissed._
+
+- **`allGroupMatchesPlayed(id)` is fetched on every admin-tournament-page render**, regardless of state — two indexed count queries wasted for `DRAFT`/`PLAYOFF`/`COMPLETED` tournaments, its result consumed only by the `GROUP_STAGE`-only `FormPlayoffButton`. Same class as `hasAnyGroupResult`'s unconditional fetch on the same page (3.4 review); a single fix (gate both, or a `state`-shaped data function) covers all of it.
+- **Stale-standings window between `formPlayoff`'s `getStandings` and the write.** A group result *edited* via `replaceMatchResult` in the window changes the top-4 order; `allGroupMatchesPlayed` still passes and the semifinals seed from the stale ordering. Closing it needs `getStandings` + `seedPlayoff` computed inside the formation transaction. Narrow window, deliberate one-time admin action; match placements still compute correctly, only the SF pairing could lag a beat.
+- **`match_slot_stage_check` enforces slot *presence*, not slot↔stage *correctness*.** `stage = 'SEMIFINAL', slot = 'FINAL'` is currently permitted. Story 4.3 introduces the `FINAL`/`THIRD_PLACE` rows and should tighten the CHECK to per-stage (`SEMIFINAL ⇔ slot IN ('SF1','SF2')`, `THIRD_PLACE ⇔ slot = 'THIRD_PLACE'`, `FINAL ⇔ slot = 'FINAL'`) in its own migration.
+- **`seedPlayoff`'s return type permits null semifinal participants.** `BracketPair.home` / `.away` are `BracketParticipant | null`, forcing a `!` at every seed-consuming call site (`formPlayoff`, `verify-generate-playoff.mts`). A narrower "seeded semifinal" type (non-null `home`/`away`) in `src/domain/bracket.ts` would remove them.
+- **`notify.warning` has no design token.** It renders on the neutral `--popover` background (icon-distinguished only) — `ui/sonner.tsx` styles only `error`/`success`, and DESIGN.md defines no warning/amber colour. A design-system pass should add a `--warning` token (and the matching `sonner.tsx` classNames) or rule that warnings reuse an existing level.
+
 ## Deferred from / decided in: Story 4.2 implementation (2026-09-07)
 
 - ~~**Two persisted `SEMIFINAL` `Match` rows share `MatchStage.SEMIFINAL`.**~~ **Resolved** — migration `20260907120000_match_playoff_slot` adds `enum MatchSlot { SF1 SF2 THIRD_PLACE FINAL }` (spelling-identical to `BracketSlot`) and `Match.slot MatchSlot?`, with a CHECK tying `slot IS NULL` to `stage = 'GROUP'`. `savePlayoffFormation` sets `SF1`/`SF2`; Story 4.3 sets `FINAL`/`THIRD_PLACE`.

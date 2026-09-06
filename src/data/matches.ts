@@ -144,9 +144,12 @@ export async function hasAnyGroupResult(
 /**
  * Whether every `GROUP`-stage match of this tournament has a recorded result —
  * the precondition for `checkTransition(..., "PLAYOFF", ...)` (FR-19). Distinct
- * from `hasAnyGroupResult`, which answers "is there *any* result". `total > 0`
+ * from `hasAnyGroupResult`, which answers "is there *any* result". One query
+ * (not two `count`s) so the row set is a single snapshot. The empty match list
  * rejects the vacuous "0 of 0" (an undrawn tournament — not reachable at
- * `GROUP_STAGE`, but explicit). `client` takes a transaction client so
+ * `GROUP_STAGE`, but explicit). "Has a result" means "has a `SetScore` row" —
+ * `createMatchResult` writes all sets in one transaction, so a partial set
+ * list can't occur. `client` takes a transaction client so
  * `savePlayoffFormation` can re-check inside its own transaction, closing the
  * window between the action's outer check and the write.
  */
@@ -154,11 +157,11 @@ export async function allGroupMatchesPlayed(
   tournamentId: string,
   client: Prisma.TransactionClient | typeof db = db,
 ): Promise<boolean> {
-  const [total, played] = await Promise.all([
-    client.match.count({ where: { tournamentId, stage: "GROUP" } }),
-    client.match.count({ where: { tournamentId, stage: "GROUP", sets: { some: {} } } }),
-  ]);
-  return total > 0 && played === total;
+  const matches = await client.match.findMany({
+    where: { tournamentId, stage: "GROUP" },
+    select: { _count: { select: { sets: true } } },
+  });
+  return matches.length > 0 && matches.every((match) => match._count.sets > 0);
 }
 
 /** The Postgres index backing `SetScore`'s `@@unique([matchId, setNo])`. */

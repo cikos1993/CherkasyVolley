@@ -113,15 +113,18 @@ export function FormPlayoffButton({
           notify.success("Плейоф сформовано");
           if (res.data.needsManualSeed) {
             notify.warning(
-              "Посів 4-го та 5-го місця визначено за назвою команди — перевірте таблицю групи.",
+              "Посів деяких команд визначено за назвою команди — перевірте таблицю групи.",
             );
           }
-          router.refresh();
         } else {
           notify.error(res.message);
         }
       } catch {
         notify.error("Не вдалося сформувати плейоф. Спробуйте ще раз.");
+      } finally {
+        // Refresh on every outcome: on success the section disappears (state
+        // is now PLAYOFF); on a failed race the stale precondition is corrected.
+        router.refresh();
       }
     });
   }
