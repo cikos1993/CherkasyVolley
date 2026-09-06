@@ -18,6 +18,9 @@ directly** — the only exceptions are `ui/sonner.tsx` (the `<Toaster>`) and
 
 - `notify.success(message)` — short confirmation. Renders on the success token
   (`#1F8A54` background, white text).
+- `notify.warning(message)` — a completed action that needs the user's
+  attention (Story 4.2: the playoff was formed, but the top-4 order relied on a
+  name tiebreak). sonner's default warning styling.
 - `notify.error(message)` — a failed action. Renders on the destructive token
   (`#C4342B` background, white text). The wiring is `toastOptions.classNames` in
   `ui/sonner.tsx`, not sonner's `richColors` (which paints from its own palette,
@@ -172,6 +175,17 @@ trigger + caption via `checkCanRedraw(state, hasResults)` (`src/domain/redraw`)
 (`/admin/tournaments/[id]/page.tsx` gates it, mirroring the draw section's
 `DRAFT` gate); once a result exists the button stays visible but disabled
 (PRD FR-12: "заблоковане", not "зникає").
+
+`FormPlayoffButton({ tournamentId, state, allGroupMatchesPlayed })` (Story 4.2)
+— the `DrawTournamentButton` twin for the `GROUP_STAGE → PLAYOFF` edge: same
+`useTransition` + direct `formPlayoff` call, **no `ConfirmDialog`** (the UX
+groups «Сформувати плейоф» with the draw, not with the confirmed actions).
+Client gate `checkTransition(state, "PLAYOFF", { allGroupMatchesPlayed })`; the
+`PRECONDITION_FAILED` caption is overridden to the UX wording «Доступно коли
+всі матчі груп зіграно». On success: `notify.success("Плейоф сформовано")` and,
+when the action returns `needsManualSeed`, a `notify.warning` that the 4/5
+cut-line was settled by team name. Rendered only while `state === "GROUP_STAGE"`
+(the page gates it, alongside the redraw section).
 
 ## `team-enrollment.tsx`
 

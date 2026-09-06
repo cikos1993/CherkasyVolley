@@ -2,6 +2,13 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from / decided in: Story 4.2 implementation (2026-09-07)
+
+- ~~**Two persisted `SEMIFINAL` `Match` rows share `MatchStage.SEMIFINAL`.**~~ **Resolved** — migration `20260907120000_match_playoff_slot` adds `enum MatchSlot { SF1 SF2 THIRD_PLACE FINAL }` (spelling-identical to `BracketSlot`) and `Match.slot MatchSlot?`, with a CHECK tying `slot IS NULL` to `stage = 'GROUP'`. `savePlayoffFormation` sets `SF1`/`SF2`; Story 4.3 sets `FINAL`/`THIRD_PLACE`.
+- **`advanceBracket` on the write path** — the formation call site (`formPlayoff` → `seedPlayoff`) is done. Still pending: Story 4.3 (auto-fill `FINAL`/`THIRD_PLACE` via `advanceBracket` after both semifinal results), Story 4.6 (`advanceBracket` before rendering the public bracket).
+- **`needsManualSeed` at formation is surfaced** (`formPlayoff` returns it; `FormPlayoffButton` raises a `notify.warning`). The **render-path** persistence is still open — Story 4.6's public bracket re-derives through `advanceBracket`, which returns `needsManualSeed: false`; 4.6 must persist the flag (a `Group` column) or re-run `seedPlayoff` against fresh standings on render.
+- **`savePlayoffFormation` re-checks state via "no `SEMIFINAL` row exists yet", not `Tournament.state`.** Two admins double-clicking «Сформувати плейоф» both pass `checkTransition` on stale `GROUP_STAGE`; the second's in-tx count check aborts it. Equivalent guarantee, cheaper than re-reading the tournament in the transaction. If a future story needs the exact losing-state, add the read.
+
 ## Deferred from: code review of 4-1-domain-engine-bracket (2026-09-07)
 
 _Implementation review (`bmad-code-review`, 4 layers) over `git diff 914c875..HEAD`. Verification Gap found none. 0 decision-needed, 8 patch, 2 deferred, 6 dismissed._
@@ -11,11 +18,11 @@ _Implementation review (`bmad-code-review`, 4 layers) over `git diff 914c875..HE
 
 ## Deferred from / decided in: Story 4.1 implementation (2026-09-07)
 
-- **Two persisted `SEMIFINAL` `Match` rows share `MatchStage.SEMIFINAL`.** `domain/bracket.ts` distinguishes the semifinals with a `slot: "SF1" | "SF2"` discriminator, but the DB enum has one `SEMIFINAL` value. Story 4.2 (playoff formation) needs a way to map the two persisted rows back to `SF1`/`SF2` when building `PlayoffMatchState[]` — `createdAt` order is the cheap option, a small schema field the explicit one. Not solved in 4.1.
-- **`advanceBracket` must be invoked on *both* the write path and render (AD-5).** The engine exists; the call sites do not. Story 4.2 (formation), Story 4.3 (auto-fill final / third-place), Story 4.6 (public bracket render) each own one.
+- ~~**Two persisted `SEMIFINAL` `Match` rows share `MatchStage.SEMIFINAL`.**~~ **Resolved in Story 4.2** — `Match.slot` (`enum MatchSlot`) added; see the "Story 4.2 implementation" section above.
+- **`advanceBracket` must be invoked on *both* the write path and render (AD-5).** The engine exists; the call sites do not. Story 4.2 (formation) done. Story 4.3 (auto-fill final / third-place), Story 4.6 (public bracket render) still pending.
 - **`playoffPlacements` is implemented but unused** until Story 4.4 wires it into playoff result entry, and Story 4.7 into the archive view (places 1–4; places 5+ from the group table).
 - **`advanceBracket` returns `needsManualSeed: false` unconditionally.** The seed-time flag is `seedPlayoff`'s output — its input (`OrderedStandingsRow[]`) has it; `advanceBracket`'s input (`PlayoffMatchState[]`) does not. If a later story needs the flag on every bracket render, persist it at formation or re-run `seedPlayoff`.
-- **No `Match`-row / persistence / Server Action / state-transition work.** `tournamentState.ts`'s `PLAYOFF` / `COMPLETED` predicates stay fail-closed stubs — Story 4.2 wires `allGroupMatchesPlayed`, Story 4.5 wires `finalAndThirdPlacePlayed`.
+- **No `Match`-row / persistence / Server Action / state-transition work.** `tournamentState.ts`'s `PLAYOFF` predicate is now fed by Story 4.2 (`allGroupMatchesPlayed`); the `COMPLETED` predicate stays a fail-closed stub — Story 4.5 wires `finalAndThirdPlacePlayed`.
 
 ## Deferred from: code review of 3-8-public-standings-table (2026-09-07)
 

@@ -103,6 +103,20 @@ goes through a named function exported from here — `getPublicTournament`,
   `db`; `saveRedraw` (`draw.ts`) passes its transaction client to re-check
   this inside its own transaction (review fix — closes the TOCTOU window
   between the action's outer check and the write).
+  **`allGroupMatchesPlayed(tournamentId, client?)` (Story 4.2)** — whether
+  **every** `GROUP` match has a result (`total > 0 && played === total`); the
+  precondition input for `checkTransition(…, "PLAYOFF", …)`, distinct from
+  `hasAnyGroupResult`'s "any". Takes a transaction client so
+  `savePlayoffFormation` can re-check it inside its own transaction.
+- `playoff.ts` — `savePlayoffFormation(tournamentId, semifinals)` (Story 4.2),
+  the `saveDraw` twin for the playoff. One `db.$transaction`: creates the two
+  `SEMIFINAL` `Match` rows (`groupId: null` — required by `match_group_stage_check`;
+  each with its `slot` `SF1`/`SF2`) from a seeded bracket, then
+  `tournaments.ts`'s `setTournamentState(…, "PLAYOFF", tx)`. Two in-transaction
+  re-checks close the window after the action's `checkTransition`:
+  `allGroupMatchesPlayed` (a group result could have been deleted) and "no
+  `SEMIFINAL` row exists yet" (a concurrent second formation). No validation of
+  its own — the caller (`formPlayoff`) confirmed the transition.
 - `draw.ts` — `saveDraw(tournamentId, groupId, entryIds, pairings)` (Story
   3.3), the first real writer of `GroupSlot`/`Match`. One `db.$transaction`:
   seats every entry into `GroupSlot`, creates one `GROUP`-stage `Match` per

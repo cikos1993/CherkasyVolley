@@ -125,6 +125,20 @@ Actions are wired in their feature stories.
   is unchanged so the list page's display is already correct). Both `drawTournament`
   and `redrawTournament` also `revalidatePath(`/classic/${id}`)` (Story 3.5) — the
   public tournament page renders the match calendar on its Розклад tab.
+- `playoff.ts` — `formPlayoff(tournamentId)` (Story 4.2): `ActionResult<{ needsManualSeed:
+  boolean }>`, the `drawTournament` pattern for the `GROUP_STAGE → PLAYOFF` edge.
+  `requireAdmin()` → `getTournamentForAdmin` (not found / no `group` → `NOT_FOUND`) →
+  `allGroupMatchesPlayed` (`src/data/matches.ts`) → `checkTransition(tournament.state,
+  "PLAYOFF", { allGroupMatchesPlayed })` (this one call is both AC gates — the edge
+  *and* the "all matches played" precondition) → `getStandings` (guard
+  `< PLAYOFF_QUALIFIERS` → `PRECONDITION_FAILED`) → `seedPlayoff` (`src/domain/bracket`)
+  → `savePlayoffFormation` (`src/data/playoff.ts`, one transaction: two `SEMIFINAL`
+  `Match` rows + `setTournamentState`, with in-tx re-checks) → `revalidatePath`
+  (including `/admin/tournaments` and the public tournament page, which gains its
+  «Плейоф» tab). Returns `needsManualSeed` so `FormPlayoffButton` can warn about a
+  name-tiebreak seed. v1 has exactly one `Group` per tournament, so FR-19's
+  "multi-group not supported" needs no branch. Dedicated action (not
+  `transitionTournament`) — see the note above.
 - `matches.ts` — `scheduleMatch(tournamentId, matchId, _prev, formData)` (Story 3.5):
   the `MatchScheduleFormState` (`fieldErrors`/`formError`) shape, the same family as
   `players.ts`'s form actions (a multi-field form, not `ActionResult`). `requireAdmin()`

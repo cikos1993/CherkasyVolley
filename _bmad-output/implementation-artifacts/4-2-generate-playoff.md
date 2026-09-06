@@ -16,7 +16,7 @@ context:
 
 # Story 4.2: Сформувати плейоф
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -134,58 +134,58 @@ FR / AD / SPEC anchors (in context):
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — `prisma/schema.prisma` + migration (NEW): `Match.slot` discriminator** (AC: 1)
-  - [ ] Add `enum MatchSlot { SF1 SF2 THIRD_PLACE FINAL }` with a doc comment (the four `BracketSlot` values from `src/domain/bracket.ts`, kept identical so `src/data` maps 1:1 like `MatchStage` ↔ `BracketStage`).
-  - [ ] Add `slot MatchSlot?` to `model Match` with a doc comment (`null` for `GROUP`; `SF1`/`SF2` set at playoff formation, Story 4.2; `FINAL`/`THIRD_PLACE` set by Story 4.3).
-  - [ ] Pre-flight `pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script`; hand-write `prisma/migrations/<YYYYMMDDHHMMSS>_match_playoff_slot/migration.sql`: `CREATE TYPE "MatchSlot" AS ENUM ('SF1', 'SF2', 'THIRD_PLACE', 'FINAL');`, `ALTER TABLE "match" ADD COLUMN "slot" "MatchSlot";`, `ALTER TABLE "match" ADD CONSTRAINT "match_slot_stage_check" CHECK (("stage" = 'GROUP') = ("slot" IS NULL));`.
-  - [ ] `pnpm exec prisma migrate deploy`; `pnpm exec prisma migrate status` clean; `pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` prints "empty migration".
-  - [ ] `pnpm exec prisma generate`; `pnpm typecheck` clean.
+- [x] **Task 1 — `prisma/schema.prisma` + migration (NEW): `Match.slot` discriminator** (AC: 1)
+  - [x] Add `enum MatchSlot { SF1 SF2 THIRD_PLACE FINAL }` with a doc comment (the four `BracketSlot` values from `src/domain/bracket.ts`, kept identical so `src/data` maps 1:1 like `MatchStage` ↔ `BracketStage`).
+  - [x] Add `slot MatchSlot?` to `model Match` with a doc comment (`null` for `GROUP`; `SF1`/`SF2` set at playoff formation, Story 4.2; `FINAL`/`THIRD_PLACE` set by Story 4.3).
+  - [x] Pre-flight `pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script`; hand-write `prisma/migrations/<YYYYMMDDHHMMSS>_match_playoff_slot/migration.sql`: `CREATE TYPE "MatchSlot" AS ENUM ('SF1', 'SF2', 'THIRD_PLACE', 'FINAL');`, `ALTER TABLE "match" ADD COLUMN "slot" "MatchSlot";`, `ALTER TABLE "match" ADD CONSTRAINT "match_slot_stage_check" CHECK (("stage" = 'GROUP') = ("slot" IS NULL));`.
+  - [x] `pnpm exec prisma migrate deploy`; `pnpm exec prisma migrate status` clean; `pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` prints "empty migration".
+  - [x] `pnpm exec prisma generate`; `pnpm typecheck` clean.
 
-- [ ] **Task 2 — `src/data/matches.ts` (UPDATE): `allGroupMatchesPlayed`** (AC: 3)
-  - [ ] `export async function allGroupMatchesPlayed(tournamentId, client: Prisma.TransactionClient | typeof db = db): Promise<boolean>` — `total = count({ tournamentId, stage: "GROUP" })`, `played = count({ tournamentId, stage: "GROUP", sets: { some: {} } })`, return `total > 0 && played === total`. Doc comment: the FR-19 precondition input for `checkTransition(…, "PLAYOFF", …)`; distinct from `hasAnyGroupResult` (which answers "any", not "all"); the optional tx client is for the formation transaction's TOCTOU re-check.
-  - [ ] `typecheck` / `lint` clean.
+- [x] **Task 2 — `src/data/matches.ts` (UPDATE): `allGroupMatchesPlayed`** (AC: 3)
+  - [x] `export async function allGroupMatchesPlayed(tournamentId, client: Prisma.TransactionClient | typeof db = db): Promise<boolean>` — `total = count({ tournamentId, stage: "GROUP" })`, `played = count({ tournamentId, stage: "GROUP", sets: { some: {} } })`, return `total > 0 && played === total`. Doc comment: the FR-19 precondition input for `checkTransition(…, "PLAYOFF", …)`; distinct from `hasAnyGroupResult` (which answers "any", not "all"); the optional tx client is for the formation transaction's TOCTOU re-check.
+  - [x] `typecheck` / `lint` clean.
 
-- [ ] **Task 3 — `src/data/playoff.ts` (NEW): `savePlayoffFormation`** (AC: 1, 2)
-  - [ ] `import { db } from "@/data/client"`, `import { allGroupMatchesPlayed } from "@/data/matches"`, `import { setTournamentState } from "@/data/tournaments"`, `import type { MatchSlot } from "@/generated/prisma/enums"`.
-  - [ ] `export interface PlayoffSemifinalRow { slot: MatchSlot; homeEntryId: string; awayEntryId: string }`.
-  - [ ] `export function savePlayoffFormation(tournamentId: string, semifinals: PlayoffSemifinalRow[]): Promise<void>` — one `db.$transaction`: TOCTOU re-check via `allGroupMatchesPlayed(tournamentId, tx)` → throw if false; `tx.match.createMany` two `SEMIFINAL` rows (`groupId: null`, `slot`, both entry ids); `setTournamentState(tournamentId, "PLAYOFF", tx)`. Doc comment mirrors `saveDraw`'s (one transaction so a partial failure can't leave `SEMIFINAL` rows on a `GROUP_STAGE` tournament; no validation — the caller's `checkTransition` did it).
-  - [ ] `typecheck` / `lint` clean (Prisma client import is in `src/data/**` — allowed).
+- [x] **Task 3 — `src/data/playoff.ts` (NEW): `savePlayoffFormation`** (AC: 1, 2)
+  - [x] `import { db } from "@/data/client"`, `import { allGroupMatchesPlayed } from "@/data/matches"`, `import { setTournamentState } from "@/data/tournaments"`, `import type { MatchSlot } from "@/generated/prisma/enums"`.
+  - [x] `export interface PlayoffSemifinalRow { slot: MatchSlot; homeEntryId: string; awayEntryId: string }`.
+  - [x] `export function savePlayoffFormation(tournamentId: string, semifinals: PlayoffSemifinalRow[]): Promise<void>` — one `db.$transaction`: TOCTOU re-check via `allGroupMatchesPlayed(tournamentId, tx)` → throw if false; `tx.match.createMany` two `SEMIFINAL` rows (`groupId: null`, `slot`, both entry ids); `setTournamentState(tournamentId, "PLAYOFF", tx)`. Doc comment mirrors `saveDraw`'s (one transaction so a partial failure can't leave `SEMIFINAL` rows on a `GROUP_STAGE` tournament; no validation — the caller's `checkTransition` did it).
+  - [x] `typecheck` / `lint` clean (Prisma client import is in `src/data/**` — allowed).
 
-- [ ] **Task 4 — `src/actions/playoff.ts` (NEW): `formPlayoff`** (AC: 1, 2, 3, 4)
-  - [ ] `"use server"`. Imports: `revalidatePath`; `ActionResult` / `toActionError` (`@/actions/result`); `requireAdmin` (`@/auth/requireAdmin`); `getTournamentForAdmin` (`@/data/tournaments`); `allGroupMatchesPlayed` (`@/data/matches`); `getStandings` (`@/data/matches`); `savePlayoffFormation` + `PlayoffSemifinalRow` (`@/data/playoff`); `checkTransition` (`@/domain/tournamentState`); `seedPlayoff` (`@/domain/bracket`); `PLAYOFF_QUALIFIERS` (`@/domain/tiebreak`); `type MatchSlot` (`@/generated/prisma/enums`) — wait, actions can't import the Prisma client, but a **type-only** enum import is a value in the generated `enums` module; if lint blocks it, cast `sf.slot` (a `BracketSlot` string) — `"SF1"`/`"SF2"` are valid `MatchSlot` members, so `savePlayoffFormation`'s param can take the `BracketSlot` subset directly; simplest: type `PlayoffSemifinalRow.slot` as `"SF1" | "SF2" | "THIRD_PLACE" | "FINAL"` (a string union identical to `MatchSlot`'s members) so no generated-enum import is needed in `src/actions`.
-  - [ ] Implement the 11-step flow from Notes on AC interpretation. `formPlayoff(tournamentId): Promise<ActionResult<{ needsManualSeed: boolean }>>`.
-  - [ ] `typecheck` / `lint` clean (no Prisma import in `src/actions`).
+- [x] **Task 4 — `src/actions/playoff.ts` (NEW): `formPlayoff`** (AC: 1, 2, 3, 4)
+  - [x] `"use server"`. Imports: `revalidatePath`; `ActionResult` / `toActionError` (`@/actions/result`); `requireAdmin` (`@/auth/requireAdmin`); `getTournamentForAdmin` (`@/data/tournaments`); `allGroupMatchesPlayed` (`@/data/matches`); `getStandings` (`@/data/matches`); `savePlayoffFormation` + `PlayoffSemifinalRow` (`@/data/playoff`); `checkTransition` (`@/domain/tournamentState`); `seedPlayoff` (`@/domain/bracket`); `PLAYOFF_QUALIFIERS` (`@/domain/tiebreak`); `type MatchSlot` (`@/generated/prisma/enums`) — wait, actions can't import the Prisma client, but a **type-only** enum import is a value in the generated `enums` module; if lint blocks it, cast `sf.slot` (a `BracketSlot` string) — `"SF1"`/`"SF2"` are valid `MatchSlot` members, so `savePlayoffFormation`'s param can take the `BracketSlot` subset directly; simplest: type `PlayoffSemifinalRow.slot` as `"SF1" | "SF2" | "THIRD_PLACE" | "FINAL"` (a string union identical to `MatchSlot`'s members) so no generated-enum import is needed in `src/actions`.
+  - [x] Implement the 11-step flow from Notes on AC interpretation. `formPlayoff(tournamentId): Promise<ActionResult<{ needsManualSeed: boolean }>>`.
+  - [x] `typecheck` / `lint` clean (no Prisma import in `src/actions`).
 
-- [ ] **Task 5 — `src/components/tournament-actions.tsx` (UPDATE): `FormPlayoffButton`** (AC: 2, 3)
-  - [ ] `export function FormPlayoffButton({ tournamentId, state, allGroupMatchesPlayed }: { tournamentId: string; state: TournamentState; allGroupMatchesPlayed: boolean })` — `useTransition`, `checkTransition(state, "PLAYOFF", { allGroupMatchesPlayed })` client gate, `formPlayoff` call, `notify.success("Плейоф сформовано")` + conditional `needsManualSeed` toast + `router.refresh()`, `notify.error` on failure, `catch` fallback. Render matches `DrawTournamentButton` (no `ConfirmDialog`). Label «Сформувати плейоф».
-  - [ ] For the disabled caption: if `check.code === "PRECONDITION_FAILED"`, show «Доступно коли всі матчі груп зіграно» (the UX wording); else show `check.message`.
-  - [ ] `typecheck` / `lint` clean.
+- [x] **Task 5 — `src/components/tournament-actions.tsx` (UPDATE): `FormPlayoffButton`** (AC: 2, 3)
+  - [x] `export function FormPlayoffButton({ tournamentId, state, allGroupMatchesPlayed }: { tournamentId: string; state: TournamentState; allGroupMatchesPlayed: boolean })` — `useTransition`, `checkTransition(state, "PLAYOFF", { allGroupMatchesPlayed })` client gate, `formPlayoff` call, `notify.success("Плейоф сформовано")` + conditional `needsManualSeed` toast + `router.refresh()`, `notify.error` on failure, `catch` fallback. Render matches `DrawTournamentButton` (no `ConfirmDialog`). Label «Сформувати плейоф».
+  - [x] For the disabled caption: if `check.code === "PRECONDITION_FAILED"`, show «Доступно коли всі матчі груп зіграно» (the UX wording); else show `check.message`.
+  - [x] `typecheck` / `lint` clean.
 
-- [ ] **Task 6 — `src/app/admin/tournaments/[id]/page.tsx` (UPDATE): playoff section** (AC: 2, 3)
-  - [ ] Add `allGroupMatchesPlayed(id)` to the `Promise.all`; destructure as `allGroupMatchesPlayed`.
-  - [ ] Add the `state === "GROUP_STAGE"` section rendering `<FormPlayoffButton>` (markup in Notes on AC interpretation). Preserve the draw / redraw / schedule / delete sections verbatim.
-  - [ ] `pnpm build` (no new route, but the page changed) → `pnpm typecheck` clean.
+- [x] **Task 6 — `src/app/admin/tournaments/[id]/page.tsx` (UPDATE): playoff section** (AC: 2, 3)
+  - [x] Add `allGroupMatchesPlayed(id)` to the `Promise.all`; destructure as `allGroupMatchesPlayed`.
+  - [x] Add the `state === "GROUP_STAGE"` section rendering `<FormPlayoffButton>` (markup in Notes on AC interpretation). Preserve the draw / redraw / schedule / delete sections verbatim.
+  - [x] `pnpm build` (no new route, but the page changed) → `pnpm typecheck` clean.
 
-- [ ] **Task 7 — `scripts/verify-generate-playoff.mts` (NEW)** (AC: 1, 2, 3)
-  - [ ] `verify-draw.mts` shape (dotenv first, dynamic imports, `check`, self-cleaning). Assertions from Notes on AC interpretation: precondition false→true, `checkTransition` refusal, `SEMIFINAL` rows + `slot` + seeds, `state === "PLAYOFF"`, re-formation throws + atomic, teardown.
-  - [ ] Run it — green (exit 0, no `FAIL` lines).
-  - [ ] Re-run every prior `scripts/verify-*.mts` — no regression.
+- [x] **Task 7 — `scripts/verify-generate-playoff.mts` (NEW)** (AC: 1, 2, 3)
+  - [x] `verify-draw.mts` shape (dotenv first, dynamic imports, `check`, self-cleaning). Assertions from Notes on AC interpretation: precondition false→true, `checkTransition` refusal, `SEMIFINAL` rows + `slot` + seeds, `state === "PLAYOFF"`, re-formation throws + atomic, teardown.
+  - [x] Run it — green (exit 0, no `FAIL` lines).
+  - [x] Re-run every prior `scripts/verify-*.mts` — no regression.
 
-- [ ] **Task 8 — Docs**
-  - [ ] `src/data/README.md` — `matches.ts` entry gains `allGroupMatchesPlayed`; new `playoff.ts` entry (`savePlayoffFormation`, the transaction, the `saveDraw` parallel).
-  - [ ] `src/actions/README.md` (if present) / `src/components/README.md` — `formPlayoff` / `FormPlayoffButton` entries.
-  - [ ] `AGENTS.md` — Stack-status bullet for Story 4.2 (schema: `MatchSlot` enum + `Match.slot`; migration `<name>`; `formPlayoff` / `savePlayoffFormation` / `allGroupMatchesPlayed`; the `drawTournament` parallel; `needsManualSeed` surfaced at formation). Add the `verify-generate-playoff.mts` one-liner to the verify-script catalogue (§ "Running and verifying").
-  - [ ] `deferred-work.md` — mark the Story 4.1 items resolved/advanced: "Two persisted `SEMIFINAL` rows share `MatchStage.SEMIFINAL`" → **resolved** (`Match.slot` added); "`advanceBracket` must be invoked on write and render" → formation call site (`formPlayoff` → `seedPlayoff`) done, render (4.6) + auto-fill (4.3) still pending; "`needsManualSeed` not on the render path" → **formation-time surfacing done** (toast), render persistence still Story 4.6. New item if any residual.
+- [x] **Task 8 — Docs**
+  - [x] `src/data/README.md` — `matches.ts` entry gains `allGroupMatchesPlayed`; new `playoff.ts` entry (`savePlayoffFormation`, the transaction, the `saveDraw` parallel).
+  - [x] `src/actions/README.md` (if present) / `src/components/README.md` — `formPlayoff` / `FormPlayoffButton` entries.
+  - [x] `AGENTS.md` — Stack-status bullet for Story 4.2 (schema: `MatchSlot` enum + `Match.slot`; migration `<name>`; `formPlayoff` / `savePlayoffFormation` / `allGroupMatchesPlayed`; the `drawTournament` parallel; `needsManualSeed` surfaced at formation). Add the `verify-generate-playoff.mts` one-liner to the verify-script catalogue (§ "Running and verifying").
+  - [x] `deferred-work.md` — mark the Story 4.1 items resolved/advanced: "Two persisted `SEMIFINAL` rows share `MatchStage.SEMIFINAL`" → **resolved** (`Match.slot` added); "`advanceBracket` must be invoked on write and render" → formation call site (`formPlayoff` → `seedPlayoff`) done, render (4.6) + auto-fill (4.3) still pending; "`needsManualSeed` not on the render path" → **formation-time surfacing done** (toast), render persistence still Story 4.6. New item if any residual.
 
-- [ ] **Task 9 — Verification gate** (AC: all)
-  - [ ] `pnpm build` → `pnpm typecheck` → `pnpm lint` → `pnpm test` (**no new domain module — count stays 161**; confirm unchanged).
-  - [ ] Import-boundary check: `src/data/playoff.ts` imports Prisma only via `@/data/client` and `src/data` siblings; `src/actions/playoff.ts` imports **no** Prisma client, no `src/data` write helper other than the named function, first line `await requireAdmin()`; `src/domain` untouched.
-  - [ ] `scripts/verify-generate-playoff.mts` green; all prior verify scripts green.
-  - [ ] `prisma migrate status` clean; `migrate diff --exit-code` empty.
-  - [ ] Real command output in the Dev Agent Record.
+- [x] **Task 9 — Verification gate** (AC: all)
+  - [x] `pnpm build` → `pnpm typecheck` → `pnpm lint` → `pnpm test` (**no new domain module — count stays 161**; confirm unchanged).
+  - [x] Import-boundary check: `src/data/playoff.ts` imports Prisma only via `@/data/client` and `src/data` siblings; `src/actions/playoff.ts` imports **no** Prisma client, no `src/data` write helper other than the named function, first line `await requireAdmin()`; `src/domain` untouched.
+  - [x] `scripts/verify-generate-playoff.mts` green; all prior verify scripts green.
+  - [x] `prisma migrate status` clean; `migrate diff --exit-code` empty.
+  - [x] Real command output in the Dev Agent Record.
   - _Residual (matches every prior admin story): a manual signed-in browser pass was not performed (no seeded all-played `GROUP_STAGE` tournament in the dev DB). Mitigated by `verify-generate-playoff.mts` + the full gate. Recommended with code review: draw a 4-team tournament, enter all group results, press «Сформувати плейоф» → state flips to Плейоф, the «Плейоф» tab appears, two semifinals exist seeded 1v4 / 2v3._
 
-- [ ] **Task 10 — Commit(s)** — one commit + `git push origin main` per completed task group (migration; data; action; component+page; verify script; docs). `build`/`typecheck`/`lint`/`test` gate each.
+- [x] **Task 10 — Commit(s)** — one commit + `git push origin main` per completed task group (migration; data; action; component+page; verify script; docs). `build`/`typecheck`/`lint`/`test` gate each.
 
 ## Dev Notes
 
@@ -314,12 +314,37 @@ claude-sonnet-5 (bmad-dev-story)
 
 ### Debug Log References
 
+- `verify-generate-playoff.mts` — the new `match_slot_stage_check` CHECK (`stage='GROUP' ⇔ slot IS NULL`) broke three prior verify scripts that create a bare `SEMIFINAL` fixture row (no `slot`) to test group-scoped reads/writes ignoring playoff matches. Fixed the fixtures: `verify-match-schedule.mts` / `verify-match-result.mts` / `verify-edit-delete-result.mts` now pass `slot: "SF1"`. A real playoff `Match` always has a slot, so the fixtures are more accurate for it.
+
 ### Completion Notes List
 
+- Task 1: migration `20260907120000_match_playoff_slot` (hand-written after `migrate diff --script`): `CREATE TYPE "MatchSlot"` + `ALTER TABLE "match" ADD COLUMN "slot"` + `match_slot_stage_check` CHECK. `schema.prisma` gains `enum MatchSlot { SF1 SF2 THIRD_PLACE FINAL }` and `Match.slot MatchSlot?`. `migrate deploy` → `migrate status` clean → `migrate diff --exit-code` empty → `prisma generate`.
+- Task 2: `allGroupMatchesPlayed(tournamentId, client?)` in `src/data/matches.ts` — `total > 0 && played === total` via two `match.count` calls; optional tx client for the TOCTOU re-check.
+- Task 3: `src/data/playoff.ts` (NEW) — `savePlayoffFormation` + `PlayoffSemifinalRow`. One `db.$transaction`: **two** in-tx re-checks (`allGroupMatchesPlayed`; no `SEMIFINAL` row yet — the latter guards a concurrent double-submit, replacing a bare state re-read), then `createMany` two `SEMIFINAL` rows (`groupId: null`, `slot`), then `setTournamentState(..., "PLAYOFF", tx)`.
+- Task 4: `src/actions/playoff.ts` (NEW) — `formPlayoff`: `requireAdmin` → `getTournamentForAdmin` → `allGroupMatchesPlayed` → `checkTransition(state, "PLAYOFF", { allGroupMatchesPlayed })` (one call = edge + precondition) → `getStandings` (guard `< PLAYOFF_QUALIFIERS`) → `seedPlayoff` → map `bracket.semifinals` to rows (`sf.slot` is a `BracketSlot`, structurally identical to `MatchSlot` — no cast) → `savePlayoffFormation` → 4× `revalidatePath` → `{ ok: true, data: { needsManualSeed } }`. No Prisma import in `src/actions`.
+- Task 5: `FormPlayoffButton` in `tournament-actions.tsx` — `DrawTournamentButton` twin, no `ConfirmDialog`; `PRECONDITION_FAILED` caption → «Доступно коли всі матчі груп зіграно»; success → `notify.success` + (if `needsManualSeed`) `notify.warning`. Added `notify.warning` (`toast.warning`) to `src/lib/notify.ts`.
+- Task 6: `[id]/page.tsx` — `allGroupMatchesPlayed(id)` in the `Promise.all`; new `GROUP_STAGE` «Плейоф» section next to the redraw section.
+- Task 7: `scripts/verify-generate-playoff.mts` (NEW, 18 assertions incl. transaction atomicity). All prior verify scripts green (3 fixture fixes).
+- Task 8: `src/data/README.md`, `src/actions/README.md`, `src/components/README.md` (`FormPlayoffButton` + `notify.warning`), `AGENTS.md` (Stack bullet + verify-script line), `deferred-work.md` (Story 4.1 items resolved/advanced).
+- Task 9: `pnpm build` / `typecheck` / `lint` clean; `pnpm test` **161/161** (no new Vitest); `prisma migrate status` clean; all verify scripts green.
+
 ### File List
+
+- `prisma/schema.prisma` (UPDATE)
+- `prisma/migrations/20260907120000_match_playoff_slot/migration.sql` (NEW)
+- `src/data/matches.ts` (UPDATE)
+- `src/data/playoff.ts` (NEW)
+- `src/actions/playoff.ts` (NEW)
+- `src/components/tournament-actions.tsx` (UPDATE)
+- `src/lib/notify.ts` (UPDATE)
+- `src/app/admin/tournaments/[id]/page.tsx` (UPDATE)
+- `scripts/verify-generate-playoff.mts` (NEW)
+- `scripts/verify-match-schedule.mts` · `scripts/verify-match-result.mts` · `scripts/verify-edit-delete-result.mts` (UPDATE — `slot` on SEMIFINAL fixtures)
+- `src/data/README.md` · `src/actions/README.md` · `src/components/README.md` · `AGENTS.md` · `_bmad-output/implementation-artifacts/deferred-work.md` (UPDATE)
 
 ## Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-07 | Story drafted (`bmad-create-story`, 4 research subagents: epics 4.2 / architecture+PRD+SPEC / UX / code precedent — Story 3.3 draw + 4.1 bracket). Status: ready-for-dev. |
+| 2026-09-07 | Implementation complete (`bmad-dev-story`) — all 10 tasks. Migration `20260907120000_match_playoff_slot` (`MatchSlot` enum + `Match.slot`); `allGroupMatchesPlayed`; `savePlayoffFormation`; `formPlayoff`; `FormPlayoffButton` + page section; `verify-generate-playoff.mts` (18 assertions). `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 161/161, all verify scripts green, `migrate status` clean. Status: review. |
