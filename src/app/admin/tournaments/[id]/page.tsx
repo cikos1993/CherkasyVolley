@@ -4,12 +4,13 @@ import { notFound } from "next/navigation";
 import {
   DeleteTournamentButton,
   DrawTournamentButton,
+  FormPlayoffButton,
   RedrawTournamentButton,
 } from "@/components/tournament-actions";
 import { TeamEnrollment } from "@/components/team-enrollment";
 import { TournamentForm } from "@/components/tournament-form";
 import { listEntriesForTournament } from "@/data/entries";
-import { hasAnyGroupResult } from "@/data/matches";
+import { allGroupMatchesPlayed, hasAnyGroupResult } from "@/data/matches";
 import { listTeams } from "@/data/teams";
 import { getTournamentForAdmin } from "@/data/tournaments";
 import { LABELS as STATE_LABELS } from "@/domain/tournamentState";
@@ -27,11 +28,12 @@ export default async function AdminTournamentPage({
   params,
 }: PageProps<"/admin/tournaments/[id]">) {
   const { id } = await params;
-  const [tournament, teams, entries, hasResults] = await Promise.all([
+  const [tournament, teams, entries, hasResults, groupStageComplete] = await Promise.all([
     getTournamentForAdmin(id),
     listTeams(),
     listEntriesForTournament(id),
     hasAnyGroupResult(id),
+    allGroupMatchesPlayed(id),
   ]);
   if (!tournament) notFound();
 
@@ -104,6 +106,19 @@ export default async function AdminTournamentPage({
               tournamentId={tournament.id}
               state={tournament.state}
               hasResults={hasResults}
+            />
+          </div>
+        </section>
+      ) : null}
+
+      {tournament.state === "GROUP_STAGE" ? (
+        <section className="mt-10 border-t pt-6">
+          <h2 className="text-lg font-semibold">Плейоф</h2>
+          <div className="mt-4">
+            <FormPlayoffButton
+              tournamentId={tournament.id}
+              state={tournament.state}
+              allGroupMatchesPlayed={groupStageComplete}
             />
           </div>
         </section>

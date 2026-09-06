@@ -177,6 +177,18 @@ enum MatchStage {
   FINAL
 }
 
+/// Which slot of the four-team playoff bracket a `Match` fills. The two
+/// semifinals share `MatchStage.SEMIFINAL`, so `stage` alone can't tell them
+/// apart — `slot` does. The values are exactly `domain/bracket.ts`'s
+/// `BracketSlot`, kept spelling-identical so the data layer maps one to the
+/// other without a lookup, the same way `MatchStage` mirrors `BracketStage`.
+enum MatchSlot {
+  SF1
+  SF2
+  THIRD_PLACE
+  FINAL
+}
+
 /// A single game between two `TournamentEntry`s. Result lives only in
 /// `SetScore` rows (AD-4) — this model carries no score/winner column.
 /// `homeEntryId`/`awayEntryId` are nullable: a `FINAL`/`THIRD_PLACE` match
@@ -189,6 +201,11 @@ model Match {
   tournamentId String
   tournament   Tournament       @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   stage        MatchStage       @default(GROUP)
+  /// Bracket slot for playoff matches (Epic 4). Null for `GROUP` matches;
+  /// `SF1`/`SF2` set when the playoff is formed (Story 4.2); `FINAL`/
+  /// `THIRD_PLACE` set when those rows are created (Story 4.3). A CHECK ties
+  /// its presence to `stage != 'GROUP'`.
+  slot         MatchSlot?
   groupId      String?
   group        Group?           @relation(fields: [groupId], references: [id], onDelete: Cascade)
   homeEntryId  String?

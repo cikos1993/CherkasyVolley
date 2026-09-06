@@ -157,6 +157,7 @@ try {
     data: {
       tournamentId: classic.tournamentId,
       stage: "SEMIFINAL",
+      slot: "SF1",
       groupId: null,
       homeEntryId: null,
       awayEntryId: null,

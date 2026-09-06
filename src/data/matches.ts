@@ -141,6 +141,26 @@ export async function hasAnyGroupResult(
   return setScore !== null;
 }
 
+/**
+ * Whether every `GROUP`-stage match of this tournament has a recorded result —
+ * the precondition for `checkTransition(..., "PLAYOFF", ...)` (FR-19). Distinct
+ * from `hasAnyGroupResult`, which answers "is there *any* result". `total > 0`
+ * rejects the vacuous "0 of 0" (an undrawn tournament — not reachable at
+ * `GROUP_STAGE`, but explicit). `client` takes a transaction client so
+ * `savePlayoffFormation` can re-check inside its own transaction, closing the
+ * window between the action's outer check and the write.
+ */
+export async function allGroupMatchesPlayed(
+  tournamentId: string,
+  client: Prisma.TransactionClient | typeof db = db,
+): Promise<boolean> {
+  const [total, played] = await Promise.all([
+    client.match.count({ where: { tournamentId, stage: "GROUP" } }),
+    client.match.count({ where: { tournamentId, stage: "GROUP", sets: { some: {} } } }),
+  ]);
+  return total > 0 && played === total;
+}
+
 /** The Postgres index backing `SetScore`'s `@@unique([matchId, setNo])`. */
 export const SET_SCORE_NATURAL_KEY_INDEX = "set_score_matchId_setNo_key";
 

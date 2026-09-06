@@ -148,7 +148,7 @@ try {
   // A SEMIFINAL match on the same tournament must be invisible to the GROUP read
   // and immune to the GROUP-scoped write.
   const semifinal = await db.match.create({
-    data: { tournamentId, stage: "SEMIFINAL", groupId: null, homeEntryId: null, awayEntryId: null },
+    data: { tournamentId, stage: "SEMIFINAL", slot: "SF1", groupId: null, homeEntryId: null, awayEntryId: null },
   });
   const playoffWrite = await updateMatchSchedule(tournamentId, semifinal.id, {
     scheduledAt: earlier,

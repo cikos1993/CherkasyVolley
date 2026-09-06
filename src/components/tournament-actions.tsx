@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2Icon } from "lucide-react";
 
 import { drawTournament, redrawTournament } from "@/actions/draw";
+import { formPlayoff } from "@/actions/playoff";
 import { deleteTournament } from "@/actions/tournaments";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
@@ -80,6 +81,58 @@ export function DrawTournamentButton({
         Провести жеребкування
       </Button>
       {!check.ok ? <p className="text-xs text-muted-foreground">{check.message}</p> : null}
+    </div>
+  );
+}
+
+export function FormPlayoffButton({
+  tournamentId,
+  state,
+  allGroupMatchesPlayed,
+}: {
+  tournamentId: string;
+  state: TournamentState;
+  allGroupMatchesPlayed: boolean;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+
+  const check = checkTransition(state, "PLAYOFF", { allGroupMatchesPlayed });
+  const caption =
+    !check.ok && check.code === "PRECONDITION_FAILED"
+      ? "Доступно коли всі матчі груп зіграно"
+      : check.ok
+        ? null
+        : check.message;
+
+  function form() {
+    startTransition(async () => {
+      try {
+        const res = await formPlayoff(tournamentId);
+        if (res.ok) {
+          notify.success("Плейоф сформовано");
+          if (res.data.needsManualSeed) {
+            notify.warning(
+              "Посів 4-го та 5-го місця визначено за назвою команди — перевірте таблицю групи.",
+            );
+          }
+          router.refresh();
+        } else {
+          notify.error(res.message);
+        }
+      } catch {
+        notify.error("Не вдалося сформувати плейоф. Спробуйте ще раз.");
+      }
+    });
+  }
+
+  return (
+    <div className="grid gap-2">
+      <Button type="button" onClick={form} disabled={!check.ok || pending} aria-busy={pending}>
+        {pending ? <Loader2Icon className="animate-spin" /> : null}
+        Сформувати плейоф
+      </Button>
+      {caption ? <p className="text-xs text-muted-foreground">{caption}</p> : null}
     </div>
   );
 }
