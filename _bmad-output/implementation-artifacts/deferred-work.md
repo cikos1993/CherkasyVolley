@@ -2,6 +2,16 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from / decided in: Story 4.3 implementation (2026-09-07)
+
+- ~~**`advanceBracket` on the write path.**~~ **Done** — `savePlayoffAdvancement` (`src/data/playoff.ts`) runs after every semifinal-result mutation; `getPlayoffBracket` is the render call. Story 4.6 still owns the *public* bracket render (its own `getPlayoffBracket` reuse + the `Bracket` component).
+- ~~**`match_slot_stage_check` enforces slot presence, not slot↔stage correctness.**~~ **Done** — migrations `20260907130000` + `20260907140000` (the second fixes a SQL NULL hole: `NULL IN ('SF1','SF2')` is NULL and a CHECK passes on NULL, so the per-stage form needs an explicit `"slot" IS NOT NULL`).
+- **The 4.3 / 4.4 boundary was re-allocated.** `epics.md` put playoff result entry in 4.4, but every result-entry path was `stage: "GROUP"`-scoped and 4.3's AC needs semifinal entry. Story 4.3 un-scoped `create/replace/deleteMatchResult` + `updateMatchSchedule` + the match screen for all playoff stages. **Story 4.4 is now:** show the final placements 1–4 (`playoffPlacements`, already implemented in `bracket.ts`), and gate a semifinal-result edit once a downstream match has its own result (the "team in two places" hazard below).
+- **The "team in two places" hazard is still open** (4.1 review). `savePlayoffAdvancement` faithfully applies `advanceBracket`: the sequence "play the final → correct a semifinal → play the third-place match" can make `playoffPlacements` return one team as both 1st and 3rd. Story 4.4 must block the semifinal edit once a downstream match has a `SetScore`.
+- **`savePlayoffAdvancement` runs in a separate transaction from the `SetScore` write**, not the same one. A failure leaves the semifinal result saved and the bracket a beat behind — the render path (`getPlayoffBracket` → `advanceBracket`) corrects it, and the next result mutation re-runs the advance. Folding the two into one transaction would need `createMatchResult` to accept an after-commit hook.
+- **`getPlayoffBracket` returns `needsManualSeed: false`** — `advanceBracket`'s value, not the seed-time flag. Same open item as Story 4.2/4.6: persist it on `Group` at formation or re-run `seedPlayoff` on render.
+- **A nested-relation `findMany` right after a `$queryRaw … FOR UPDATE` in a transaction trips a `pg` "Calling client.query() when the client is already executing a query" deprecation warning** (`pg@9` will remove the tolerated behaviour). `savePlayoffAdvancement` works around it with two flat queries; the pattern (raw lock then ORM read) is fine with flat reads — revisit if the `@prisma/adapter-pg` / `pg` upgrade changes this.
+
 ## Deferred from: code review of 4-2-generate-playoff (2026-09-07)
 
 _Implementation review (`bmad-code-review`, 4 layers) over `git diff 3304f5f..HEAD`. 0 decision-needed, 9 patch, 4 deferred, 9 dismissed._

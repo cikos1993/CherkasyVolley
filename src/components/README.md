@@ -353,6 +353,16 @@ Field errors under the field (`aria-invalid`/`aria-describedby`); `formError` �
 `notify.error`; a second effect on the falling edge of `pending` (a `useRef`) →
 `notify.success("Розклад оновлено")` + `router.refresh()`.
 
+## `playoff-schedule.tsx`
+
+`PlayoffSchedule({ tournamentId, slots })` (Story 4.3) — a **server** component,
+read-only. The four playoff slots (semifinal 1/2, third-place, final) from
+`getPlayoffBracket`'s `PlayoffBracketView`. Each row: the label + either
+`{home} — {away}` or «очікує суперників» (muted, when a participant is `null`);
+a link to the match screen only when `matchId` is non-null — «Результат: X:Y»
+with a `CheckIcon` on the success token, else «Внести результат». Rendered on
+the admin schedule page in the `PLAYOFF`/`COMPLETED` states.
+
 ## `public-schedule.tsx`
 
 `PublicSchedule({ matches })` (Story 3.5) — the read-only «Розклад» tab list, the

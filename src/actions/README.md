@@ -152,25 +152,29 @@ Actions are wired in their feature stories.
   (same "no state restriction" latitude as `players.ts`). The data reads the pages
   need stay imported from `@/data/matches` directly — a `"use server"` file exports
   only callable actions.
-  **`enterMatchResult(tournamentId, matchId, _prev, formData)` (Story 3.6)** — the
-  `MatchResultFormState` (`setErrors` / `formError`) shape. Narrow `requireAdmin()`
-  catch → `getMatchForResult` (not found / not `GROUP` / already has a result →
-  `formError`) → `parseSetsFromForm` (reads `home-N`/`away-N` into a contiguous
-  set list; a gap or a non-integer half → `formError`/`setErrors`) →
-  `validateMatchScore` (`src/domain/validation` — **the sole validator**; a
-  `"Партія N: …"`-prefixed message is mapped back to `setErrors[N]`, anything else
-  is a `formError`) → `createMatchResult` (`"exists"`/`"not_found"` →
-  `formError`) → `revalidatePath` (the public tournament route, the admin schedule
-  page, the match screen, and `/admin/tournaments/${id}` — the first result flips
-  `hasAnyGroupResult`, which the redraw button reads). First-entry only; editing
-  is `editMatchResult`.
+  **`enterMatchResult(tournamentId, matchId, _prev, formData)` (Story 3.6; any
+  stage since Story 4.3)** — the `MatchResultFormState` (`setErrors` /
+  `formError`) shape. Narrow `requireAdmin()` catch → `getMatchForResult` (not
+  found / already has a result → `formError`) → `parseSetsFromForm` (reads
+  `home-N`/`away-N` into a contiguous set list; a gap or a non-integer half →
+  `formError`/`setErrors`) → `validateMatchScore` (`src/domain/validation` —
+  **the sole validator**; a `"Партія N: …"`-prefixed message is mapped back to
+  `setErrors[N]`, anything else is a `formError`) → `createMatchResult`
+  (`"exists"`/`"not_found"` → `formError`) → **when the match is a `SEMIFINAL`,
+  `savePlayoffAdvancement(tournamentId)`** (re-derives the final / third-place
+  pairings — AD-5 "on write"; a failure is logged and swallowed, the render
+  path re-runs it) → `revalidatePath` (the public tournament route, the admin
+  schedule page, the match screen, `/admin/tournaments/${id}`). First-entry
+  only; editing is `editMatchResult`.
   **`editMatchResult(tournamentId, matchId, _prev, formData)` / `removeMatchResult(tournamentId,
-  matchId)` (Story 3.7)** — `editMatchResult` is `enterMatchResult`'s sibling for a
-  match that **already** has a result (`sets.length === 0` → `formError`); same
-  `parseAndValidate` (shared parse + `validateMatchScore` + `Партія N:` mapping)
-  and `revalidateMatchSurfaces` (the shared 4-path helper), writing through
-  `replaceMatchResult`. `removeMatchResult` is the `ActionResult<undefined>` shape
-  (`removePlayer` template): `requireAdmin` → `getMatchForResult` (not found / not
-  `GROUP` → `NOT_FOUND`) → `deleteMatchResult` (`count === 0` → `NOT_FOUND`
-  "Результат уже видалено.") → `revalidateMatchSurfaces` → `{ ok: true }`. Neither
-  has a `Tournament.state` guard (a `COMPLETED` lock is FR-7 / Story 4.5).
+  matchId)` (Story 3.7; any stage since Story 4.3)** — `editMatchResult` is
+  `enterMatchResult`'s sibling for a match that **already** has a result
+  (`sets.length === 0` → `formError`); same `parseAndValidate` and
+  `revalidateMatchSurfaces`, writing through `replaceMatchResult`, and the same
+  `savePlayoffAdvancement` hook for a semifinal. `removeMatchResult` is the
+  `ActionResult<undefined>` shape (`removePlayer` template): `requireAdmin` →
+  `getMatchForResult` (not found → `NOT_FOUND`) → `deleteMatchResult`
+  (`count === 0` → `NOT_FOUND` "Результат уже видалено.") →
+  `savePlayoffAdvancement` for a semifinal → `revalidateMatchSurfaces` →
+  `{ ok: true }`. Neither has a `Tournament.state` guard (a `COMPLETED` lock is
+  FR-7 / Story 4.5).

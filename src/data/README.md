@@ -122,6 +122,19 @@ goes through a named function exported from here — `getPublicTournament`,
   each with its `slot`), then `setTournamentState(…, "PLAYOFF", tx)`. Throws
   only for a true invariant violation (a seeded semifinal missing a
   participant).
+  **`getPlayoffBracket(tournamentId)` / `savePlayoffAdvancement(tournamentId)`
+  (Story 4.3)** — the two `advanceBracket` call sites AD-5 mandates (read and
+  write). `getPlayoffBracket` reads the up-to-four playoff `Match` rows, runs
+  `advanceBracket`, and returns a `PlayoffBracketView` — each pair decorated
+  with `matchId` (null until the row exists), team names, score summary and
+  schedule; the shared read for the admin schedule section and Story 4.6's
+  public bracket. `savePlayoffAdvancement` runs after a semifinal-result
+  mutation: one `db.$transaction` (`SELECT … FOR UPDATE`, then two **flat**
+  queries — not a nested-relation `findMany`, which trips a pg-driver warning
+  right after the raw lock), then `advanceBracket`, then per downstream slot —
+  `PLAYED` skip (frozen), `READY` create-or-update the `FINAL`/`THIRD_PLACE`
+  row, `AWAITING` null out an existing row's participants. Idempotent; never
+  touches a `SEMIFINAL` row.
 - `draw.ts` — `saveDraw(tournamentId, groupId, entryIds, pairings)` (Story
   3.3), the first real writer of `GroupSlot`/`Match`. One `db.$transaction`:
   seats every entry into `GroupSlot`, creates one `GROUP`-stage `Match` per
@@ -149,15 +162,16 @@ goes through a named function exported from here — `getPublicTournament`,
   the caller resolves whether the tournament is public first (the `getEntryByTeam`
   contract). `updateMatchSchedule` sets just those two scheduling columns via
   `updateMany` scoped by `(tournamentId, matchId)` **and** `stage: "GROUP"` →
-  `{ count }` (a mismatched pair or a playoff match writes nothing); never touches
+  `{ count }` (a mismatched `(tournamentId, matchId)` pair writes nothing; a
+  playoff match is a valid target since Story 4.3 — AD-5); never touches
   `SetScore`, so an already-recorded result is unaffected (AC 1).
   **`getMatchForResult(tournamentId, matchId)` / `createMatchResult(tournamentId,
   matchId, sets)` (Story 3.6)** — `getMatchForResult` is the match screen's read
   (team names, stage, schedule, existing `SetScore` rows, the tournament's
   `scoringPreset`/`type`/`discipline`), scoped by the `(tournamentId, matchId)`
   pair. `createMatchResult` records a result in one `db.$transaction`: the match
-  must exist, belong to the tournament, be `stage: "GROUP"`, and have zero
-  `SetScore` rows (first-entry only — editing is Story 3.7); then `createMany`.
+  must exist, belong to the tournament (any stage — group or playoff, since
+  Story 4.3), and have zero `SetScore` rows (first-entry only); then `createMany`.
   Returns `{ ok: true } | { ok: false; reason: "not_found" | "exists" }` — a
   `P2002` from `@@unique([matchId, setNo])` (a concurrent second entry) is caught
   via `errors.ts`'s `isUniqueViolation(err, SET_SCORE_NATURAL_KEY_INDEX)` and
@@ -165,7 +179,7 @@ goes through a named function exported from here — `getPublicTournament`,
   (`enterMatchResult`) has already run `src/domain/validation.ts`.
   `SET_SCORE_NATURAL_KEY_INDEX` is that constraint's Postgres index name.
   **`replaceMatchResult(tournamentId, matchId, sets)` / `deleteMatchResult(tournamentId,
-  matchId)` (Story 3.7)** — the edit and delete paths. `replaceMatchResult` is a
+  matchId)` (Story 3.7; any stage since Story 4.3)** — the edit and delete paths. `replaceMatchResult` is a
   delete-then-insert in one transaction that **re-checks `_count.sets > 0` inside
   the tx** (so a `deleteMatchResult` racing the caller's guard can't be silently
   resurrected — the Story 3.4 redraw pattern) and refuses an empty `sets` array;

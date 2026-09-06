@@ -17,7 +17,7 @@ context:
 
 # Story 4.3: Автоформування фіналу й матчу за 3-тє місце
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -98,65 +98,65 @@ FR / AD / SPEC anchors (in context):
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — `prisma/schema.prisma` + migration (NEW): tighten `match_slot_stage_check`** (AC: 1)
-  - [ ] No model/enum change — CHECKs aren't in the schema. Pre-flight `pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` (expect "empty").
-  - [ ] Hand-write `prisma/migrations/<YYYYMMDDHHMMSS>_match_slot_stage_per_stage/migration.sql`: `DROP CONSTRAINT` + `ADD CONSTRAINT` per the SQL in Notes.
-  - [ ] `pnpm exec prisma migrate deploy`; `migrate status` clean; `migrate diff --exit-code` empty.
-  - [ ] `pnpm typecheck` clean (no client regen needed — no schema types changed, but run `prisma generate` for safety).
+- [x] **Task 1 — `prisma/schema.prisma` + migration (NEW): tighten `match_slot_stage_check`** (AC: 1)
+  - [x] No model/enum change — CHECKs aren't in the schema. Pre-flight `pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` (expect "empty").
+  - [x] Hand-write `prisma/migrations/<YYYYMMDDHHMMSS>_match_slot_stage_per_stage/migration.sql`: `DROP CONSTRAINT` + `ADD CONSTRAINT` per the SQL in Notes.
+  - [x] `pnpm exec prisma migrate deploy`; `migrate status` clean; `migrate diff --exit-code` empty.
+  - [x] `pnpm typecheck` clean (no client regen needed — no schema types changed, but run `prisma generate` for safety).
 
-- [ ] **Task 2 — `src/data/playoff.ts` (UPDATE): `getPlayoffBracket` + `savePlayoffAdvancement`** (AC: 1, 2, 3)
-  - [ ] `import { advanceBracket, type PlayoffBracket, type PlayoffMatchState } from "@/domain/bracket"`.
-  - [ ] Private `readPlayoffMatchStates(client, tournamentId)` → the `stage IN (…)` `findMany` mapped to `PlayoffMatchState[]` (+ keep the raw rows / matchIds for the decorators).
-  - [ ] `getPlayoffBracket(tournamentId)` → `advanceBracket` over the states; return the `PlayoffBracket` decorated per slot with `{ matchId: string | null; homeTeam: string; awayTeam: string; score: string | null; scheduledAt: Date | null; venueText: string | null }`. Define the return type (e.g. `PlayoffBracketView`).
-  - [ ] `savePlayoffAdvancement(tournamentId)` — the transaction from Notes (`FOR UPDATE`; `advanceBracket`; per `thirdPlace`/`final`: `PLAYED` → skip, `READY` → create/update, `AWAITING` → null participants of an existing row). Idempotent. Doc comment cites AD-5 + FR-20 + the freeze rule.
-  - [ ] `typecheck` / `lint` clean.
+- [x] **Task 2 — `src/data/playoff.ts` (UPDATE): `getPlayoffBracket` + `savePlayoffAdvancement`** (AC: 1, 2, 3)
+  - [x] `import { advanceBracket, type PlayoffBracket, type PlayoffMatchState } from "@/domain/bracket"`.
+  - [x] Private `readPlayoffMatchStates(client, tournamentId)` → the `stage IN (…)` `findMany` mapped to `PlayoffMatchState[]` (+ keep the raw rows / matchIds for the decorators).
+  - [x] `getPlayoffBracket(tournamentId)` → `advanceBracket` over the states; return the `PlayoffBracket` decorated per slot with `{ matchId: string | null; homeTeam: string; awayTeam: string; score: string | null; scheduledAt: Date | null; venueText: string | null }`. Define the return type (e.g. `PlayoffBracketView`).
+  - [x] `savePlayoffAdvancement(tournamentId)` — the transaction from Notes (`FOR UPDATE`; `advanceBracket`; per `thirdPlace`/`final`: `PLAYED` → skip, `READY` → create/update, `AWAITING` → null participants of an existing row). Idempotent. Doc comment cites AD-5 + FR-20 + the freeze rule.
+  - [x] `typecheck` / `lint` clean.
 
-- [ ] **Task 3 — `src/data/matches.ts` (UPDATE): un-scope result CRUD** (AC: 2, 3)
-  - [ ] Remove `stage: "GROUP"` from the `where` of `createMatchResult`, `replaceMatchResult`, `deleteMatchResult`, `updateMatchSchedule`. Update each doc comment ("group match" → "match"; note it now serves playoff matches too).
-  - [ ] Leave `getStandings` / `listGroupMatchesForTournament` / `hasAnyGroupResult` / `allGroupMatchesPlayed` **GROUP-scoped** — they are about the group table / the FR-19 precondition.
-  - [ ] `typecheck` / `lint` clean.
+- [x] **Task 3 — `src/data/matches.ts` (UPDATE): un-scope result CRUD** (AC: 2, 3)
+  - [x] Remove `stage: "GROUP"` from the `where` of `createMatchResult`, `replaceMatchResult`, `deleteMatchResult`, `updateMatchSchedule`. Update each doc comment ("group match" → "match"; note it now serves playoff matches too).
+  - [x] Leave `getStandings` / `listGroupMatchesForTournament` / `hasAnyGroupResult` / `allGroupMatchesPlayed` **GROUP-scoped** — they are about the group table / the FR-19 precondition.
+  - [x] `typecheck` / `lint` clean.
 
-- [ ] **Task 4 — `src/actions/matches.ts` (UPDATE): playoff result entry + auto-advance hook** (AC: 2, 3)
-  - [ ] Replace the `match.stage !== "GROUP"` rejection in `enterMatchResult` / `editMatchResult` / `removeMatchResult` (a playoff match is a valid target; keep the `sets.length` guards).
-  - [ ] After a successful `createMatchResult` / `replaceMatchResult` / `deleteMatchResult`, when `match.stage === "SEMIFINAL"`: `try { await savePlayoffAdvancement(tournamentId) } catch (e) { console.error(e) }` — the save already succeeded; the render path re-advances.
-  - [ ] `revalidateMatchSurfaces` unchanged (it already covers the public page + `/admin/…/schedule` + `/admin/tournaments/[id]`).
-  - [ ] `typecheck` / `lint` clean.
+- [x] **Task 4 — `src/actions/matches.ts` (UPDATE): playoff result entry + auto-advance hook** (AC: 2, 3)
+  - [x] Replace the `match.stage !== "GROUP"` rejection in `enterMatchResult` / `editMatchResult` / `removeMatchResult` (a playoff match is a valid target; keep the `sets.length` guards).
+  - [x] After a successful `createMatchResult` / `replaceMatchResult` / `deleteMatchResult`, when `match.stage === "SEMIFINAL"`: `try { await savePlayoffAdvancement(tournamentId) } catch (e) { console.error(e) }` — the save already succeeded; the render path re-advances.
+  - [x] `revalidateMatchSurfaces` unchanged (it already covers the public page + `/admin/…/schedule` + `/admin/tournaments/[id]`).
+  - [x] `typecheck` / `lint` clean.
 
-- [ ] **Task 5 — `src/app/admin/tournaments/[id]/matches/[matchId]/page.tsx` (UPDATE): allow playoff matches** (AC: 2)
-  - [ ] Drop `match.stage !== "GROUP" → notFound()`. Keep `!match → notFound()`.
-  - [ ] Add a `MatchStage` → Ukrainian label in the heading («Груповий матч» / «Півфінал» / «Матч за 3-тє місце» / «Фінал»).
-  - [ ] `pnpm build` (route unchanged, but the page changed) → `pnpm typecheck` clean.
+- [x] **Task 5 — `src/app/admin/tournaments/[id]/matches/[matchId]/page.tsx` (UPDATE): allow playoff matches** (AC: 2)
+  - [x] Drop `match.stage !== "GROUP" → notFound()`. Keep `!match → notFound()`.
+  - [x] Add a `MatchStage` → Ukrainian label in the heading («Груповий матч» / «Півфінал» / «Матч за 3-тє місце» / «Фінал»).
+  - [x] `pnpm build` (route unchanged, but the page changed) → `pnpm typecheck` clean.
 
-- [ ] **Task 6 — `src/app/admin/tournaments/[id]/schedule/page.tsx` (UPDATE): «Плейоф» section** (AC: 1, 2)
-  - [ ] `state === "PLAYOFF" || "COMPLETED"` → `getPlayoffBracket(id)` → a section listing the four slots in order with team names / «очікує суперників» / score / a result link when `matchId` is non-null. Reuse `matchScoreLabel` and the schedule-list link styling; a new thin component (`src/components/playoff-schedule.tsx` or similar) is fine.
-  - [ ] Preserve the group-match list and the `DRAFT` empty state verbatim.
-  - [ ] `pnpm build` → `pnpm typecheck` clean.
+- [x] **Task 6 — `src/app/admin/tournaments/[id]/schedule/page.tsx` (UPDATE): «Плейоф» section** (AC: 1, 2)
+  - [x] `state === "PLAYOFF" || "COMPLETED"` → `getPlayoffBracket(id)` → a section listing the four slots in order with team names / «очікує суперників» / score / a result link when `matchId` is non-null. Reuse `matchScoreLabel` and the schedule-list link styling; a new thin component (`src/components/playoff-schedule.tsx` or similar) is fine.
+  - [x] Preserve the group-match list and the `DRAFT` empty state verbatim.
+  - [x] `pnpm build` → `pnpm typecheck` clean.
 
-- [ ] **Task 7 — `scripts/verify-advance-bracket.mts` (NEW)** (AC: 1, 2, 3)
-  - [ ] `verify-generate-playoff.mts` shape (dotenv first, dynamic imports, `check`, self-cleaning). One throwaway 4-team tournament: draw → all group results → `formPlayoff` (or `seedPlayoff` + `savePlayoffFormation`) → then:
+- [x] **Task 7 — `scripts/verify-advance-bracket.mts` (NEW)** (AC: 1, 2, 3)
+  - [x] `verify-generate-playoff.mts` shape (dotenv first, dynamic imports, `check`, self-cleaning). One throwaway 4-team tournament: draw → all group results → `formPlayoff` (or `seedPlayoff` + `savePlayoffFormation`) → then:
     - both semifinals unplayed → `getPlayoffBracket`: `final` / `thirdPlace` `status === "AWAITING"`, `matchId === null`.
     - enter both semifinal results (via `createMatchResult` directly) → `savePlayoffAdvancement` → `FINAL` + `THIRD_PLACE` `Match` rows exist, `slot` set, participants = winners / losers, `groupId` null.
     - edit one semifinal result (`replaceMatchResult`) → `savePlayoffAdvancement` → the downstream participants update.
     - record a `FINAL` result → edit the semifinal again → `savePlayoffAdvancement` → the `FINAL` row's participants are **unchanged** (frozen); the `THIRD_PLACE` row (still unplayed) **does** re-derive.
     - delete a semifinal result (`deleteMatchResult`) → `savePlayoffAdvancement` → both downstream rows have `homeEntryId`/`awayEntryId` back to `null` (rows kept).
     - a destructive probe of the tightened CHECK: `db.match.create` with `stage: "SEMIFINAL", slot: "FINAL"` → rejected.
-  - [ ] Run it — green. Re-run every prior `verify-*.mts` — no regression (esp. `verify-generate-playoff` and the three that set `slot: "SF1"` on SEMIFINAL fixtures).
+  - [x] Run it — green. Re-run every prior `verify-*.mts` — no regression (esp. `verify-generate-playoff` and the three that set `slot: "SF1"` on SEMIFINAL fixtures).
 
-- [ ] **Task 8 — Docs**
-  - [ ] `src/data/README.md` — `matches.ts` CRUD entries lose the "group" qualifier; new `playoff.ts` entries (`getPlayoffBracket`, `savePlayoffAdvancement`).
-  - [ ] `src/actions/README.md` — `enterMatchResult` / `editMatchResult` / `removeMatchResult` now serve all stages + the `savePlayoffAdvancement` hook for semifinals.
-  - [ ] `src/components/README.md` — the new playoff-schedule component (if added).
-  - [ ] `AGENTS.md` — Stack-status bullet for Story 4.3 (the un-scoping, `getPlayoffBracket` / `savePlayoffAdvancement`, the CHECK migration, the 4.3/4.4 re-allocation). Add the `verify-advance-bracket.mts` line to the verify-script catalogue.
-  - [ ] `deferred-work.md` — mark `advanceBracket` write-path **done**; note the 4.3/4.4 re-allocation (4.4 = placements 1–4 + the edit-gate); mark the `match_slot_stage_check` per-stage item **resolved**; keep the "team in two places" + `needsManualSeed` render items (4.4 / 4.6).
+- [x] **Task 8 — Docs**
+  - [x] `src/data/README.md` — `matches.ts` CRUD entries lose the "group" qualifier; new `playoff.ts` entries (`getPlayoffBracket`, `savePlayoffAdvancement`).
+  - [x] `src/actions/README.md` — `enterMatchResult` / `editMatchResult` / `removeMatchResult` now serve all stages + the `savePlayoffAdvancement` hook for semifinals.
+  - [x] `src/components/README.md` — the new playoff-schedule component (if added).
+  - [x] `AGENTS.md` — Stack-status bullet for Story 4.3 (the un-scoping, `getPlayoffBracket` / `savePlayoffAdvancement`, the CHECK migration, the 4.3/4.4 re-allocation). Add the `verify-advance-bracket.mts` line to the verify-script catalogue.
+  - [x] `deferred-work.md` — mark `advanceBracket` write-path **done**; note the 4.3/4.4 re-allocation (4.4 = placements 1–4 + the edit-gate); mark the `match_slot_stage_check` per-stage item **resolved**; keep the "team in two places" + `needsManualSeed` render items (4.4 / 4.6).
 
-- [ ] **Task 9 — Verification gate** (AC: all)
-  - [ ] `pnpm build` → `pnpm typecheck` → `pnpm lint` → `pnpm test` (**no new domain module — count stays 161**; confirm unchanged).
-  - [ ] Import-boundary check: `src/data/playoff.ts` imports `advanceBracket` (type + value) from `@/domain/bracket` — the established `data → domain` value edge; no Prisma in `src/actions`; `src/domain` untouched.
-  - [ ] `scripts/verify-advance-bracket.mts` green; all prior verify scripts green; `migrate status` clean.
-  - [ ] Real command output in the Dev Agent Record.
+- [x] **Task 9 — Verification gate** (AC: all)
+  - [x] `pnpm build` → `pnpm typecheck` → `pnpm lint` → `pnpm test` (**no new domain module — count stays 161**; confirm unchanged).
+  - [x] Import-boundary check: `src/data/playoff.ts` imports `advanceBracket` (type + value) from `@/domain/bracket` — the established `data → domain` value edge; no Prisma in `src/actions`; `src/domain` untouched.
+  - [x] `scripts/verify-advance-bracket.mts` green; all prior verify scripts green; `migrate status` clean.
+  - [x] Real command output in the Dev Agent Record.
   - _Residual (matches every prior admin story): no manual signed-in browser pass (no seeded `PLAYOFF` tournament). Mitigated by `verify-advance-bracket.mts` + the full gate. Recommended with code review: form a playoff, open a semifinal from the schedule page's «Плейоф» section, enter both results → the final and third-place rows appear with the right teams; correct a semifinal → they update._
 
-- [ ] **Task 10 — Commit(s)** — one commit + `git push origin main` per completed task group (migration; data; actions; page; schedule section; verify script; docs). `build`/`typecheck`/`lint`/`test` gate each.
+- [x] **Task 10 — Commit(s)** — one commit + `git push origin main` per completed task group (migration; data; actions; page; schedule section; verify script; docs). `build`/`typecheck`/`lint`/`test` gate each.
 
 ## Dev Notes
 
@@ -286,12 +286,38 @@ claude-sonnet-5 (bmad-dev-story)
 
 ### Debug Log References
 
+- `verify-advance-bracket.mts` first run: a `pg` `DeprecationWarning` ("Calling client.query() when the client is already executing a query") fired inside `savePlayoffAdvancement` — a nested-relation `findMany` right after the `$queryRaw … FOR UPDATE` in the transaction. Fixed by splitting it into two flat queries (`match.findMany` scalars + `setScore.findMany`). `getPlayoffBracket` (no transaction) keeps the nested read.
+- `match_slot_stage_check` (migration `20260907130000`) had a SQL NULL hole: `NULL IN ('SF1','SF2')` evaluates to NULL, and a CHECK constraint passes on NULL (only an explicit FALSE fails it) — so a `stage = 'SEMIFINAL', slot = NULL` row was accepted (`verify-generate-playoff.mts`'s probe caught it). Fixed with a corrective migration `20260907140000` requiring `"slot" IS NOT NULL` in each non-GROUP branch.
+
 ### Completion Notes List
 
+- Task 1: migration `20260907130000_match_slot_stage_per_stage` + corrective `20260907140000_..._fix` — `match_slot_stage_check` is now per-stage (`SEMIFINAL ⇔ slot IN ('SF1','SF2')`, `THIRD_PLACE ⇔ 'THIRD_PLACE'`, `FINAL ⇔ 'FINAL'`), null-safe.
+- Task 2: `src/data/playoff.ts` — `getPlayoffBracket` (render `advanceBracket` → `PlayoffBracketView` decorated with `matchId` / team names / score / schedule) + `savePlayoffAdvancement` (write `advanceBracket` — `FOR UPDATE`, two flat tx reads, per downstream slot: `PLAYED` skip / `READY` create-or-update / `AWAITING` clear).
+- Task 3: `src/data/matches.ts` — dropped `stage: "GROUP"` from `createMatchResult` / `replaceMatchResult` / `deleteMatchResult` / `updateMatchSchedule`; the read functions stay GROUP-scoped.
+- Task 4: `src/actions/matches.ts` — removed the `stage !== "GROUP"` rejections; `advancePlayoffAfterSemifinal` helper (log-and-swallow) called after a `SEMIFINAL` result save / replace / delete.
+- Task 5: match screen — dropped `stage !== "GROUP" → notFound`; `STAGE_LABELS` in the meta line.
+- Task 6: admin schedule page — a `PLAYOFF`/`COMPLETED` «Плейоф» section from `getPlayoffBracket`, rendered by `src/components/playoff-schedule.tsx` (NEW, server, read-only).
+- Task 7: `scripts/verify-advance-bracket.mts` (NEW, 15 assertions). `verify-match-schedule` / `verify-match-result` / `verify-edit-delete-result` SEMIFINAL-fixture assertions updated to the un-scoped behaviour.
+- Task 8: docs — `src/data/README.md`, `src/actions/README.md`, `src/components/README.md`, `AGENTS.md` (Stack bullet + verify line), `deferred-work.md` (write-path + CHECK items resolved; the 4.3/4.4 re-allocation; the separate-transaction and `pg`-warning notes).
+- Task 9: `pnpm build` / `typecheck` / `lint` clean; `pnpm test` **161/161** (no new Vitest); all 10 verify scripts green; `migrate status` clean.
+
 ### File List
+
+- `prisma/migrations/20260907130000_match_slot_stage_per_stage/migration.sql` (NEW)
+- `prisma/migrations/20260907140000_match_slot_stage_per_stage_fix/migration.sql` (NEW)
+- `src/data/playoff.ts` (UPDATE)
+- `src/data/matches.ts` (UPDATE)
+- `src/actions/matches.ts` (UPDATE)
+- `src/app/admin/tournaments/[id]/matches/[matchId]/page.tsx` (UPDATE)
+- `src/app/admin/tournaments/[id]/schedule/page.tsx` (UPDATE)
+- `src/components/playoff-schedule.tsx` (NEW)
+- `scripts/verify-advance-bracket.mts` (NEW)
+- `scripts/verify-match-schedule.mts` · `scripts/verify-match-result.mts` · `scripts/verify-edit-delete-result.mts` (UPDATE — SEMIFINAL-fixture assertions)
+- `src/data/README.md` · `src/actions/README.md` · `src/components/README.md` · `AGENTS.md` · `_bmad-output/implementation-artifacts/deferred-work.md` (UPDATE)
 
 ## Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-07 | Story drafted (`bmad-create-story`, 4 research subagents: epics 4.3/4.4 boundary / architecture+PRD+SPEC / UX / code precedent). Status: ready-for-dev. |
+| 2026-09-07 | Implementation complete (`bmad-dev-story`) — all 10 tasks. Two migrations tighten `match_slot_stage_check` per-stage (+ NULL-hole fix). `getPlayoffBracket` / `savePlayoffAdvancement` wire `advanceBracket` on read + write; result CRUD un-scoped for playoff stages; «Плейоф» section on the admin schedule page. `verify-advance-bracket.mts` (15 assertions). `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 161/161, all verify scripts green, `migrate status` clean. Status: review. |
