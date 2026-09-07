@@ -33,6 +33,11 @@ export default async function ClassicPage() {
           ))}
         </ul>
       )}
+      <p className="mt-6 text-sm">
+        <Link href="/archive" className="text-muted-foreground underline underline-offset-4">
+          Переглянути архів завершених турнірів
+        </Link>
+      </p>
     </SectionShell>
   );
 }

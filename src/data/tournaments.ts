@@ -84,12 +84,33 @@ export function getPublicTournament(id: string) {
   });
 }
 
-/** The public `/classic` listing — same filter as `getPublicTournament`, every match. */
+/**
+ * The public `/classic` listing — tournaments currently being played. A
+ * `COMPLETED` tournament drops out of this list and shows up in `/archive`
+ * instead (a direct `/classic/[tournament]` link to it still resolves via
+ * `getPublicTournament`).
+ */
 export function listPublicTournaments() {
   return db.tournament.findMany({
-    where: { state: { not: "DRAFT" }, discipline: "CLASSIC" },
+    where: { state: { in: ["GROUP_STAGE", "PLAYOFF"] }, discipline: "CLASSIC" },
     orderBy: [{ year: "desc" }, { name: "asc" }],
     select: { id: true, name: true, type: true, year: true, state: true },
+  });
+}
+
+/** One completed tournament for the read-only archive — the `getPublicTournament` sibling. */
+export function getArchivedTournament(id: string) {
+  return db.tournament.findFirst({
+    where: { id, state: "COMPLETED", discipline: "CLASSIC" },
+  });
+}
+
+/** Every completed CLASSIC tournament, newest year first, for the `/archive` list. */
+export function listArchivedTournaments() {
+  return db.tournament.findMany({
+    where: { state: "COMPLETED", discipline: "CLASSIC" },
+    orderBy: [{ year: "desc" }, { name: "asc" }],
+    select: { id: true, name: true, type: true, year: true },
   });
 }
 

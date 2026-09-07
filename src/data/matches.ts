@@ -1,9 +1,9 @@
 import { db } from "@/data/client";
 import { isRecordNotFound, isUniqueViolation } from "@/data/errors";
 import { Prisma } from "@/generated/prisma/client";
-import type { MatchScheduleInput } from "@/domain/matchSchedule";
-import { computeStandings, type MatchResult, type SetScore } from "@/domain/scoring";
-import { orderStandings, type OrderedStandingsRow } from "@/domain/tiebreak";
+import { formatKyivDateTime, type MatchScheduleInput } from "@/domain/matchSchedule";
+import { computeStandings, matchScoreLabel, type MatchResult, type SetScore } from "@/domain/scoring";
+import { orderStandings, PLAYOFF_QUALIFIERS, type OrderedStandingsRow } from "@/domain/tiebreak";
 
 /** An ordered standings row with its team's display name attached (Story 3.8). */
 export type StandingsView = OrderedStandingsRow & { teamName: string };
@@ -100,6 +100,41 @@ export function listGroupMatchesForTournament(tournamentId: string) {
       },
     },
   });
+}
+
+/**
+ * Flattens `getStandings` output into the row shape the `StandingsTable`
+ * component renders: adds the 1-based position and the "top four advance"
+ * marker (only a distinction when some teams miss the cut).
+ */
+export function standingsTableRows(standings: StandingsView[]) {
+  return standings.map((entry, index) => ({
+    entryId: entry.row.entryId,
+    position: index + 1,
+    teamName: entry.teamName,
+    played: entry.row.played,
+    wins: entry.row.wins,
+    losses: entry.row.losses,
+    points: entry.row.points,
+    setsWon: entry.row.setsWon,
+    setsLost: entry.row.setsLost,
+    qualifies: index < PLAYOFF_QUALIFIERS && standings.length > PLAYOFF_QUALIFIERS,
+    needsManualSeed: entry.needsManualSeed,
+  }));
+}
+
+/** Shapes `listGroupMatchesForTournament` rows for the `PublicSchedule` component (Kyiv date + score label). */
+export function publicScheduleRows(
+  matches: Awaited<ReturnType<typeof listGroupMatchesForTournament>>,
+) {
+  return matches.map((match) => ({
+    id: match.id,
+    homeTeam: match.homeEntry?.team.name ?? "—",
+    awayTeam: match.awayEntry?.team.name ?? "—",
+    scheduledAtDisplay: match.scheduledAt ? formatKyivDateTime(match.scheduledAt) : null,
+    venueText: match.venueText,
+    resultSummary: matchScoreLabel(match.sets),
+  }));
 }
 
 /**

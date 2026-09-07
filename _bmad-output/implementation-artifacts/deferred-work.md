@@ -2,6 +2,14 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from / decided in: Story 4.7 implementation (2026-09-07)
+
+- **`TournamentTabs` parameterisation — decided not-needed.** The Story 4.6 review parked "parameterise `TournamentTabs` off the `/classic` route tree — likely `/archive/[year]/[tournament]` (Story 4.7)". Story 4.7 makes the archive detail page a **single scrollable page** (EXPERIENCE's IA has no `?tab=` for it; FR-23 says «з усіма Таблицями та Сіткою»), so it never renders `TournamentTabs`. The component stays `/classic`-shaped. Supersedes the 3.5-review "`TournamentTabs` is hardcoded to `/classic`" item as far as the archive is concerned.
+- **The archive «Команди» links reuse `/classic/[tournament]/teams/[team]`.** That route uses `resolveTournament`, which resolves `COMPLETED` tournaments, so it already works — a dedicated `/archive/[year]/[tournament]/teams/[team]` route + resolver was not built. Accepted URL wrinkle: from an archive team page the "← back" link points at `/classic/[tournament]`, not `/archive/[year]/[tournament]`. A follow-up could add a `teamHref` param or a nested archive route if this matters.
+- **`/archive` list runs one `getPlayoffBracket` per tournament (`Promise.all`).** For the places-1–4 column. Fine at v1 scale (a federation runs a handful of tournaments per year — NFR-5). A batched read (`match.findMany({ where: { tournamentId: { in: ids }, stage: { in: PLAYOFF_STAGES } } })` → group → `playoffPlacements` per group + resolve names) replaces the loop if the archive ever holds dozens of tournaments.
+- **No `/archive/[year]` index page.** EXPERIENCE's IA lists only `/archive` and `/archive/[year]/[tournament]`; `/archive` links straight to the tournament. `/archive/2026` renders Next's `not-found`. `ARCHIVE_YEAR_EMPTY` (`src/lib/empty-states.ts`) stays authored-but-unused — it was written for a per-year view v1's IA does not have; left in place, not deleted.
+- **No component / page test for `/archive` and `/archive/[year]/[tournament]`.** Standing "no component toolchain" gap. `scripts/verify-archive.mts` covers the data reads (`listArchivedTournaments` / `getArchivedTournament` / the `listPublicTournaments` filter / `standingsTableRows`); the markup is the documented manual pass.
+
 ## Deferred from: code review of 4-6-public-bracket (2026-09-07)
 
 _Implementation review (`bmad-code-review`, 4 layers) over `git diff 390e6c1..5d17f47` (`src/` + `scripts/`). 0 decision-needed, 8 patch, 3 deferred, ~10 dismissed._

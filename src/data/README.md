@@ -44,10 +44,16 @@ goes through a named function exported from here — `getPublicTournament`,
   (a sanctioned `data → domain` type import — see the open item below);
   `getTournamentForAdmin` / `deleteTournamentRecord` take only an `id`.
   **`getPublicTournament(id)` / `listPublicTournaments()` (Story 2.9)** — the
-  first public (role-blind) reads in this file, both filtering
-  `state != DRAFT` **and** `discipline = CLASSIC` unconditionally (AD-7/AD-9);
-  a draft-preview exception, if a caller wants one, is resolved one layer up
-  in the view (see `src/app/classic/[tournament]/page.tsx`), never here.
+  first public (role-blind) reads in this file, filtering `discipline = CLASSIC`
+  unconditionally (AD-7/AD-9); a draft-preview exception, if a caller wants one,
+  is resolved one layer up in the view (see `src/app/classic/[tournament]/page.tsx`),
+  never here. **Since Story 4.7** `listPublicTournaments()` narrows to
+  `state IN (GROUP_STAGE, PLAYOFF)` — a `COMPLETED` tournament leaves the
+  `/classic` list for `/archive`; `getPublicTournament(id)` stays `state != DRAFT`
+  so a direct `/classic/[tournament]` link to a completed tournament still resolves.
+  **`getArchivedTournament(id)` / `listArchivedTournaments()` (Story 4.7)** —
+  the `/archive` reads: `state = COMPLETED` + `discipline = CLASSIC`;
+  `listArchivedTournaments` orders newest year first and selects `{ id, name, type, year }`.
 - `teams.ts` — `listTeams()` (every team, ordered by name — no draft/privacy
   concept, unlike `Tournament`) and `createTeamRecord(input)` — **the sole
   creator of a `Team`**; writes `input.name` and `input.nameKey` as given (both
@@ -169,7 +175,14 @@ goes through a named function exported from here — `getPublicTournament`,
   the two team names, `scheduledAt`/`venueText`, and its `SetScore` rows, ordered
   `scheduledAt` ascending (`nulls: "last"`) then `createdAt`. Visibility-agnostic —
   the caller resolves whether the tournament is public first (the `getEntryByTeam`
-  contract). `updateMatchSchedule` sets just those two scheduling columns via
+  contract).
+  **`standingsTableRows(standings)` / `publicScheduleRows(matches)` (Story 4.7)** —
+  pure projections of `getStandings` / `listGroupMatchesForTournament` output into the
+  row shapes `StandingsTable` / `PublicSchedule` render (position + top-four marker;
+  Kyiv-formatted date + score label). Shared by `/classic/[tournament]` and
+  `/archive/[year]/[tournament]` so the mapping lives in one place; the
+  `formatKyivDateTime` / `matchScoreLabel` / `PLAYOFF_QUALIFIERS` calls are the same
+  `data → domain` value edge `getStandings` already uses. `updateMatchSchedule` sets just those two scheduling columns via
   `updateMany` scoped by `(tournamentId, matchId)` **and** `stage: "GROUP"` →
   `{ count }` (a mismatched `(tournamentId, matchId)` pair writes nothing; a
   playoff match is a valid target since Story 4.3 — AD-5); never touches

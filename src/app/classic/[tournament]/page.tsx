@@ -10,21 +10,15 @@ import { StandingsTable } from "@/components/standings-table";
 import { StatusBadge } from "@/components/status-badge";
 import { normalizeTournamentTab, TournamentTabs } from "@/components/tournament-tabs";
 import { listEntriesForTournament } from "@/data/entries";
-import { getStandings, listGroupMatchesForTournament } from "@/data/matches";
-import { getPlayoffBracket, placementNames, type PlayoffBracketPairView } from "@/data/playoff";
-import { formatKyivDateTime } from "@/domain/matchSchedule";
-import { matchScoreLabel } from "@/domain/scoring";
-import { PLAYOFF_QUALIFIERS } from "@/domain/tiebreak";
+import {
+  getStandings,
+  listGroupMatchesForTournament,
+  publicScheduleRows,
+  standingsTableRows,
+} from "@/data/matches";
+import { getPlayoffBracket, placementNames } from "@/data/playoff";
 import { NO_TEAMS } from "@/lib/empty-states";
 import { resolveTournament } from "../_lib/resolve-tournament";
-
-const toBracketPair = (pair: PlayoffBracketPairView): BracketPairVM => ({
-  slot: pair.slot,
-  status: pair.status,
-  homeTeam: pair.homeTeam,
-  awayTeam: pair.awayTeam,
-  score: pair.score,
-});
 
 export async function generateMetadata({ params }: PageProps<"/classic/[tournament]">) {
   const { tournament: id } = await params;
@@ -50,43 +44,18 @@ export default async function PublicTournamentPage({
 
   const entries = activeTab === "teams" ? await listEntriesForTournament(id) : [];
   const standings = activeTab === "standings" ? await getStandings(id) : [];
-  const standingsRows = standings.map((entry, index) => ({
-    entryId: entry.row.entryId,
-    position: index + 1,
-    teamName: entry.teamName,
-    played: entry.row.played,
-    wins: entry.row.wins,
-    losses: entry.row.losses,
-    points: entry.row.points,
-    setsWon: entry.row.setsWon,
-    setsLost: entry.row.setsLost,
-    // Only a distinction when some teams miss the cut — a group of exactly
-    // PLAYOFF_QUALIFIERS advances whole, so the marker would be noise.
-    qualifies: index < PLAYOFF_QUALIFIERS && standings.length > PLAYOFF_QUALIFIERS,
-    needsManualSeed: entry.needsManualSeed,
-  }));
+  const standingsRows = standingsTableRows(standings);
   const standingsHaveResults = standings.some((entry) => entry.row.played > 0);
 
   const bracket = activeTab === "playoff" ? await getPlayoffBracket(id) : null;
   const bracketPairs: BracketPairVM[] = bracket
-    ? [bracket.semifinals[0], bracket.semifinals[1], bracket.final, bracket.thirdPlace].map(
-        toBracketPair,
-      )
+    ? [bracket.semifinals[0], bracket.semifinals[1], bracket.final, bracket.thirdPlace]
     : [];
   const placementTeamNames = bracket ? placementNames(bracket.placements) : [];
   const hasPlacements = placementTeamNames.some((name) => name !== null);
 
   const matches =
-    activeTab === "schedule"
-      ? (await listGroupMatchesForTournament(id)).map((match) => ({
-          id: match.id,
-          homeTeam: match.homeEntry?.team.name ?? "—",
-          awayTeam: match.awayEntry?.team.name ?? "—",
-          scheduledAtDisplay: match.scheduledAt ? formatKyivDateTime(match.scheduledAt) : null,
-          venueText: match.venueText,
-          resultSummary: matchScoreLabel(match.sets),
-        }))
-      : [];
+    activeTab === "schedule" ? publicScheduleRows(await listGroupMatchesForTournament(id)) : [];
 
   return (
     <main className="mx-auto w-full max-w-[1120px] px-4 py-8">

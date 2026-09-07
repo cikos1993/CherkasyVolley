@@ -14,7 +14,7 @@
 # Timestamps: MM-DD-YYYY HH:MM
 
 generated: 09-02-2026 12:00
-last_updated: 09-07-2026 19:00
+last_updated: 09-07-2026 20:00
 project: Платформа турнірів Федерації волейболу Черкащини
 project_key: NOKEY
 tracking_system: file-system
@@ -62,7 +62,7 @@ development_status:
   4-4-playoff-results-final-placements: done
   4-5-finish-tournament: done
   4-6-public-bracket: done
-  4-7-yearly-archive: backlog
+  4-7-yearly-archive: review
   epic-4-retrospective: optional
 
 # Story key → epics.md heading (hand-generated mapping, since keys are English slugs
