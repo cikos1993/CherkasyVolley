@@ -5,11 +5,12 @@ import { MatchScheduleList } from "@/components/match-schedule";
 import { PlayoffPlacements } from "@/components/playoff-placements";
 import { PlayoffSchedule, type PlayoffScheduleSlot } from "@/components/playoff-schedule";
 import { listGroupMatchesForTournament } from "@/data/matches";
-import { getPlayoffBracket, type PlayoffBracketPairView } from "@/data/playoff";
+import { getPlayoffBracket, placementNames, type PlayoffBracketPairView } from "@/data/playoff";
 import { getTournamentForAdmin } from "@/data/tournaments";
 import { formatKyivDateTime, toKyivDateTimeLocalValue } from "@/domain/matchSchedule";
 import { matchScoreLabel } from "@/domain/scoring";
 import { GROUP_NOT_DRAWN } from "@/lib/empty-states";
+import { PLAYOFF_SLOT_LABELS } from "@/lib/playoff-labels";
 
 export const metadata = { title: "Розклад" };
 
@@ -53,13 +54,9 @@ export default async function AdminTournamentSchedulePage({
   const inPlayoff = tournament.state === "PLAYOFF" || tournament.state === "COMPLETED";
   const bracket = inPlayoff ? await getPlayoffBracket(id) : null;
 
-  const toSlot = (
-    key: string,
-    label: string,
-    pair: PlayoffBracketPairView,
-  ): PlayoffScheduleSlot => ({
-    key,
-    label,
+  const toSlot = (pair: PlayoffBracketPairView): PlayoffScheduleSlot => ({
+    key: pair.slot,
+    label: PLAYOFF_SLOT_LABELS[pair.slot],
     matchId: pair.matchId,
     homeTeam: pair.homeTeam,
     awayTeam: pair.awayTeam,
@@ -67,22 +64,10 @@ export default async function AdminTournamentSchedulePage({
   });
 
   const playoffSlots: PlayoffScheduleSlot[] = bracket
-    ? [
-        toSlot("SF1", "Півфінал 1", bracket.semifinals[0]),
-        toSlot("SF2", "Півфінал 2", bracket.semifinals[1]),
-        toSlot("THIRD_PLACE", "Матч за 3-тє місце", bracket.thirdPlace),
-        toSlot("FINAL", "Фінал", bracket.final),
-      ]
+    ? [bracket.semifinals[0], bracket.semifinals[1], bracket.thirdPlace, bracket.final].map(toSlot)
     : [];
 
-  const placementTeamNames: (string | null)[] = bracket
-    ? [
-        bracket.placements.first?.teamName ?? null,
-        bracket.placements.second?.teamName ?? null,
-        bracket.placements.third?.teamName ?? null,
-        bracket.placements.fourth?.teamName ?? null,
-      ]
-    : [];
+  const placementTeamNames = bracket ? placementNames(bracket.placements) : [];
   const hasPlacements = placementTeamNames.some((name) => name !== null);
 
   return (

@@ -61,6 +61,16 @@ export interface PlayoffPlacementsView {
   fourth: PlayoffPlacementView | null;
 }
 
+/** Places 1–4 as a plain ordered array of team names (null where undecided) — the shape `PlayoffPlacements` renders. */
+export function placementNames(placements: PlayoffPlacementsView): (string | null)[] {
+  return [
+    placements.first?.teamName ?? null,
+    placements.second?.teamName ?? null,
+    placements.third?.teamName ?? null,
+    placements.fourth?.teamName ?? null,
+  ];
+}
+
 export interface PlayoffBracketView {
   semifinals: [PlayoffBracketPairView, PlayoffBracketPairView];
   thirdPlace: PlayoffBracketPairView;

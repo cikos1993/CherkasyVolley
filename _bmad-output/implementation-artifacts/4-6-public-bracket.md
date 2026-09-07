@@ -18,7 +18,7 @@ context:
 
 # Story 4.6: Публічна сітка плейофа
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -165,6 +165,27 @@ Translated from `epics.md` → Epic 4 → Story 4.6. The Ukrainian source is aut
 
 - [x] **Task 6 — Commit(s)** — one commit + `git push origin main` per task group (component; page wiring; verify + docs). Per the standing "commit after each task" instruction.
 
+### Review Findings
+
+_Code review (`bmad-code-review`, 4 layers: Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor) over `git diff 390e6c1..5d17f47` (`src/` + `scripts/`). 0 decision-needed, 8 patch → all applied, 3 deferred, ~10 dismissed. Gate re-run clean: `build` / `typecheck` / `lint`, `pnpm test` 169/169, all 16 verify scripts green, `migrate diff` empty._
+
+#### Patch
+
+- [x] [Review][Patch] `BracketPairVM` drops `status`; `BracketPairCard` re-derives it as `!homeTeam || !awayTeam` `[src/components/bracket.tsx, src/app/classic/[tournament]/page.tsx]` — `PlayoffBracketPairView.status` (`AWAITING`/`READY`/`PLAYED`) is the authoritative field `advanceBracket` computes; the component throws it away and reconstructs an equivalent. Add `status` to `BracketPairVM`, drive the "awaiting" card off `pair.status === "AWAITING"`. (blind-hunter + edge-case-hunter)
+- [x] [Review][Patch] `toBracketPair(slot, pair)` takes an explicit `slot` even though `pair.slot` carries the same literal `[src/app/classic/[tournament]/page.tsx:63-71]` — a caller-side typo (`toBracketPair("SF2", bracket.semifinals[0])`) silently mislabels a card and TypeScript will not catch it. Use `pair.slot`; drop the argument. Also hoist the mapper to module scope (it closes over nothing). (blind-hunter + verification-gap)
+- [x] [Review][Patch] Long team names overflow the flex row → horizontal page scroll on mobile `[src/components/bracket.tsx:180-186]` — `<div className="flex … justify-between">` with a non-shrinking `<span>{home} — {away}</span>` (two ~120-char admin-entered names) pushes past the viewport on `< 640px`; UX-DR14 / EXPERIENCE §Responsive forbid `body` horizontal scroll. Add `min-w-0` to the flex row and the team span, `break-words` on the span. (blind-hunter + edge-case-hunter)
+- [x] [Review][Patch] The bracket has no accessible landmark or heading `[src/components/bracket.tsx]` — `standings-table.tsx` (the cited precedent) wraps its content in `role="region"` + `aria-label`; the playoff tab body is a bare `<div className="grid …">` with per-card `<p>` slot labels and no «Сітка плейофа» region/heading (EXPERIENCE §Accessibility Floor). Wrap the grid in `<section aria-label="Сітка плейофа">` (or a labelled region), inside the component. (blind-hunter + acceptance-auditor)
+- [x] [Review][Patch] The `pairs.length === 0` branch («Сітку ще не сформовано.») is unreachable from its only caller `[src/components/bracket.tsx:34-36, src/components/README.md]` — `bracketPairs` is `[]` only when `bracket` is `null` (tab ≠ playoff → `<Bracket>` not rendered), and `advanceBracket` always returns a full four-pair structure otherwise, so `pairs.length` is always 4. Remove the dead branch (and its inline copy — which bypasses `src/lib/empty-states.ts`); soften the README line that describes it as a real "not yet formed" state. (blind-hunter + verification-gap)
+- [x] [Review][Patch] Playoff slot labels are triplicated `[src/components/bracket.tsx:8-14, src/app/admin/tournaments/[id]/schedule/page.tsx:71-74, src/app/admin/tournaments/[id]/matches/[matchId]/page.tsx:16-18]` — «Півфінал 1/2», «Матч за 3-тє місце», «Фінал» are hand-written in three places (and Story 4.7's archive bracket will be a fourth). Extract `src/lib/playoff-labels.ts` (the `tournament-labels.ts` / `empty-states.ts` precedent); the three files consume it. (blind-hunter)
+- [x] [Review][Patch] `placementTeamNames` extraction + the «Місця» heading are duplicated verbatim between the public and admin surfaces `[src/app/classic/[tournament]/page.tsx:80-88, src/app/admin/tournaments/[id]/schedule/page.tsx:78-86]` — both independently map `getPlayoffBracket().placements` → `(string|null)[]` and gate on `.some(n => n !== null)`. Extract a `placementNames(view)` helper in `src/data/playoff.ts`; both pages call it. (blind-hunter + verification-gap + acceptance-auditor)
+- [x] [Review][Patch] Misleading JSDoc + overstated verify comment `[src/components/bracket.tsx (Bracket doc), scripts/verify-advance-bracket.mts:145-146]` — the `Bracket` doc says pairs arrive as `[SF1, SF2, FINAL, THIRD_PLACE]`, but the body re-filters by slot and never depends on the order (reword: "any order; split into semifinals / decisive by slot"). The new verify comment «Pair-view shape the public Bracket component maps» implies the assertion tests the component; it only inspects `getPlayoffBracket`'s output (reword). Optionally add a `semifinals[1]` / `THIRD_PLACE` `score` assertion to match the existing `semifinals[0]` one. (blind-hunter + verification-gap)
+
+#### Defer
+
+- [x] [Review][Defer] `getPlayoffBracket` → `advanceBracket`'s `indexBySlot` throw is now on an anonymous-traffic path `[src/app/classic/[tournament]/page.tsx:62]` — deferred, restated. A duplicate `(tournamentId, slot)` `Match` row makes `advanceBracket` throw, 500-ing the public playoff tab. The state is unreachable via the sanctioned writers (`savePlayoffFormation`'s `count > 0` + `SELECT … FOR UPDATE`; `savePlayoffAdvancement`'s per-slot create), the app has **no** `error.tsx` anywhere (every page's data reads 500 on throw — an app-wide gap), and the real fix — `@@unique([tournamentId, slot])` as a partial index — is already the schema-follow-up written into `deferred-work.md` for this story. A route-segment `error.tsx` for `/classic/[tournament]` would contain the blast radius app-wide (broader task). (blind-hunter + edge-case-hunter)
+- [x] [Review][Defer] `getPlayoffBracket` blocks the page render — no `Suspense` / `loading.tsx` `[src/app/classic/[tournament]/page.tsx]` — deferred, pre-existing and app-wide. Every public page awaits its `src/data` reads sequentially with no streaming boundary (2.9 / 3.8 reviews: "no caching/revalidation strategy for the app's first anonymous-traffic routes"). `getPlayoffBracket` is a few indexed reads at v1 scale (NFR-5). A cross-cutting `loading.tsx` + `unstable_cache` pass owns this. (blind-hunter)
+- [x] [Review][Defer] No component / page-level test for the bracket wiring `[src/components/bracket.tsx, src/app/classic/[tournament]/page.tsx]` — deferred, standing "no component toolchain" gap. `verify-advance-bracket.mts` covers `getPlayoffBracket`'s pair-view + placement shapes (including the AWAITING/null-teams case at `:226`), but the page mapping (`toBracketPair`, `hasPlacements`) and the component's awaiting-vs-decided render are unverified. The `placementNames` / slot-labels helpers (patches above) become verify-testable once extracted. (verification-gap)
+
 ## Dev Notes
 
 ### What this story is / is NOT
@@ -296,7 +317,10 @@ claude-sonnet-5 (bmad-dev-story)
 ### File List
 
 - `src/components/bracket.tsx` (NEW)
+- `src/lib/playoff-labels.ts` (NEW — review patch: shared `PLAYOFF_SLOT_LABELS`)
 - `src/app/classic/[tournament]/page.tsx` (UPDATE)
+- `src/app/admin/tournaments/[id]/schedule/page.tsx` (UPDATE — review patch: use `PLAYOFF_SLOT_LABELS` + `placementNames`)
+- `src/data/playoff.ts` (UPDATE — review patch: `placementNames(view)` helper)
 - `scripts/verify-advance-bracket.mts` (UPDATE)
 - `src/components/README.md` · `AGENTS.md` · `_bmad-output/implementation-artifacts/deferred-work.md` (UPDATE)
 
@@ -306,3 +330,4 @@ claude-sonnet-5 (bmad-dev-story)
 | --- | --- |
 | 2026-09-07 | Story drafted (`bmad-create-story`). Scope: one new server component `src/components/bracket.tsx` (UX-DR6 / DESIGN «Bracket pair») + wire the existing `getPlayoffBracket` read into the `?tab=playoff` branch of the public tournament page; reuse `PlayoffPlacements` (Story 4.4) for places 1–4. Tab-visibility rule already enforced by `TournamentTabs`. No migration, no route, no domain, no data function. `needsManualSeed`-on-bracket resolved won't-do; `@@unique([tournamentId, slot])` restated as a schema follow-up. `/archive` = Story 4.7. Status: ready-for-dev. |
 | 2026-09-07 | Implementation complete (`bmad-dev-story`) — all 6 tasks. `Bracket` component + `?tab=playoff` wiring via the existing `getPlayoffBracket` read; `PlayoffPlacements` reused for places 1–4. `verify-advance-bracket.mts` extended with the pair-view shape assertions. No migration, no new route/domain/data-function. `pnpm build`/`typecheck`/`lint` clean, `pnpm test` 169/169, all 16 verify scripts green, `migrate` clean. Status: review. |
+| 2026-09-07 | Code review (`bmad-code-review`, 4 layers) — 0 decision-needed, 8 patch, 3 deferred, ~10 dismissed. All 8 patches applied: `BracketPairVM` carries `status` (no re-derive); `toBracketPair` uses `pair.slot`, hoisted to module scope; long team names get `min-w-0 break-words` (no mobile h-scroll); `<section aria-label="Сітка плейофа">` wrapper; dead `pairs.length === 0` branch removed; slot labels → shared `src/lib/playoff-labels.ts` (bracket + admin schedule); `placementNames(view)` helper in `src/data/playoff.ts` (public + admin pages); JSDoc / verify comment reworded. Gate re-run clean (`build`/`typecheck`/`lint`, `pnpm test` 169/169, all 16 verify scripts green, `migrate diff` empty). Status: done. |

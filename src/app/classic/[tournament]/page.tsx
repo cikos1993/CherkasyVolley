@@ -11,12 +11,20 @@ import { StatusBadge } from "@/components/status-badge";
 import { normalizeTournamentTab, TournamentTabs } from "@/components/tournament-tabs";
 import { listEntriesForTournament } from "@/data/entries";
 import { getStandings, listGroupMatchesForTournament } from "@/data/matches";
-import { getPlayoffBracket, type PlayoffBracketPairView } from "@/data/playoff";
+import { getPlayoffBracket, placementNames, type PlayoffBracketPairView } from "@/data/playoff";
 import { formatKyivDateTime } from "@/domain/matchSchedule";
 import { matchScoreLabel } from "@/domain/scoring";
 import { PLAYOFF_QUALIFIERS } from "@/domain/tiebreak";
 import { NO_TEAMS } from "@/lib/empty-states";
 import { resolveTournament } from "../_lib/resolve-tournament";
+
+const toBracketPair = (pair: PlayoffBracketPairView): BracketPairVM => ({
+  slot: pair.slot,
+  status: pair.status,
+  homeTeam: pair.homeTeam,
+  awayTeam: pair.awayTeam,
+  score: pair.score,
+});
 
 export async function generateMetadata({ params }: PageProps<"/classic/[tournament]">) {
   const { tournament: id } = await params;
@@ -60,31 +68,12 @@ export default async function PublicTournamentPage({
   const standingsHaveResults = standings.some((entry) => entry.row.played > 0);
 
   const bracket = activeTab === "playoff" ? await getPlayoffBracket(id) : null;
-  const toBracketPair = (
-    slot: BracketPairVM["slot"],
-    pair: PlayoffBracketPairView,
-  ): BracketPairVM => ({
-    slot,
-    homeTeam: pair.homeTeam,
-    awayTeam: pair.awayTeam,
-    score: pair.score,
-  });
   const bracketPairs: BracketPairVM[] = bracket
-    ? [
-        toBracketPair("SF1", bracket.semifinals[0]),
-        toBracketPair("SF2", bracket.semifinals[1]),
-        toBracketPair("FINAL", bracket.final),
-        toBracketPair("THIRD_PLACE", bracket.thirdPlace),
-      ]
+    ? [bracket.semifinals[0], bracket.semifinals[1], bracket.final, bracket.thirdPlace].map(
+        toBracketPair,
+      )
     : [];
-  const placementTeamNames: (string | null)[] = bracket
-    ? [
-        bracket.placements.first?.teamName ?? null,
-        bracket.placements.second?.teamName ?? null,
-        bracket.placements.third?.teamName ?? null,
-        bracket.placements.fourth?.teamName ?? null,
-      ]
-    : [];
+  const placementTeamNames = bracket ? placementNames(bracket.placements) : [];
   const hasPlacements = placementTeamNames.some((name) => name !== null);
 
   const matches =

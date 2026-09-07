@@ -405,19 +405,22 @@ once at least one place is decided.
 ## `bracket.tsx`
 
 `Bracket({ pairs })` (Story 4.6) — a **server** component, read-only: the public
-playoff bracket on `/classic/[tournament]?tab=playoff`. `pairs` is a
-`BracketPairVM[]` (`slot`, `homeTeam`/`awayTeam: string | null`, `score: string
-| null`) — the page maps `getPlayoffBracket()`'s `PlayoffBracketView` (the
-`playoff-schedule.tsx` `toSlot` precedent; `src/components` may not import
-`@/data`). The component owns the slot → label copy («Півфінал 1/2», «Фінал»,
-«Матч за 3-тє місце»). A pair with a `null` side renders the `bracket-pair-tbd`
-state (white card, `border-dashed`, «очікує суперників» — dashed border + text,
-never colour alone); a decided pair renders `bg-muted rounded-md`, teams left,
-`score` right (`tabular-nums`, omitted when `null`). Layout `grid sm:grid-cols-2`
-— semifinals left, final + third-place right; single stacked column below 640px.
-No winner emphasis (the score and the `PlayoffPlacements` list below carry the
-outcome). `#B0B0B4` (DESIGN's TBD colour) has no token — `border-border` /
-`text-muted-foreground` approximate it, the `standings-table.tsx` precedent.
+playoff bracket on `/classic/[tournament]?tab=playoff`, wrapped in a
+`<section aria-label="Сітка плейофа">`. `pairs` is a `BracketPairVM[]` (`slot`,
+`status: "AWAITING" | "READY" | "PLAYED"`, `homeTeam`/`awayTeam: string | null`,
+`score: string | null`) — the page maps `getPlayoffBracket()`'s
+`PlayoffBracketView` (a trivial per-pair copy; `src/components` may not import
+`@/data`). Slot labels come from `src/lib/playoff-labels.ts`
+(`PLAYOFF_SLOT_LABELS`), shared with the admin schedule section. An `AWAITING`
+pair renders the `bracket-pair-tbd` state (white card, `border-dashed`, «очікує
+суперників» — dashed border + text, never colour alone); a `READY`/`PLAYED` pair
+renders `bg-muted rounded-md`, teams left (`min-w-0 break-words`), `score` right
+(`tabular-nums shrink-0`, omitted when `null`). Layout `grid sm:grid-cols-2` —
+semifinals left, final + third-place right (matched by slot, not array order);
+single stacked column below 640px. No winner emphasis (the score and the
+`PlayoffPlacements` list below carry the outcome). `#B0B0B4` (DESIGN's TBD colour)
+has no token — `border-border` / `text-muted-foreground` approximate it, the
+`standings-table.tsx` precedent.
 
 ## `public-schedule.tsx`
 

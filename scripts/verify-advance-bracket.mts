@@ -142,13 +142,15 @@ try {
       bracket.final.homeTeam === standings[0].teamName &&
       bracket.final.awayTeam === standings[1].teamName,
   );
-  // Pair-view shape the public Bracket component maps: a played semifinal carries
-  // a "X:Y" score, a READY-but-unplayed final carries null, both sides named.
+  // getPlayoffBracket's pair views feed the public bracket: a played pair carries
+  // a "X:Y" score and both team names, a READY-but-unplayed pair carries a null
+  // score. (The AWAITING/null-teams shape is asserted further down.)
   check(
-    "played semifinal pair-view has both team names and a score string",
+    "played semifinal pair-views carry both team names and a score string",
     bracket.semifinals[0].homeTeam !== null &&
       bracket.semifinals[0].awayTeam !== null &&
-      bracket.semifinals[0].score === "3:0",
+      bracket.semifinals[0].score === "3:0" &&
+      bracket.semifinals[1].score === "3:0",
   );
   check("READY final pair-view has a null score", bracket.final.score === null);
   check(

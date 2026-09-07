@@ -2,6 +2,14 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from: code review of 4-6-public-bracket (2026-09-07)
+
+_Implementation review (`bmad-code-review`, 4 layers) over `git diff 390e6c1..5d17f47` (`src/` + `scripts/`). 0 decision-needed, 8 patch, 3 deferred, ~10 dismissed._
+
+- **`advanceBracket`'s duplicate-slot throw is now on an anonymous-traffic path.** `getPlayoffBracket` (which runs `advanceBracket` on every read; `indexBySlot` throws `"two matches for slot X"` on a duplicate) is called from the public `/classic/[tournament]?tab=playoff` branch since this story. A duplicate `(tournamentId, slot)` `Match` row would 500 the public playoff tab. Unreachable via the sanctioned writers (`savePlayoffFormation` / `savePlayoffAdvancement` each create a slot at most once, under a row lock). The real fix is the already-tracked `@@unique([tournamentId, slot])` partial index (a raw-SQL schema follow-up — Prisma 7 can't model it, `migrate diff` drift risk). Separately, the app has **no `error.tsx` anywhere** — a route-segment error boundary for `/classic/[tournament]` would contain any data-read failure (not just this one) to the tab instead of the whole page; that's a broader hardening task.
+- **`getPlayoffBracket` blocks the page render — no `Suspense` / `loading.tsx`.** App-wide: every public page awaits its `src/data` reads sequentially with no streaming boundary. Same class as the tracked "no caching/revalidation strategy for the app's first anonymous-traffic routes" (2.9 / 3.8 reviews). A few indexed reads at v1 scale (NFR-5).
+- **No component / page-level test for the bracket wiring.** `verify-advance-bracket.mts` covers `getPlayoffBracket`'s pair-view + placement shapes (incl. AWAITING/null teams), but `toBracketPair` / `hasPlacements` on the page and the component's awaiting-vs-decided render are unverified — the standing "no component toolchain" gap. The `placementNames` / slot-label helpers extracted by the review patches become verify-script-testable.
+
 ## Deferred from / decided in: Story 4.6 implementation (2026-09-07)
 
 - **`needsManualSeed` on the public bracket — decided won't-do.** `getPlayoffBracket` does not expose it (`advanceBracket` returns `false`; the seed-time flag lives only in `seedPlayoff`'s output at formation). The public **standings** tab (Story 3.8) already carries the "position decided by name fallback" signal (the `*` marker + legend), and the public tournament page defaults to that tab. No FR / UX asks for it on the bracket. Reopen only if a future admin bracket surface wants it (then persist it on `Group` at formation or re-run `seedPlayoff` against fresh standings on render). Supersedes the "`needsManualSeed` on the derived bracket / persisting it — Story 4.6" line from the 4.1 / 4.4 sections.
