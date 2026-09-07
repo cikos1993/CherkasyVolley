@@ -17,10 +17,11 @@ import {
 import { getPlayoffBracket, placementNames } from "@/data/playoff";
 import { getArchivedTournament } from "@/data/tournaments";
 import { NO_TEAMS } from "@/lib/empty-states";
+import { TOURNAMENT_TYPE_LABELS } from "@/lib/tournament-labels";
 
 async function resolve(year: string, id: string) {
   const tournament = await getArchivedTournament(id);
-  if (!tournament || tournament.year !== Number(year)) return null;
+  if (!tournament || !/^\d+$/.test(year) || tournament.year !== Number(year)) return null;
   return tournament;
 }
 
@@ -62,6 +63,27 @@ export default async function ArchivedTournamentPage({
         <h1 className="text-2xl font-bold">{tournament.name}</h1>
         <StatusBadge state={tournament.state} />
       </div>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {TOURNAMENT_TYPE_LABELS[tournament.type]} · {tournament.year}
+      </p>
+
+      <section className="mt-8">
+        <h2 className="text-lg font-semibold">Таблиця</h2>
+        <div className="mt-3">
+          <StandingsTable
+            rows={standingsTableRows(standings)}
+            hasResults={standings.some((entry) => entry.row.played > 0)}
+            tournamentName={tournament.name}
+          />
+        </div>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-lg font-semibold">Розклад</h2>
+        <div className="mt-3">
+          <PublicSchedule matches={publicScheduleRows(matchRows)} />
+        </div>
+      </section>
 
       <section className="mt-8">
         <h2 className="text-lg font-semibold">Команди</h2>
@@ -82,24 +104,6 @@ export default async function ArchivedTournamentPage({
               ))}
             </ul>
           )}
-        </div>
-      </section>
-
-      <section className="mt-8">
-        <h2 className="text-lg font-semibold">Таблиця</h2>
-        <div className="mt-3">
-          <StandingsTable
-            rows={standingsTableRows(standings)}
-            hasResults={standings.some((entry) => entry.row.played > 0)}
-            tournamentName={tournament.name}
-          />
-        </div>
-      </section>
-
-      <section className="mt-8">
-        <h2 className="text-lg font-semibold">Розклад</h2>
-        <div className="mt-3">
-          <PublicSchedule matches={publicScheduleRows(matchRows)} />
         </div>
       </section>
 

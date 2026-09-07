@@ -24,11 +24,14 @@ export default async function ArchivePage() {
     );
   }
 
+  // allSettled, not all: a single tournament whose bracket read throws (a
+  // corrupt playoff row) must not take down the whole index — its places line
+  // is just left blank.
   const placementsById = new Map<string, (string | null)[]>();
   await Promise.all(
     tournaments.map(async (tournament) => {
-      const bracket = await getPlayoffBracket(tournament.id);
-      placementsById.set(tournament.id, placementNames(bracket.placements));
+      const bracket = await getPlayoffBracket(tournament.id).catch(() => null);
+      placementsById.set(tournament.id, bracket ? placementNames(bracket.placements) : []);
     }),
   );
 
@@ -48,6 +51,7 @@ export default async function ArchivePage() {
             <ul className="mt-3 divide-y">
               {yearTournaments.map((tournament) => {
                 const places = placementsById.get(tournament.id) ?? [];
+                const hasPlaces = places.some(Boolean);
                 return (
                   <li key={tournament.id} className="grid gap-1 py-3">
                     <Link
@@ -56,11 +60,13 @@ export default async function ArchivePage() {
                     >
                       {tournament.name} · {TOURNAMENT_TYPE_LABELS[tournament.type]}
                     </Link>
-                    <p className="text-sm text-muted-foreground">
-                      {PLACE_LABELS.map((label, index) => `${label}. ${places[index] ?? "—"}`).join(
-                        " · ",
-                      )}
-                    </p>
+                    {hasPlaces ? (
+                      <p className="text-sm text-muted-foreground">
+                        {PLACE_LABELS.map(
+                          (label, index) => `${label}. ${places[index] ?? "—"}`,
+                        ).join(" · ")}
+                      </p>
+                    ) : null}
                   </li>
                 );
               })}

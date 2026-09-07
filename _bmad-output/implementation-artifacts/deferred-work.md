@@ -2,6 +2,18 @@
 
 Items surfaced during reviews that are real but not actionable in the story that found them.
 
+## Deferred from: code review of 4-7-yearly-archive (2026-09-07)
+
+_Implementation review (`bmad-code-review`, 4 layers) over `git diff 327854a..c186327` (`src/` + `scripts/`). 0 decision-needed, 6 patch, 7 deferred, ~10 dismissed._
+
+- **`advanceBracket`'s duplicate-slot throw is now on the anonymous `/archive` and `/archive/[year]/[tournament]` path.** `getPlayoffBracket` / `playoffPlacements` both run `indexBySlot` (throws on a duplicate `(tournamentId, slot)` `Match` row); no `error.tsx` anywhere → a corrupt row 500s the page. Unreachable via the sanctioned writers; the fix is the tracked `@@unique([tournamentId, slot])` partial-index follow-up. The Story 4.7 review patched `/archive`'s list to `Promise.allSettled` (one bad row no longer takes down the index); a route-segment `error.tsx` for `/archive` (and app-wide) remains a broader hardening task.
+- **The reused public components show draw-pending empty-state copy on an archived record.** `StandingsTable` / `PublicSchedule` render «Групу буде сформовано після жеребкування» and the teams section renders `NO_TEAMS` when their inputs are empty — nonsensical for a finished tournament. Unreachable for a valid `COMPLETED` tournament (the Story 4.5 gate chain guarantees a drawn+played group). If a `setTournamentState`-forced `COMPLETED` path is ever exposed beyond verify scripts, `/archive/[year]/[tournament]` needs its own empty guards.
+- **No `loading.tsx` for the archive routes** — app-wide gap (no route has one), see the 2.9 / 3.8 review items on caching / streaming boundaries.
+- **`resolve()` on the archive detail page queries `getArchivedTournament` twice per load** (`generateMetadata` + body, no `React.cache`) — same pattern as `/classic/[tournament]`'s `resolveTournament` (2.9 review); a cross-cutting `cache()` pass covers both.
+- **`getPublicTournament` keeps serving `COMPLETED` tournaments; the `/classic/[tournament]` copy has no `canonical`/`noindex`.** Deliberate (a shared link must resolve, with the Story 4.5 banner) but the archived tournament now has two public URLs. The app has no SEO/robots/canonical infra (2.9 review). A «← Архів» affordance on `/classic/[tournament]` when `COMPLETED` is a candidate follow-up.
+- **`/archive` list fans `getPlayoffBracket` out per tournament (unbounded).** Batched-read follow-up (one `match.findMany` over all ids → `playoffPlacements` per group) for when the archive holds dozens of tournaments. Fine at v1 scale.
+- **No page/component test** for the two archive routes' markup, `byYear` grouping, or the `resolve()` year-mismatch 404 (`resolve` is page-local, not exported). Standing "no component toolchain" gap; `verify-archive.mts` covers the `src/data` reads.
+
 ## Deferred from / decided in: Story 4.7 implementation (2026-09-07)
 
 - **`TournamentTabs` parameterisation — decided not-needed.** The Story 4.6 review parked "parameterise `TournamentTabs` off the `/classic` route tree — likely `/archive/[year]/[tournament]` (Story 4.7)". Story 4.7 makes the archive detail page a **single scrollable page** (EXPERIENCE's IA has no `?tab=` for it; FR-23 says «з усіма Таблицями та Сіткою»), so it never renders `TournamentTabs`. The component stays `/classic`-shaped. Supersedes the 3.5-review "`TournamentTabs` is hardcoded to `/classic`" item as far as the archive is concerned.

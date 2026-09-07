@@ -10,7 +10,7 @@ config({ path: [".env.local", ".env"] });
 //   - getArchivedTournament is COMPLETED-only;
 //   - listPublicTournaments now excludes COMPLETED but still includes GROUP_STAGE;
 //   - getPublicTournament still resolves a COMPLETED tournament (a direct link);
-//   - standingsTableRows numbers positions and marks the top four.
+//   - standingsTableRows / publicScheduleRows shape rows for the shared components.
 // Full teardown.
 
 const { db } = await import("../src/data/client");
@@ -22,7 +22,7 @@ const {
   getArchivedTournament,
   listArchivedTournaments,
 } = await import("../src/data/tournaments");
-const { standingsTableRows } = await import("../src/data/matches");
+const { standingsTableRows, publicScheduleRows } = await import("../src/data/matches");
 
 let failed = 0;
 function check(label: string, ok: boolean) {
@@ -79,6 +79,10 @@ try {
     "getArchivedTournament returns null for a GROUP_STAGE tournament",
     (await getArchivedTournament(groupStage)) === null,
   );
+  check(
+    "getArchivedTournament returns null for a DRAFT tournament",
+    (await getArchivedTournament(draft)) === null,
+  );
 
   const publicIds = (await listPublicTournaments()).map((t) => t.id);
   check("listPublicTournaments excludes COMPLETED tournaments", !publicIds.includes(completedNew));
@@ -106,6 +110,59 @@ try {
   check(
     "standingsTableRows adds no marker with exactly four teams",
     standingsTableRows(fakeStandings.slice(0, 4)).every((r) => !r.qualifies),
+  );
+  check(
+    "standingsTableRows passes every stat field through unchanged",
+    rows[2].entryId === "e2" &&
+      rows[2].teamName === "T2" &&
+      rows[2].played === 3 &&
+      rows[2].wins === 2 &&
+      rows[2].losses === 1 &&
+      rows[2].points === 6 &&
+      rows[2].setsWon === 6 &&
+      rows[2].setsLost === 3 &&
+      rows[2].needsManualSeed === false,
+  );
+
+  const fakeMatches = [
+    {
+      id: "m1",
+      scheduledAt: new Date("2026-05-01T09:00:00Z"),
+      venueText: "СК Спартак",
+      updatedAt: new Date(),
+      homeEntry: { team: { name: "Господарі" } },
+      awayEntry: { team: { name: "Гості" } },
+      sets: [
+        { setNo: 1, homePoints: 25, awayPoints: 20 },
+        { setNo: 2, homePoints: 25, awayPoints: 18 },
+        { setNo: 3, homePoints: 25, awayPoints: 22 },
+      ],
+    },
+    {
+      id: "m2",
+      scheduledAt: null,
+      venueText: null,
+      updatedAt: new Date(),
+      homeEntry: { team: { name: "Один" } },
+      awayEntry: null,
+      sets: [],
+    },
+  ];
+  const schedule = publicScheduleRows(fakeMatches);
+  check(
+    "publicScheduleRows maps home/away in order and falls back to em dash",
+    schedule[0].homeTeam === "Господарі" &&
+      schedule[0].awayTeam === "Гості" &&
+      schedule[1].homeTeam === "Один" &&
+      schedule[1].awayTeam === "—",
+  );
+  check(
+    "publicScheduleRows: scheduledAtDisplay is a string when scheduled, null otherwise",
+    typeof schedule[0].scheduledAtDisplay === "string" && schedule[1].scheduledAtDisplay === null,
+  );
+  check(
+    "publicScheduleRows: resultSummary is the set-tally label, null with no sets",
+    schedule[0].resultSummary === "3:0" && schedule[1].resultSummary === null,
   );
 } finally {
   for (const id of [completedOld, completedNew, groupStage, draft]) {
