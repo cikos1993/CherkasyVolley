@@ -318,7 +318,7 @@ _Implementation review (`bmad-code-review`, 4 layers) over `git diff 0e485ae..HE
 
 ## Deferred from / decided in: Story 2.6 implementation (2026-09-04)
 
-- **No team edit or delete.** FR-8 / the Story 2.6 AC only cover create-and-reuse. A mistyped team name has no in-app fix short of a direct DB edit, and an unused team can't be removed. Real future work — the natural next owner would be a small "team detail" surface, and delete needs its own `P2003` handling (see the item above).
+- ~~**No team edit or delete.**~~ **Delete added (2026-09-07, on request, outside the Story 2.6 AC):** `deleteTeamRecord` (`src/data/teams.ts`), `isForeignKeyViolation` (P2003) in `errors.ts`, the `deleteTeam` action (`PRECONDITION_FAILED` when the team is entered in a tournament), `DeleteTeamButton` on `/admin/teams`, `scripts/verify-team-delete.mts`. **Team edit is still not built** — a mistyped team name has no in-app fix; the natural owner is a small "team detail" surface.
 - **`createTeam` has no automated action-level test.** Same class of gap as every prior `useActionState` action (`createTournament`, `updateTournament`) — no `requireAdmin`/session-mock infra. Mitigated by `typecheck` + `lint` + `scripts/verify-team-create.mts` (the real data-layer check) + code review.
 - **`team-form.tsx`'s clear-on-success / `router.refresh()` effect has no component test.** Same "no component-test toolchain" gap tracked since the 2-2 review.
 

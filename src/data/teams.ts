@@ -19,5 +19,15 @@ export function createTeamRecord(input: NewTeamInput): Promise<{ id: string }> {
   });
 }
 
+/**
+ * Deletes a team. `TournamentEntry.team` is `onDelete: Restrict`, so a team
+ * that is entered in any tournament raises `P2003` (`isForeignKeyViolation`);
+ * the caller turns that into a friendly refusal. `P2025` when the row is
+ * already gone.
+ */
+export function deleteTeamRecord(id: string) {
+  return db.team.delete({ where: { id } });
+}
+
 /** The Postgres index backing `Team`'s `nameKey @unique`. */
 export const TEAM_NAME_KEY_INDEX = "team_nameKey_key";

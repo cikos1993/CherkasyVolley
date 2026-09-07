@@ -143,6 +143,15 @@ technique as `tournament-form.tsx`'s edit-mode success effect), clears the
 field, fires `notify.success`, and calls `router.refresh()` so the list below
 picks up the newly revalidated data.
 
+## `team-actions.tsx`
+
+`DeleteTeamButton({ teamId, teamName })` — a per-row destructive action on
+`/admin/teams`, the `DeleteTournamentButton` shape: a `ConfirmDialog`
+(`destructive`) around `deleteTeam`. On `!ok` it `notify.error`s the message
+(«Команда бере участь у турнірі — спершу зніміть її заявку.» when the team is
+enrolled) and keeps the dialog effectively resolved; on success `notify.success`
++ `router.refresh()`.
+
 ## `tournament-actions.tsx`
 
 `DeleteTournamentButton({ tournamentId })` — a `ConfirmDialog` wrapping

@@ -35,3 +35,12 @@ export function isUniqueViolation(error: unknown, indexName?: string): boolean {
 export function isRecordNotFound(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025";
 }
+
+/**
+ * True when a delete failed because another row still references it (Prisma
+ * P2003, a foreign-key `onDelete: Restrict` violation) — e.g. deleting a `Team`
+ * that is still entered in a tournament.
+ */
+export function isForeignKeyViolation(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003";
+}

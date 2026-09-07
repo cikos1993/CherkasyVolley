@@ -8,8 +8,10 @@ goes through a named function exported from here — `getPublicTournament`,
 ## Modules
 
 - `errors.ts` — `isUniqueViolation(error, indexName?)` (Prisma `P2002`, optionally
-  narrowed to one constraint by its Postgres index name) and `isRecordNotFound(error)`
-  (Prisma `P2025`). Generic predicates, not entity-specific — originally lived in
+  narrowed to one constraint by its Postgres index name), `isRecordNotFound(error)`
+  (Prisma `P2025`), and `isForeignKeyViolation(error)` (Prisma `P2003` — a delete
+  blocked by an `onDelete: Restrict` FK, e.g. a `Team` still entered in a
+  tournament). Generic predicates, not entity-specific — originally lived in
   `tournaments.ts` (Story 2.4/2.5), extracted here once `teams.ts` became a third
   consumer (Story 2.6). Every entity-specific index-name constant
   (`TOURNAMENT_NATURAL_KEY_INDEX`, `TEAM_NAME_KEY_INDEX`) stays in its own entity
@@ -60,7 +62,9 @@ goes through a named function exported from here — `getPublicTournament`,
   computed together by `validateNewTeam` in `src/domain/teamForm`, a type-only
   `data → domain` import — `createTeamRecord` never re-derives `nameKey` itself).
   `TEAM_NAME_KEY_INDEX` is the Postgres index name backing `nameKey @unique`,
-  used with `errors.ts`'s `isUniqueViolation`.
+  used with `errors.ts`'s `isUniqueViolation`. `deleteTeamRecord(id)` — `db.team.delete`;
+  a team still entered in a tournament raises `P2003` (`onDelete: Restrict`), a gone
+  row `P2025`, both turned into a friendly `ActionResult` by `deleteTeam`.
 - `entries.ts` — `listEntriesForTournament(tournamentId)` (admin read, joined
   `team: { id, name }`), `countTournamentEntries(tournamentId)` (**moved here
   from `tournaments.ts`, Story 2.7** — entry-owned, not tournament-owned;

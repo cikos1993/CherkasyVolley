@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { DeleteTeamButton } from "@/components/team-actions";
 import { TeamForm } from "@/components/team-form";
 import { listTeams } from "@/data/teams";
 
@@ -27,8 +28,12 @@ export default async function AdminTeamsPage() {
       ) : (
         <ul className="mt-6 divide-y">
           {teams.map((team) => (
-            <li key={team.id} className="py-3 text-sm">
+            <li
+              key={team.id}
+              className="flex items-center justify-between gap-3 py-3 text-sm"
+            >
               {team.name}
+              <DeleteTeamButton teamId={team.id} teamName={team.name} />
             </li>
           ))}
         </ul>

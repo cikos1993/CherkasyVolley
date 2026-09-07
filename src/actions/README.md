@@ -81,6 +81,12 @@ Actions are wired in their feature stories.
   (`fieldErrors` / `formError`), the same shape family as `CreateTournamentState`.
   `P2002` (via `@/data/errors`'s `isUniqueViolation`) → "Команда з такою назвою
   вже існує.".
+  **`deleteTeam(teamId)`** — `ActionResult<undefined>`, the `deleteTournament`
+  template: `requireAdmin()` → `deleteTeamRecord`. A team still entered in a
+  tournament → `P2003` (`isForeignKeyViolation`) → `{ ok: false, code:
+  "PRECONDITION_FAILED", message: "Команда бере участь у турнірі — спершу
+  зніміть її заявку." }`; a gone row → `NOT_FOUND`. `revalidatePath("/admin/teams")`.
+  Surface: `DeleteTeamButton` on `/admin/teams`.
 - `entries.ts` — `enrollTeam(tournamentId, teamId)` / `removeTeamEntry(tournamentId,
   entryId)`: `ActionResult<undefined>`, the `admin-roles.ts` shape (not
   `useActionState` — a single-value picker/button, not a multi-field form).

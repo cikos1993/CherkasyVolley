@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
+import { toActionError, type ActionResult } from "@/actions/result";
 import { AdminRequiredError, requireAdmin } from "@/auth/requireAdmin";
-import { isUniqueViolation } from "@/data/errors";
-import { createTeamRecord, TEAM_NAME_KEY_INDEX } from "@/data/teams";
+import { isForeignKeyViolation, isRecordNotFound, isUniqueViolation } from "@/data/errors";
+import { createTeamRecord, deleteTeamRecord, TEAM_NAME_KEY_INDEX } from "@/data/teams";
 import { validateNewTeam, type TeamField } from "@/domain/teamForm";
 
 export type TeamFormState = {
@@ -40,4 +41,32 @@ export async function createTeam(
   revalidatePath("/admin/teams");
 
   return {};
+}
+
+/**
+ * Deletes a team from the directory. Refused (not thrown) when the team is
+ * still entered in a tournament — `TournamentEntry.team` is `onDelete: Restrict`
+ * so the row cannot go while any entry references it. `ActionResult` shape, the
+ * `deleteTournament` template.
+ */
+export async function deleteTeam(teamId: string): Promise<ActionResult<undefined>> {
+  try {
+    await requireAdmin();
+    await deleteTeamRecord(teamId);
+  } catch (error) {
+    if (isForeignKeyViolation(error)) {
+      return {
+        ok: false,
+        code: "PRECONDITION_FAILED",
+        message: "Команда бере участь у турнірі — спершу зніміть її заявку.",
+      };
+    }
+    if (isRecordNotFound(error)) {
+      return { ok: false, code: "NOT_FOUND", message: "Команду не знайдено." };
+    }
+    return toActionError(error);
+  }
+
+  revalidatePath("/admin/teams");
+  return { ok: true, data: undefined };
 }
